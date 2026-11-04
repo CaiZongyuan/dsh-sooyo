@@ -23,7 +23,8 @@ reader. There is **no build step and no dependency**.
 | `docs/design.md` | Architecture, measurements, and the trade-offs behind them |
 | `GLOSSARY.md` | Domain language (Board, Widget, Source, Task…); use these words in code and UI |
 | `docs/adr/` | Decisions that are hard to reverse, e.g. why a Widget is not a Source's card |
-| `prototype/` | Throwaway, zero-dependency HTML prototype of the sooyo daily redesign |
+| `prototype/` | Zero-dependency HTML prototype: the visual and interaction spec of the sooyo daily redesign |
+| `docs/handoff-sooyo-redesign.md` | Start here to implement the redesign: read order, steps, gotchas |
 | `docs/agents/image-generation.md` | How to generate icons and illustrations, and the WebP export rule |
 
 ## Hard constraints

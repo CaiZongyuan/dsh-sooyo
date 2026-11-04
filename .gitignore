@@ -13,3 +13,10 @@ Thumbs.db
 # Local scratch
 tmp/
 *.local.*
+
+# Generated image originals (only the WebP exports under prototype/assets are committed)
+output/
+
+# Prototype: real Items and their covers stay local (AIHOT terms forbid public redistribution)
+prototype/snapshot.js
+prototype/covers/

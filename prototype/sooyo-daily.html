@@ -79,7 +79,8 @@ a { color: inherit; text-decoration: none; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
 svg { display: block; flex: none; }
 .c1, .c2, .c3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
-.c1 { -webkit-line-clamp: 1; } .c2 { -webkit-line-clamp: 2; } .c3 { -webkit-line-clamp: 3; }
+.c1, .c4, .c8 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.c1 { -webkit-line-clamp: 1; } .c2 { -webkit-line-clamp: 2; } .c3 { -webkit-line-clamp: 3; } .c4 { -webkit-line-clamp: 4; } .c8 { -webkit-line-clamp: 8; }
 .grow { flex: 1; min-width: 0; }
 .meta { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mono { font-family: var(--mono); }
@@ -386,6 +387,195 @@ a.chip:hover { color: var(--accent-ink); background: var(--accent-soft); }
 .clk span { font-size: 13px; }
 .clk small { margin-left: auto; font-size: 12px; color: rgba(255, 255, 255, .66); white-space: nowrap; }
 
+/* subscription: personalisation + presentations */
+.chip.match { background: var(--accent-soft); color: var(--accent-ink); gap: 3px; }
+.cat { font-size: 11px; line-height: 1; font-weight: 500; color: color-mix(in srgb, var(--c) 78%, var(--ink)); background: color-mix(in srgb, var(--c) 14%, var(--card)); border-radius: 5px; padding: 4px 6px; flex: none; }
+.cdot { width: 6px; height: 6px; border-radius: 50%; background: var(--c); flex: none; align-self: flex-start; margin-top: 8px; }
+.score { display: inline-grid; place-items: center; min-width: 26px; height: 20px; padding: 0 6px; border-radius: 6px; font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; background: var(--well); color: var(--ink-2); flex: none; }
+.score.hi { background: var(--ink); color: var(--bg); }
+.sc { font-size: 12px; font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; min-width: 20px; text-align: right; flex: none; }
+.seen .tt, .seen .lead-t { color: var(--ink-3); font-weight: 450; }
+.nl-top { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; flex: none; }
+.nl { flex-direction: row; gap: 16px; align-items: flex-start; }
+.nl-cover { flex: 0 0 188px; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: var(--well); max-width: 40%; }
+.nl-cover img { width: 100%; height: 100%; object-fit: cover; }
+.nl-t, .pl-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.tabs { display: flex; gap: 2px; flex: none; overflow-x: auto; scrollbar-width: none; margin-top: -4px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { height: 26px; padding: 0 9px; border-radius: 8px; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
+.tabs button span { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.tabs button:hover { background: var(--well); }
+.tabs button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.tabs button[aria-pressed="true"] span { color: color-mix(in srgb, var(--bg) 65%, transparent); }
+.heat { width: 44px; height: 4px; border-radius: 2px; background: var(--well); flex: none; overflow: hidden; }
+.heat i { display: block; height: 100%; border-radius: 2px; background: linear-gradient(90deg, color-mix(in srgb, var(--t-subscription) 45%, var(--card)), var(--t-subscription)); }
+.up { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 7px; border-radius: 7px; font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; background: color-mix(in srgb, var(--t-readlater) 17%, var(--card)); color: color-mix(in srgb, var(--t-readlater) 70%, var(--ink)); flex: none; }
+.up.big { height: auto; padding: 0; background: none; font-size: 34px; font-weight: 300; letter-spacing: -.03em; gap: 6px; color: var(--ink); align-self: flex-start; }
+.up.big svg { width: 14px; height: 14px; color: var(--t-readlater); }
+.mono-l { font: 500 11px/1 var(--mono); letter-spacing: .04em; color: var(--ink-3); flex: none; white-space: nowrap; }
+.tldr { font-size: 13px; line-height: 1.5; color: var(--ink-2); background: var(--well); border-radius: 10px; padding: 7px 10px; flex: none; }
+.kws { display: flex; flex-wrap: wrap; gap: 4px; height: 20px; overflow: hidden; flex: none; }
+.kws .chip { max-width: none; }
+.links { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; flex: none; }
+.links a { color: var(--ink-2); display: inline-flex; align-items: center; gap: 4px; }
+.links a:hover { color: var(--accent-ink); }
+.links code { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.pl { flex-direction: row; gap: 16px; }
+.pl-fig { flex: 0 0 168px; height: 112px; border-radius: 10px; overflow: hidden; background: #FFFFFF; border: 1px solid var(--line); }
+.pl-fig img { width: 100%; height: 100%; object-fit: contain; }
+.pr .rk-n { font-size: 15px; }
+.ncard { position: relative; flex: 0 0 272px; display: flex; flex-direction: column; gap: 7px; padding: 12px 14px; border-radius: 12px; background: var(--well); min-width: 0; }
+.ncard:hover .acts { display: flex; }
+.fit-x > .ncard { flex: 1 0 260px; }
+.ncard .chip:not(.match) { background: var(--card); }
+.ncard .foot { margin-top: auto; }
+.ncard .acts { top: 8px; right: 8px; transform: none; }
+.reason-plain { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.vt { position: relative; display: block; border-radius: 10px; overflow: hidden; background: var(--well); flex: none; }
+.vt img, .ep img, .s916 img { width: 100%; height: 100%; object-fit: cover; transition: transform .4s ease; display: block; }
+.vt:hover img, .ep:hover img, .s916:hover img { transform: scale(1.045); }
+.vplay { position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: rgba(255, 255, 255, .92); color: #15171C; display: grid; place-items: center; box-shadow: 0 6px 18px rgba(0, 0, 0, .28); transition: transform .2s ease; z-index: 1; }
+.vplay svg { margin-left: 2px; }
+.vt:hover .vplay, .ep:hover .vplay { transform: scale(1.1); }
+.vbadge { position: absolute; left: 8px; bottom: 8px; font-size: 11px; font-weight: 600; color: #FFFFFF; background: rgba(10, 12, 16, .62); padding: 3px 6px; border-radius: 6px; z-index: 1; }
+.vm { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; flex: 1; min-height: 0; }
+.vm .vt { height: 100%; aspect-ratio: 16 / 9; }
+.vm-t { display: flex; flex-direction: column; gap: 6px; min-width: 0; justify-content: center; }
+.vL { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; flex: 1; min-height: 0; }
+.vL-ep { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
+.vL-ep .vt { aspect-ratio: 16 / 9; width: 100%; }
+.vL-sh { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.reel2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: start; }
+.reel2 .s916 { height: auto; width: 100%; }
+.vl { display: grid; grid-template-columns: minmax(0, 46%) minmax(0, 1fr); gap: 16px; flex: none; }
+.vl .vt { aspect-ratio: 16 / 9; }
+.reel { gap: 8px; }
+.s916, .ep { position: relative; flex: 0 0 auto; height: 100%; border-radius: 10px; overflow: hidden; background: var(--well); display: block; }
+.s916 { aspect-ratio: 9 / 16; }
+.ep { aspect-ratio: 16 / 9; border-radius: 12px; }
+.s916::after, .ep::after { content: ""; position: absolute; inset: 35% 0 0; background: linear-gradient(to top, rgba(10, 12, 16, .9), rgba(10, 12, 16, .55) 45%, transparent); }
+.s916 > span { position: absolute; left: 7px; right: 7px; bottom: 7px; z-index: 1; color: #FFFFFF; font-size: 11.5px; line-height: 1.3; }
+.s916 em { font-style: normal; font-weight: 500; }
+.s916 b { display: block; font-weight: 600; font-size: 10.5px; opacity: .8; margin-top: 3px; }
+.ep-t { position: absolute; left: 14px; right: 14px; bottom: 12px; z-index: 1; color: #FFFFFF; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.ep-t b { font-size: 16px; font-weight: 600; line-height: 1.35; }
+.ep-t .mono-l { color: rgba(255, 255, 255, .75); }
+.ep-t > span:last-child { color: rgba(255, 255, 255, .78); }
+/* calendar: next event + day timeline */
+.cal-m { grid-template-columns: 124px minmax(0, 1fr); gap: 22px; }
+.cal-m .cal-d { font-size: 50px; }
+.cal-r { display: flex; flex-direction: column; justify-content: space-between; gap: 8px; min-width: 0; min-height: 0; }
+.nx-l { display: block; font: 500 11px/1.2 var(--mono); letter-spacing: .02em; color: var(--coral); }
+.nx-t { font-size: 16px; font-weight: 600; letter-spacing: -.01em; margin-top: 5px; }
+.nx-m { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tl { flex: none; }
+.tl-track { position: relative; height: 24px; border-radius: 7px; background: var(--well); overflow: hidden; }
+.tl-b { position: absolute; top: 3px; bottom: 3px; border-radius: 5px; background: color-mix(in srgb, var(--c, var(--t-calendar)) 22%, var(--card)); box-shadow: inset 2.5px 0 0 var(--c, var(--t-calendar)); font-size: 10.5px; line-height: 18px; padding: 0 5px 0 7px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-b.past { opacity: .62; filter: saturate(.6); }
+.tl-now { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--coral); }
+.tl-now::before { content: ""; position: absolute; top: -1px; left: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--coral); }
+.tl-ticks { display: flex; justify-content: space-between; font: 10.5px/1.3 var(--mono); color: var(--ink-3); margin-top: 5px; }
+.ag { display: flex; align-items: center; gap: 10px; min-height: 28px; font-size: 13px; flex: none; min-width: 0; }
+.ag code { font-family: var(--mono); font-size: 12px; color: var(--ink-2); width: 40px; flex: none; }
+.ag i { width: 6px; height: 6px; border-radius: 2px; background: var(--c, var(--t-calendar)); flex: none; }
+
+/* 卡片流 (deck) */
+.deck { display: flex; flex-direction: column; flex: 1; min-height: 0; outline: none; }
+.deck:focus-visible .dk-card[data-pos="cur"] { box-shadow: 0 0 0 2px var(--accent); }
+.dk-stage { position: relative; flex: 1; min-height: 0; }
+.dk-card { position: absolute; inset: 0 0 12px; border-radius: 14px; overflow: hidden; background: var(--card); border: 1px solid var(--line-2); box-shadow: 0 1px 2px rgba(16, 18, 24, .05), 0 14px 26px -18px rgba(16, 18, 24, .35); transition: transform .55s cubic-bezier(.2, .85, .25, 1), opacity .35s ease; transform-origin: 50% 100%; opacity: 0; user-select: none; touch-action: pan-y; cursor: grab; }
+.dk-card[data-pos="cur"] { z-index: 3; opacity: 1; }
+.dk-card[data-pos="n1"] { z-index: 2; opacity: 1; transform: translateY(7px) scale(.955); }
+.dk-card[data-pos="n2"] { z-index: 1; opacity: .55; transform: translateY(13px) scale(.91); }
+.dk-card[data-pos="hide"] { transform: translateY(13px) scale(.9); }
+.dk-card[data-pos="past"] { transform: translateX(-118%) rotate(-12deg); }
+.dk-card[data-pos="past"].out-r { transform: translateX(118%) rotate(12deg); }
+.dk-card:not([data-pos="cur"]) { pointer-events: none; }
+.dk-card:not([data-pos="cur"]) .dk-in { filter: saturate(.6); }
+.deck.dragging .dk-card[data-pos="cur"] { transition: none; cursor: grabbing; }
+.deck.no-anim .dk-card { transition: none !important; }
+.dk-in { position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; padding: 16px 18px; }
+.w--m .dk-in { padding: 11px 14px; gap: 6px; }
+.dk-in.center { align-items: center; justify-content: center; text-align: center; gap: 8px; }
+.dk-in.center img { width: 84px; height: 84px; }
+.dk-in.center b { font-size: 16px; }
+.dk-top { display: flex; align-items: center; gap: 6px; min-width: 0; flex: none; }
+.dk-src { font: 600 11px/1 var(--mono); letter-spacing: .04em; color: var(--ink-2); text-transform: uppercase; white-space: nowrap; }
+.dk-time { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.dk-main { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.dk-title { font-size: 17px; font-weight: 650; line-height: 1.32; letter-spacing: -.015em; }
+.dk-title.lg { font-size: 21px; }
+.w--m .dk-title { font-size: 15px; }
+.dk-sum { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
+.dk-sum.tl { background: color-mix(in srgb, var(--card) 70%, transparent); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.w--m .dk-sum.tl { border: 0; padding: 0; background: none; font-size: 12.5px; }
+.dk-meta { font-size: 12px; color: var(--ink-3); }
+.dk-hint { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-3); }
+.dk-art { position: absolute; inset: 0; background: radial-gradient(110% 90% at 100% 0%, color-mix(in srgb, var(--c, var(--accent)) 24%, transparent), transparent 62%), radial-gradient(90% 80% at 0% 100%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%), var(--card); }
+.dk-art.paper { --c: var(--t-readlater); }
+.dk-big { position: absolute; right: 12px; top: -6px; z-index: 0; font-size: 128px; font-weight: 200; line-height: 1; letter-spacing: -.07em; color: color-mix(in srgb, var(--c, var(--t-readlater)) 20%, transparent); pointer-events: none; }
+.paper .dk-big { --c: var(--t-readlater); }
+.w--m .dk-big { font-size: 84px; }
+.dk-bg { position: absolute; inset: 0; }
+.dk-bg img { width: 100%; height: 100%; object-fit: cover; }
+.dk-bg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(10, 12, 16, .9), rgba(10, 12, 16, .45) 55%, rgba(10, 12, 16, .2)); }
+.on-photo .dk-in, .on-photo .dk-title, .on-photo .dk-src { color: #FFFFFF; }
+.on-photo .dk-sum, .on-photo .dk-meta, .on-photo .dk-time { color: rgba(255, 255, 255, .78); }
+.on-photo .chip.match { background: rgba(255, 255, 255, .18); color: #FFFFFF; }
+.dk-card[data-pos="cur"] .dk-bg img { animation: kb 16s ease-out both; }
+@keyframes kb { from { transform: scale(1); } to { transform: scale(1.12) translate(-1.5%, -1%); } }
+.dk-card[data-pos="cur"] .dk-main > * { animation: dkin .55s cubic-bezier(.2, .8, .2, 1) both; }
+.dk-card[data-pos="cur"] .dk-main > :nth-child(2) { animation-delay: .06s; }
+.dk-card[data-pos="cur"] .dk-main > :nth-child(3) { animation-delay: .12s; }
+.dk-card[data-pos="cur"] .dk-main > :nth-child(4) { animation-delay: .18s; }
+@keyframes dkin { from { opacity: 0; transform: translateY(10px); } }
+.stamp { position: absolute; top: 18px; z-index: 5; padding: 5px 12px; border: 2.5px solid currentColor; border-radius: 9px; font-size: 15px; font-weight: 800; letter-spacing: .08em; opacity: 0; pointer-events: none; background: color-mix(in srgb, var(--card) 80%, transparent); }
+.stamp.later { left: 18px; color: var(--ok); transform: rotate(-12deg); }
+.stamp.skip { right: 18px; color: var(--ink-3); transform: rotate(12deg); }
+.paper { perspective: 1400px; background: transparent; border: 0; box-shadow: none; overflow: visible; }
+.flip { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .7s cubic-bezier(.3, .7, .2, 1); }
+.flipped .flip { transform: rotateY(180deg); }
+.face { position: absolute; inset: 0; border-radius: 14px; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: var(--card); border: 1px solid var(--line-2); box-shadow: 0 1px 2px rgba(16, 18, 24, .05), 0 14px 26px -18px rgba(16, 18, 24, .35); }
+.face.back { transform: rotateY(180deg); background: var(--well); }
+.face.back .dk-in { justify-content: flex-start; }
+.face.back .links { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line-2); }
+.dk-abs { margin: 0; font-size: 13px; line-height: 1.58; color: var(--ink); }
+.dk-ctl { display: flex; align-items: center; gap: 8px; flex: none; margin-top: 8px; min-width: 0; }
+.dk-nav { width: 28px; height: 28px; border-radius: 9px; border: 1px solid var(--line-2); font-size: 18px; line-height: 1; color: var(--ink-2); display: grid; place-items: center; flex: none; }
+.dk-nav:hover { color: var(--ink); border-color: var(--ink-3); }
+.dk-dots { display: flex; align-items: center; gap: 4px; flex: none; }
+.dk-dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--line-2); transition: width .35s cubic-bezier(.2, .8, .2, 1), background .3s; }
+.dk-dots i.done { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.dk-dots i.on { width: 20px; background: var(--accent); }
+.dk-dots i.end { display: none; }
+.dk-tip { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.dk-b { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 11px; border-radius: 9px; border: 1px solid var(--line-2); font-size: 12.5px; font-weight: 500; color: var(--ink-2); white-space: nowrap; flex: none; }
+.dk-b:hover { color: var(--ink); border-color: var(--ink-3); }
+.dk-b.pri { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.dk-b:active, .dk-nav:active { transform: scale(.96); }
+.dk-arrow { position: absolute; top: calc(50% - 20px); z-index: 6; width: 28px; height: 28px; border-radius: 50%; background: var(--card); border: 1px solid var(--line-2); box-shadow: var(--shadow); font-size: 17px; line-height: 1; color: var(--ink-2); display: grid; place-items: center; opacity: 0; transition: opacity .2s; }
+.dk-arrow.l { left: -6px; } .dk-arrow.r { right: -6px; }
+.w:hover .dk-arrow { opacity: 1; }
+.deck.v .dk-stage { overflow: hidden; }
+.deck.v .dk-card { inset: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; cursor: pointer; }
+.deck.v .dk-card[data-pos="n1"], .deck.v .dk-card[data-pos="n2"], .deck.v .dk-card[data-pos="hide"] { opacity: 0; transform: translateY(70%); }
+.deck.v .dk-card[data-pos="past"] { opacity: 0; transform: translateY(-70%); }
+.deck.v .dk-in { padding: 0; gap: 6px; justify-content: flex-start; }
+.dk-segs { display: flex; gap: 4px; flex: none; margin-bottom: 10px; }
+.dk-segs i { flex: 1; height: 3px; border-radius: 2px; background: var(--well); overflow: hidden; position: relative; }
+.dk-segs i::after { content: ""; position: absolute; inset: 0; background: var(--ink); transform-origin: left; transform: scaleX(0); }
+.dk-segs i.done::after { transform: scaleX(1); opacity: .35; }
+.dk-segs:not(.auto) i.run::after { transform: scaleX(1); }
+.dk-segs.auto i.run::after { animation: seg 5s linear forwards; }
+.deck:hover .dk-segs i.run::after, .deck:focus-within .dk-segs i.run::after { animation-play-state: paused; }
+@keyframes seg { to { transform: scaleX(1); } }
+.hot-l { display: flex; align-items: baseline; gap: 8px; }
+.hot-n { font-size: 34px; font-weight: 300; line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.hot .dk-title { font-size: 15px; font-weight: 600; }
+.hot-m { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); margin-top: auto; white-space: nowrap; }
+.heat.wide { width: 64px; }
+@container app (max-width: 640px) { .dk-tip, .dk-dots { display: none; } .dk-b { padding: 0 9px; } .dk-title.lg { font-size: 18px; } }
+
 /* states */
 .sk { background: var(--skel); border-radius: 8px; position: relative; overflow: hidden; flex: none; }
 .sk::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--card) 70%, transparent), transparent); animation: shimmer 1.3s infinite; }
@@ -551,6 +741,8 @@ const I = {
   work: '<svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="2.5" y="6" width="15" height="10.5" rx="2.2"/><path d="M7 6V4.6A1.6 1.6 0 0 1 8.6 3h2.8A1.6 1.6 0 0 1 13 4.6V6M2.5 10.5h15"/></svg>',
   life: '<svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5C9 3.5 4 7 4 12.5c0 1.6.6 3 1.4 4M16.5 3.5c0 7.5-4 12-9.6 12.4M8.5 11.5L4 16"/></svg>',
   read: '<svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M10 5.2C8.4 4 6 3.5 3 3.6v11.6c3-.1 5.4.4 7 1.6 1.6-1.2 4-1.7 7-1.6V3.6c-3-.1-5.4.4-7 1.6zM10 5.2v11.6"/></svg>',
+  spark: '<svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><path d="M6 .8l1.2 3.6a1 1 0 0 0 .5.5L11.2 6l-3.5 1.2a1 1 0 0 0-.5.5L6 11.2 4.8 7.7a1 1 0 0 0-.5-.5L.8 6l3.5-1.2a1 1 0 0 0 .5-.5z"/></svg>',
+  up: '<svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><path d="M6 2l4.5 7h-9z"/></svg>',
   board: '<svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="14" height="14" rx="3"/><path d="M3 8h14M8 8v9"/></svg>',
 };
 
@@ -562,11 +754,11 @@ const SAMPLE = (() => {
   return {
     fetchedAt: new Date(base).toISOString(),
     items: [
-      ...mk('aihot', 'https://aihot.news', ['示例：一份开源智能体评测基准的设计笔记', '示例：长上下文模型在代码库问答上的对比', '示例：本地优先应用如何处理同步冲突', '示例：视频理解模型的进展综述', '示例：小模型蒸馏的五条实践经验', '示例：AI 产品的权限与隐私边界', '示例：推理成本下降改变了哪些产品形态', '示例：个人知识库和 Agent 怎么结合'], (i) => ({ score: 86 - i * 3, reason: '示例推荐理由：这是一条手写的示例数据，真实快照不随仓库提交。', origin: '示例来源' })),
+      ...mk('aihot', 'https://aihot.news', ['示例：一份开源智能体评测基准的设计笔记', '示例：长上下文模型在代码库问答上的对比', '示例：本地优先应用如何处理同步冲突', '示例：视频理解模型的进展综述', '示例：小模型蒸馏的五条实践经验', '示例：AI 产品的权限与隐私边界', '示例：推理成本下降改变了哪些产品形态', '示例：个人知识库和 Agent 怎么结合'], (i) => ({ score: 86 - i * 3, reason: '示例推荐理由：这是一条手写的示例数据，真实快照不随仓库提交。', origin: '示例来源', category: ['ai-models', 'paper', 'industry', 'opinion'][i % 4] })),
       ...mk('aihot-hot', 'https://aihot.news', ['示例热点：新一代开源模型发布', '示例热点：主流 IDE 集成 Agent 模式', '示例热点：多家实验室公布对齐研究', '示例热点：端侧模型跑进手机相册', '示例热点：评测基准被指存在泄漏', '示例热点：开源数据集许可争议', '示例热点：机器人基础模型融资', '示例热点：新的长视频生成方法', '示例热点：浏览器内推理提速', '示例热点：学术会议投稿政策调整'], (i) => ({ metrics: { rank: i + 1, sourceCount: 9 - Math.floor(i / 2), signalCount: 30 - i * 2 }, origin: `${9 - Math.floor(i / 2)} 源 · ${30 - i * 2} 信号` })),
-      ...mk('hf-papers', 'https://huggingface.co/papers', ['Sample paper: Scaling test-time compute for agents', 'Sample paper: A benchmark for local-first sync', 'Sample paper: Small models that plan', 'Sample paper: Retrieval for personal knowledge', 'Sample paper: Video tokenizers revisited', 'Sample paper: Reward models under shift'], (i) => ({ metrics: { upvotes: 120 - i * 17, comments: 9 - i }, tags: ['A. Author', 'B. Author'] })),
+      ...mk('hf-papers', 'https://huggingface.co/papers', ['Sample paper: Scaling test-time compute for agents', 'Sample paper: A benchmark for local-first sync', 'Sample paper: Small models that plan', 'Sample paper: Retrieval for personal knowledge', 'Sample paper: Video tokenizers revisited', 'Sample paper: Reward models under shift'], (i) => ({ metrics: { upvotes: 120 - i * 17, comments: 9 - i }, tags: ['A. Author', 'B. Author'], authorCount: 6, tldr: '示例一句话总结：这里会显示 HuggingFace 为论文生成的 TL;DR。', keywords: ['agent', 'benchmark', 'reasoning'] })),
       ...mk('producthunt', 'https://www.producthunt.com', ['Sample Notes', 'Sample Focus', 'Sample Inbox', 'Sample Relay', 'Sample Board', 'Sample Lens'], (i) => ({ summary: ['示例：把会议记录变成任务', '示例：一键进入专注模式', '示例：统一的阅读收件箱', '示例：跨设备剪贴板', '示例：可组合的个人看板', '示例：给网页做批注'][i] })),
-      ...mk('youtube', 'https://www.youtube.com/@DwarkeshPatel', ['Sample episode: How research labs plan compute', 'Sample episode: The history of scaling', 'Sample episode: A conversation on alignment', 'Sample episode: Building tools for thought'], (i) => ({ metrics: { views: 48000 - i * 9000 } })),
+      ...mk('youtube', 'https://www.youtube.com/@DwarkeshPatel', ['Sample episode: How research labs plan compute', 'Sample episode: The history of scaling', 'Sample episode: A conversation on alignment', 'Sample episode: Building tools for thought'], (i) => ({ metrics: { views: 48000 - i * 9000, likes: 900 - i * 120 }, kind: i === 0 ? 'episode' : 'short' })),
     ],
   };
 })();
@@ -654,13 +846,15 @@ function initialData() {
       { id: 'h3', name: '23:30 前睡觉', streak: 5, week: [1, 0, 1, 1, 1, 1, 0] },
     ],
     focus: { total: 25 * 60, left: 25 * 60, running: false, task: 't1', sessions: 3 },
+    interests: ['Agent', '智能体', '安全', '多模态', 'Multimodal', 'reasoning'],
+    seen: new Set(),
   };
 }
 
 // ---------- Widget Types ----------
 const T = {
   task: { name: '任务', pri: 'P0', desc: '今天要做的事，直接勾选完成', sizes: { S: [3, 2], M: [3, 4], L: [6, 4] }, actions: ['勾选完成', '移到今天', '新建任务'] },
-  subscription: { name: '订阅', pri: 'P0', desc: '一个或多个来源的最新内容', sizes: { S: [3, 2], M: [6, 2], L: [6, 4], Wide: [12, 2] }, actions: ['稍后读', '转为任务', '打开原文'] },
+  subscription: { name: '订阅', pri: 'P0', desc: '一个或多个来源的最新内容', sizes: { S: [3, 2], M: [6, 2], L: [6, 4], Wide: [12, 3] }, actions: ['稍后读', '转为任务', '打开原文'] },
   calendar: { name: '日程', pri: 'P0', desc: '今天和这一周的安排', sizes: { S: [3, 2], M: [6, 2], L: [6, 4] }, actions: ['查看日程'] },
   capture: { name: '快速记录', pri: 'P0', desc: '一行记下想法，回车存进收件箱', sizes: { M: [6, 2], Wide: [12, 2] }, actions: ['记一条任务', '记一条 Note'] },
   bookmarks: { name: '书签', pri: 'P0', desc: '常去的网站一键直达', sizes: { S: [3, 2], M: [6, 2], Wide: [12, 2] }, actions: ['打开链接'] },
@@ -694,9 +888,9 @@ function freshState() {
   };
   add('home', 'weather', 'S');
   add('home', 'calendar', 'M');
-  add('home', 'subscription', 'S', { sources: ['aihot-hot'], pres: '榜单', sort: 'rank' }, '热榜');
+  add('home', 'subscription', 'S', { sources: ['aihot-hot'], pres: '榜单', sort: 'rank', deck: true, auto: true }, '热榜');
   add('home', 'capture', 'Wide');
-  add('home', 'subscription', 'L', { sources: ['aihot'], pres: '图文', sort: 'new' }, 'AIHOT 精选');
+  add('home', 'subscription', 'L', { sources: ['aihot'], pres: '图文', sort: 'match', deck: true }, 'AIHOT 精选');
   add('home', 'task', 'M', {});
   add('home', 'focus', 'S');
   add('home', 'project', 'S');
@@ -710,11 +904,11 @@ function freshState() {
   add('life', 'calendar', 'M');
   add('life', 'task', 'S', { project: '生活' });
   add('life', 'bookmarks', 'S');
-  add('read', 'subscription', 'L', { sources: ['aihot'], pres: '图文', sort: 'new' }, 'AIHOT 精选');
-  add('read', 'readlater', 'L');
-  add('read', 'subscription', 'M', { sources: ['hf-papers'], pres: '论文', sort: 'score' }, 'HF 今日论文');
+  add('read', 'subscription', 'L', { sources: ['aihot'], pres: '图文', sort: 'match' }, 'AIHOT 精选');
+  add('read', 'subscription', 'L', { sources: ['hf-papers'], pres: '论文', sort: 'score', deck: true }, 'HF 今日论文');
   add('read', 'subscription', 'S', { sources: ['aihot-hot'], pres: '榜单', sort: 'rank' }, '热榜');
   add('read', 'subscription', 'S', { sources: ['producthunt'], pres: '产品', sort: 'new' }, 'Product Hunt');
+  add('read', 'readlater', 'M');
   add('read', 'subscription', 'Wide', { sources: ['youtube'], pres: '视频', sort: 'new' }, 'Dwarkesh Patel');
   return {
     boards: [
@@ -766,7 +960,7 @@ const monoTile = (name, c) => `<span class="mono-t" style="--c:${c || tint(name)
 const thumbHTML = (item, label) => item.cover ? `<img src="${esc(item.cover)}" alt="" loading="lazy">` : `<div class="gen" style="--c:${tint(item.sourceId + (label || ''))}">${esc(label || SOURCES[item.sourceId]?.short || '')}</div>`;
 const saved = (id) => state.readLater.includes(id);
 const acts = (item) => `<span class="acts"><button data-act="item-later" data-item="${esc(item.id)}" aria-pressed="${saved(item.id)}" aria-label="${saved(item.id) ? '已在稍后读' : '稍后读'}" title="稍后读">${saved(item.id) ? I.bookmarkOn : I.bookmark}</button><button data-act="item-task" data-item="${esc(item.id)}" aria-label="转为任务" title="转为任务">${I.toTask}</button><a href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener noreferrer" aria-label="打开原文" title="打开原文">${I.out}</a></span>`;
-const itemLink = (item, cls, inner) => `<a class="${cls}" href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener noreferrer">${inner}</a>`;
+const itemLink = (item, cls, inner) => `<a class="${cls}" data-open="${esc(item.id)}" href="${esc(safeUrl(item.url))}" target="_blank" rel="noopener noreferrer">${inner}</a>`;
 const metaLine = (item) => {
   const m = item.metrics || {};
   if (item.sourceId === 'hf-papers') return `▲ ${m.upvotes ?? 0} · ${m.comments ?? 0} 评论 · ${relTime(item.publishedAt)}`;
@@ -809,76 +1003,254 @@ R.task = (w, size, cols) => {
     </div>` };
 };
 
-function subItems(w) {
+// ---- subscription: shared vocabulary ----
+const CATS = { 'ai-models': '模型', 'ai-products': '产品', industry: '行业', paper: '论文', opinion: '观点', tip: '技巧' };
+const CAT_C = { 'ai-models': 'var(--t-task)', 'ai-products': 'var(--t-subscription)', industry: 'var(--t-bookmarks)', paper: 'var(--t-project)', opinion: 'var(--t-habit)', tip: 'var(--t-readlater)' };
+const isShort = (it) => (it.kind ? it.kind === 'short' : /\/shorts\//.test(it.url || ''));
+const fmtCount = (n) => (n >= 1e4 ? (n / 1e4).toFixed(n >= 1e5 ? 0 : 1) + ' 万' : Number(n || 0).toLocaleString('en-US'));
+const cleanDesc = (s) => (s || '').split('\n').map((l) => l.trim()).filter((l) => l && !/https?:|[\u{1D400}-\u{1D7FF}]/u.test(l) && !/^[*•\-–]/.test(l)).join(' ').slice(0, 240);
+const matchOf = (item) => {
+  const hay = [item.title, item.summary, item.tldr, item.reason, ...(item.keywords || [])].join(' ').toLowerCase();
+  return state.interests.find((k) => k && hay.includes(k.toLowerCase())) || null;
+};
+const seen = (id) => state.seen.has(id);
+const matchChip = (it) => { const k = matchOf(it); return k ? `<span class="chip match" title="命中你的关注词">${I.spark}${esc(k)}</span>` : ''; };
+const catTag = (it) => (CATS[it.category] ? `<span class="cat" style="--c:${CAT_C[it.category]}">${CATS[it.category]}</span>` : '');
+const scoreBadge = (it) => (it.score != null ? `<span class="score ${it.score >= 80 ? 'hi' : ''}" title="AIHOT 评分">${it.score}</span>` : '');
+
+function subItems(w, opts = {}) {
   const src = w.settings.sources?.length ? w.settings.sources : ['aihot'];
   let items = SNAP.items.filter((i) => src.includes(i.sourceId));
+  if (w.settings.cat && !opts.allCats) items = items.filter((i) => i.category === w.settings.cat);
   const sort = w.settings.sort || 'new';
+  const recent = (a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt);
   if (sort === 'rank') items.sort((a, b) => (a.metrics?.rank ?? 99) - (b.metrics?.rank ?? 99));
   else if (sort === 'score') items.sort((a, b) => ((b.metrics?.upvotes ?? b.score ?? 0) - (a.metrics?.upvotes ?? a.score ?? 0)));
-  else items.sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+  else if (sort === 'match') items.sort((a, b) => (matchOf(b) ? 1 : 0) - (matchOf(a) ? 1 : 0) || recent(a, b));
+  else items.sort(recent);
   return items;
 }
 const subTitle = (w) => w.title || (w.settings.sources || []).map((s) => SOURCES[s]?.label).join(' + ') || '订阅';
-const rankRow = (item, i) => `<div class="row rk-row"><span class="rk-n ${i < 3 ? 'top' : ''}">${item.metrics?.rank ?? i + 1}</span>${itemLink(item, 'grow c1 tt', esc(item.title))}${acts(item)}</div>`;
-const artRow = (item) => `<div class="row">${itemLink(item, 'it-a', `<span class="tt c1">${esc(item.title)}</span><span class="meta">${metaLine(item)}</span>`)}${acts(item)}</div>`;
+const catTabs = (w) => {
+  const all = subItems(w, { allCats: true });
+  const present = [...new Set(all.map((i) => i.category).filter((c) => CATS[c]))];
+  if (present.length < 2) return '';
+  const cur = w.settings.cat || '';
+  return `<div class="tabs" role="tablist">${[['', '全部', all.length], ...present.map((c) => [c, CATS[c], all.filter((i) => i.category === c).length])].map(([k, l, n]) => `<button role="tab" data-act="sub-cat" data-w="${w.id}" data-v="${k}" aria-pressed="${cur === k}">${l}<span>${n}</span></button>`).join('')}</div>`;
+};
+
+// ---- 图文: news ----
+const newsRow = (it) => `<div class="row nr ${seen(it.id) ? 'seen' : ''}"><i class="cdot" style="--c:${CAT_C[it.category] || 'var(--ink-3)'}"></i>${itemLink(it, 'it-a', `<span class="tt c1">${esc(it.title)}</span><span class="meta c1" style="white-space:normal">${CATS[it.category] ? CATS[it.category] + ' · ' : ''}${esc(it.origin || '')} · ${relTime(it.publishedAt)}</span>`)}${matchChip(it)}${it.score != null ? `<span class="sc">${it.score}</span>` : ''}${acts(it)}</div>`;
+const newsLead = (it, big) => `<div class="lead nl ${seen(it.id) ? 'seen' : ''}">${big && it.cover ? itemLink(it, 'nl-cover', `<img src="${esc(it.cover)}" alt="">`) : ''}<div class="nl-t"><div class="nl-top">${scoreBadge(it)}${catTag(it)}${matchChip(it)}</div>${itemLink(it, `lead-t ${big ? 'lg' : ''} c${big ? 2 : 3}`, esc(it.title))}${big && it.reason ? `<div class="reason c2">${esc(it.reason)}</div>` : ''}<span class="meta c1" style="white-space:normal">${esc(it.origin || '')} · ${relTime(it.publishedAt)}</span></div>${acts(it)}</div>`;
+const newsCard = (it) => `<div class="ncard ${seen(it.id) ? 'seen' : ''}"><div class="nl-top">${scoreBadge(it)}${catTag(it)}${matchChip(it)}</div>${itemLink(it, 'lead-t c3', esc(it.title))}${it.reason ? `<div class="reason-plain c4">${esc(it.reason)}</div>` : ''}<span class="meta c1 foot" style="white-space:normal">${esc(it.origin || '')} · ${relTime(it.publishedAt)}</span>${acts(it)}</div>`;
+
+// ---- 榜单: hot list ----
+const heatMax = (items) => Math.max(1, ...items.map((i) => i.metrics?.signalCount || 0));
+const rankRow = (max) => (item, i) => `<div class="row rk-row ${seen(item.id) ? 'seen' : ''}"><span class="rk-n ${i < 3 ? 'top' : ''}">${item.metrics?.rank ?? i + 1}</span>${itemLink(item, 'grow c1 tt', esc(item.title))}${item.metrics?.signalCount ? `<span class="heat" title="${esc(item.origin || '')}"><i style="width:${Math.round((item.metrics.signalCount / max) * 100)}%"></i></span>` : ''}${acts(item)}</div>`;
+
+// ---- 产品 ----
 const prodRow = (item) => `<div class="row">${monoTile(item.title)}${itemLink(item, 'it-a', `<span class="tt c1">${esc(item.title)}</span><span class="meta c1" style="white-space:normal">${esc(item.summary || '')}</span>`)}${acts(item)}</div>`;
-const mediaRow = (item, pres) => `<div class="media-row"><div class="thumb">${thumbHTML(item)}${pres === '视频' ? `<div class="play"><span>${I.play}</span></div>` : ''}</div>${itemLink(item, 'it-a', `<span class="tt c2">${esc(item.title)}</span><span class="meta">${metaLine(item)}</span>`)}${acts(item)}</div>`;
-const tileHTML = (item, pres, i) => `<div class="tile"><div class="thumb">${pres === '榜单' ? `<div class="gen big" style="--c:var(--t-subscription)">${item.metrics?.rank ?? i + 1}</div>` : pres === '产品' ? `<div class="gen big" style="--c:${tint(item.title)}">${esc([...item.title][0])}</div>` : thumbHTML(item)}${pres === '视频' ? `<div class="play"><span>${I.play}</span></div>` : ''}</div>${itemLink(item, 'it-a', `<span class="tt c2">${esc(item.title)}</span>`)}${acts(item)}</div>`;
-const rowFor = (pres) => (pres === '榜单' ? rankRow : pres === '产品' ? prodRow : pres === '论文' || pres === '视频' ? (it) => mediaRow(it, pres) : artRow);
+const prodCard = (it) => `<div class="ncard">${monoTile(it.title)}${itemLink(it, 'lead-t c1', esc(it.title))}<div class="meta c3" style="white-space:normal;line-height:1.5">${esc(it.summary || '')}</div>${acts(it)}</div>`;
+
+// ---- 论文: papers ----
+const up = (it, cls = '') => `<span class="up ${cls}" title="HuggingFace 点赞">${I.up}${it.metrics?.upvotes ?? it.score ?? 0}</span>`;
+const authorsLine = (it) => (it.tags?.length ? `${esc(it.tags[0])}${(it.authorCount || it.tags.length) > 1 ? ` 等 ${it.authorCount || it.tags.length} 人` : ''}` : '');
+const kwChips = (it, n) => {
+  const k = matchOf(it);
+  const rest = (it.keywords || []).filter((x) => !k || !x.toLowerCase().includes(k.toLowerCase())).slice(0, k ? n - 1 : n);
+  return `<div class="kws">${k ? `<span class="chip match">${I.spark}${esc(k)}</span>` : ''}${rest.map((x) => `<span class="chip">${esc(x)}</span>`).join('')}</div>`;
+};
+const paperLinks = (it) => { const id = (it.url.match(/papers\/([\d.]+)/) || [])[1]; return `<div class="links"><a href="${esc(safeUrl(it.url))}" target="_blank" rel="noopener noreferrer">论文${id ? ` <code>${id}</code>` : ''} ${I.out}</a>${it.altUrl ? `<a href="${esc(safeUrl(it.altUrl))}" target="_blank" rel="noopener noreferrer">代码${it.metrics?.stars ? ` ★ ${fmtCount(it.metrics.stars)}` : ''} ${I.out}</a>` : ''}${it.project ? `<a href="${esc(safeUrl(it.project))}" target="_blank" rel="noopener noreferrer">项目页 ${I.out}</a>` : ''}</div>`; };
+const paperRow = (it, i, withSub) => `<div class="row pr ${seen(it.id) ? 'seen' : ''}"><span class="rk-n">${i}</span>${itemLink(it, 'it-a', `<span class="tt c1">${esc(it.title)}</span>${withSub ? `<span class="meta c1" style="white-space:normal">${esc(it.tldr || authorsLine(it))}</span>` : ''}`)}${matchOf(it) ? `<span class="chip match">${I.spark}${esc(matchOf(it))}</span>` : ''}${up(it)}${acts(it)}</div>`;
+const paperLead = (it) => `<div class="lead pl">${it.cover ? itemLink(it, 'pl-fig', `<img src="${esc(it.cover)}" alt="论文配图">`) : ''}<div class="pl-t"><div class="nl-top"><span class="mono-l">#1 今日</span>${up(it)}<span class="meta">${it.metrics?.comments ?? 0} 条讨论 · ${authorsLine(it)}</span></div>${itemLink(it, 'lead-t lg c2', esc(it.title))}${it.tldr ? `<div class="tldr c2">${esc(it.tldr)}</div>` : ''}${kwChips(it, 4)}${paperLinks(it)}</div>${acts(it)}</div>`;
+const paperCard = (it, i) => `<div class="ncard"><div class="nl-top"><span class="mono-l">#${i + 1}</span>${up(it)}<span class="meta">${it.metrics?.comments ?? 0} 条讨论</span></div>${itemLink(it, 'lead-t c2', esc(it.title))}<div class="reason-plain c4">${esc(it.tldr || it.summary)}</div><div class="foot">${kwChips(it, 3)}</div>${acts(it)}</div>`;
+
+// ---- 视频: episodes and Shorts ----
+const vImg = (it) => (it.cover ? `<img src="${esc(it.cover)}" alt="" loading="lazy">` : `<div class="gen" style="--c:var(--t-subscription)">${esc(SOURCES[it.sourceId]?.short || '')}</div>`);
+const vThumb = (it, cls = '') => itemLink(it, `vt ${cls}`, `${vImg(it)}<span class="vplay">${I.play}</span>${it.metrics?.views ? `<span class="vbadge">${fmtCount(it.metrics.views)} 次观看</span>` : ''}`);
+const vMeta = (it) => `${relTime(it.publishedAt)}${it.metrics?.views ? ` · ${fmtCount(it.metrics.views)} 次观看` : ''}${it.metrics?.likes ? ` · ${fmtCount(it.metrics.likes)} 赞` : ''}`;
+const shortCard = (it) => itemLink(it, 's916', `${vImg(it)}<span><em class="c2">${esc(it.title)}</em><b>${fmtCount(it.metrics?.views || 0)} 次观看</b></span>`).replace('<a ', `<a title="${esc(it.title)}" `);
+const epCard = (it) => itemLink(it, 'ep', `${vImg(it)}<span class="vplay">${I.play}</span><span class="ep-t"><span class="mono-l">${isShort(it) ? 'SHORTS' : '最新节目'}</span><b class="c2">${esc(it.title)}</b><span>${vMeta(it)}</span></span>`);
+
+// ---- 卡片流 (deck): one Item at a time ----
+const deckIdx = {};
+let deckHold = null;
+const DECK_N = 10;
+const stamps = '<div class="stamp later">稍后读</div><div class="stamp skip">跳过</div>';
+function newsDeckCard(it, k, size) {
+  const big = size !== 'M';
+  const bg = it.cover ? `<div class="dk-bg"><img src="${esc(it.cover)}" alt=""></div>` : `<div class="dk-art"></div>${it.score != null ? `<div class="dk-big">${it.score}</div>` : ''}`;
+  return `<article class="dk-card news ${it.cover ? 'on-photo' : ''}" data-k="${k}" data-item="${esc(it.id)}" style="--c:${CAT_C[it.category] || 'var(--t-subscription)'}">${bg}
+    <div class="dk-in"><div class="dk-top"><span class="dk-src">${esc(SOURCES[it.sourceId]?.short || '')}</span>${catTag(it)}${matchChip(it)}<span class="grow"></span><span class="dk-time">${relTime(it.publishedAt)}</span></div>
+    <div class="dk-main">${big && it.score != null && it.cover ? scoreBadge(it) : ''}${itemLink(it, `dk-title c${big ? 2 : 2}${big ? ' lg' : ''}`, esc(it.title))}${big && it.reason ? `<p class="dk-sum c2">${esc(it.reason)}</p>` : ''}${big ? `<span class="dk-meta c1">${esc(it.origin || '')}</span>` : ''}</div></div>${stamps}</article>`;
+}
+function paperDeckCard(it, k, size) {
+  const big = size !== 'M';
+  const front = `<div class="face front"><div class="dk-art paper"></div><div class="dk-big">#${k + 1}</div><div class="dk-in"><div class="dk-top"><span class="dk-src">HF 论文 · #${k + 1}</span>${up(it)}<span class="dk-time">${it.metrics?.comments ?? 0} 条讨论</span></div>
+    <div class="dk-main">${itemLink(it, `dk-title c2${big ? '' : ''}`, esc(it.title))}${it.tldr ? `<p class="dk-sum tl c${big ? 3 : 1}">${esc(it.tldr)}</p>` : ''}${big ? kwChips(it, 4) : ''}${big ? `<span class="dk-hint">${I.reset} 点卡片翻面看摘要</span>` : ''}</div></div></div>`;
+  const back = `<div class="face back"><div class="dk-in"><div class="dk-top"><span class="dk-src">摘要</span><span class="grow"></span><span class="dk-time">${authorsLine(it)}</span></div><p class="dk-abs c${big ? 8 : 3}">${esc(it.summary || it.tldr || '')}</p>${big ? paperLinks(it) : ''}</div></div>`;
+  return `<article class="dk-card paper" data-k="${k}" data-item="${esc(it.id)}"><div class="flip">${front}${back}</div>${stamps}</article>`;
+}
+function hotDeckCard(it, k, max) {
+  return `<article class="dk-card hot" data-k="${k}" data-item="${esc(it.id)}"><div class="dk-in"><div class="hot-l"><span class="hot-n">${it.metrics?.rank ?? k + 1}</span><span class="dk-time">${relTime(it.publishedAt)}</span></div>${itemLink(it, 'dk-title c3', esc(it.title))}<div class="hot-m"><span class="heat wide"><i style="width:${Math.round(((it.metrics?.signalCount || 0) / max) * 100)}%"></i></span><span>${esc(it.origin || '')}</span></div></div></article>`;
+}
+function deckView(w, size, items, pres, sub) {
+  const list = items.slice(0, DECK_N);
+  const v = size === 'S';
+  const max = heatMax(list);
+  const card = (it, k) => (pres === '论文' ? paperDeckCard(it, k, size) : v || pres === '榜单' ? hotDeckCard(it, k, max) : newsDeckCard(it, k, size));
+  const end = v ? '' : `<div class="dk-card dk-end" data-k="${list.length}"><div class="dk-in center"><img data-asset="ill-done" src="${asset('ill-done')}" alt="" onerror="this.remove()"><b>这 ${list.length} 条都看完了</b><span class="meta" data-dk-stat></span><button class="mini" data-act="dk-restart" data-w="${w.id}">从头再看</button></div></div>`;
+  const auto = v && w.settings.auto && !reduceMotion;
+  const segs = v ? `<div class="dk-segs ${auto ? 'auto' : ''}">${list.map(() => '<i></i>').join('')}</div>` : '';
+  const isPaper = pres === '论文';
+  const ctl = size === 'L' || size === 'Wide' ? `<div class="dk-ctl"><button class="dk-nav" data-act="dk-prev" data-w="${w.id}" aria-label="上一条">‹</button><div class="dk-dots">${list.map(() => '<i></i>').join('')}<i class="end"></i></div><button class="dk-nav" data-act="dk-next" data-w="${w.id}" aria-label="下一条">›</button><span class="dk-tip">拖动卡片：右滑稍后读，左滑跳过</span><span class="grow"></span>${isPaper ? `<button class="dk-b" data-act="dk-skip" data-w="${w.id}">${I.x}跳过</button><button class="dk-b" data-act="dk-flip" data-w="${w.id}">${I.reset}翻面</button>` : `<button class="dk-b" data-act="dk-task" data-w="${w.id}">${I.toTask}转为任务</button>`}<button class="dk-b pri" data-act="dk-later" data-w="${w.id}">${I.bookmark}稍后读</button></div>` : '';
+  const arrows = size === 'M' ? `<button class="dk-arrow l" data-act="dk-prev" data-w="${w.id}" aria-label="上一条">‹</button><button class="dk-arrow r" data-act="dk-next" data-w="${w.id}" aria-label="下一条">›</button>` : '';
+  return { sub, noHeader: v, cls: 'w--deck', html: `<div class="deck ${v ? 'v' : ''}" data-deck="${w.id}" tabindex="0" aria-roledescription="卡片流" aria-label="${esc(subTitle(w))}，左右方向键切换">${v ? `<div class="s-lab" style="margin-bottom:8px">${ic('subscription', 16)}${esc(subTitle(w))}</div>` : ''}${segs}<div class="dk-stage">${list.map(card).join('')}${end}${arrows}</div>${ctl}</div>` };
+}
+function layoutDeck(deck) {
+  const wid = deck.dataset.deck;
+  const cards = [...deck.querySelectorAll('.dk-card')];
+  const n = cards.length;
+  const i = Math.min(deckIdx[wid] || 0, n - 1);
+  deckIdx[wid] = i;
+  for (const c of cards) {
+    const d = Number(c.dataset.k) - i;
+    c.dataset.pos = d < 0 ? 'past' : d === 0 ? 'cur' : d === 1 ? 'n1' : d === 2 ? 'n2' : 'hide';
+    if (d >= 0) c.classList.remove('out-r');
+    if (d !== 0) c.classList.remove('flipped');
+    c.setAttribute('aria-hidden', String(d !== 0));
+  }
+  deck.querySelectorAll('.dk-dots i').forEach((dot, k) => { dot.className = (k === i ? 'on' : k < i ? 'done' : '') + (dot.classList.contains('end') || k === n - 1 && !deck.classList.contains('v') && k === deck.querySelectorAll('.dk-dots i').length - 1 ? ' end' : ''); });
+  const segs = [...deck.querySelectorAll('.dk-segs i')];
+  segs.forEach((s, k) => { s.className = k < i ? 'done' : ''; });
+  if (segs[i]) { void segs[i].offsetWidth; segs[i].className = 'run'; }
+  const total = deck.classList.contains('v') ? n : n - 1;
+  const head = deck.closest('.w')?.querySelector('.w-t span');
+  if (head) head.textContent = i >= total ? `已看完 ${total} 条` : `第 ${i + 1} / ${total} 条 · ${subItems(state.widgets[wid] || { settings: {} }).filter(matchOf).length} 条命中关注`;
+  const stat = deck.querySelector('[data-dk-stat]');
+  if (stat) { const ids = cards.map((c) => c.dataset.item).filter(Boolean); stat.textContent = `存了 ${ids.filter(saved).length} 条到稍后读`; }
+}
+function deckGo(wid, delta, out) {
+  const deck = document.querySelector(`.deck[data-deck="${wid}"]`); if (!deck) return;
+  const n = deck.querySelectorAll('.dk-card').length;
+  let i = (deckIdx[wid] || 0) + delta;
+  if (deck.classList.contains('v')) i = (i + n) % n; else i = Math.max(0, Math.min(n - 1, i));
+  const cur = deck.querySelector('[data-pos="cur"]');
+  if (delta > 0 && cur) { cur.classList.toggle('out-r', out === 'r'); if (cur.dataset.item) state.seen.add(cur.dataset.item); }
+  deckIdx[wid] = i; layoutDeck(deck);
+}
+function deckAct(wid, what) {
+  const deck = document.querySelector(`.deck[data-deck="${wid}"]`); if (!deck) return;
+  const cur = deck.querySelector('[data-pos="cur"]'); const id = cur?.dataset.item;
+  if (what === 'flip') { cur?.classList.toggle('flipped'); return; }
+  if (!id) return;
+  deckHold = wid;
+  if (what === 'later') { if (!saved(id)) toggleLater(id); else toast('已经在稍后读里了'); deckGo(wid, 1, 'r'); }
+  else if (what === 'task') { itemToTask(id); deckGo(wid, 1, 'r'); }
+  else if (what === 'skip') { deckGo(wid, 1, 'l'); }
+  deckHold = null;
+}
 
 R.subscription = (w, size) => {
   const items = subItems(w);
   const pres = w.settings.pres || SOURCES[w.settings.sources?.[0]]?.pres || '图文';
   const title = subTitle(w);
-  const sub = `${items.length} 条 · ${fetchedHM} 更新`;
+  const nMatch = items.filter(matchOf).length;
+  const sub = `${items.length} 条${nMatch ? ` · ${nMatch} 条命中关注` : ''} · ${fetchedHM} 更新`;
   if (!items.length) return emptyView(w, size);
+  if (w.settings.deck) return deckView(w, size, items, pres, sub);
+  const max = heatMax(items);
+
+  if (pres === '视频') {
+    const eps = items.filter((i) => !isShort(i)); const shorts = items.filter(isShort);
+    const lead = eps[0] || items[0]; const rest = shorts.filter((s) => s !== lead);
+    if (size === 'S') return { cls: lead.cover ? 'w--photo' : '', bg: lead.cover ? `<div class="bgimg"><img src="${esc(lead.cover)}" alt=""></div>` : '', html: `<div class="s-lab">${isShort(lead) ? 'Shorts' : '最新节目'} · ${esc(title)}</div><div>${itemLink(lead, 's-title c2', esc(lead.title))}<div class="meta" style="margin-top:4px">${vMeta(lead)}</div></div>${acts(lead)}` };
+    const desc = cleanDesc(lead.summary);
+    const info = (clamp) => `<div class="vm-t"><span class="mono-l">${isShort(lead) ? 'SHORTS' : '最新节目'} · ${esc(lead.origin || '')}</span>${itemLink(lead, `lead-t ${clamp > 2 ? 'lg' : ''} c${Math.min(clamp, 3)}`, esc(lead.title))}<span class="meta">${vMeta(lead)}</span>${clamp > 2 && desc ? `<div class="reason-plain c3">${esc(desc)}</div>` : ''}${rest.length ? `<span class="meta">还有 ${rest.length} 条 Shorts</span>` : ''}</div>`;
+    if (size === 'M') return { sub, html: `<div class="vm">${vThumb(lead)}${info(2)}</div>${acts(lead)}` };
+    if (size === 'Wide') return { sub, html: `<div class="fit-x reel">${epCard(lead)}${rest.map(shortCard).join('')}</div>` };
+    return { sub, html: `<div class="vL"><div class="vL-ep">${vThumb(lead)}<div class="vm-t" style="justify-content:flex-start"><span class="mono-l">${isShort(lead) ? 'SHORTS' : '最新节目'} · ${relTime(lead.publishedAt)}</span>${itemLink(lead, 'lead-t c2', esc(lead.title))}<span class="meta">${vMeta(lead).replace(relTime(lead.publishedAt) + ' · ', '')}</span>${desc ? `<div class="reason-plain c2">${esc(desc)}</div>` : ''}</div></div>${rest.length ? `<div class="vL-sh"><div class="agenda-h" style="padding-top:0">SHORTS · ${rest.length}</div><div class="fit reel2">${rest.map(shortCard).join('')}</div></div>` : ''}</div>` };
+  }
+
+  if (pres === '论文') {
+    const lead = items[0];
+    if (size === 'S') return { html: `<div class="s-lab">${esc(title)} · #1</div><div style="display:flex;flex-direction:column;gap:6px">${up(lead, 'big')}${itemLink(lead, 's-title c3', esc(lead.title))}</div>${kwChips(lead, 2)}` };
+    if (size === 'M') return { sub, html: `<div class="m-split"><div class="lead"><div class="nl-top"><span class="mono-l">#1 今日</span>${up(lead)}</div>${itemLink(lead, 'lead-t c2', esc(lead.title))}${lead.tldr ? `<div class="meta c2" style="white-space:normal;line-height:1.45">${esc(lead.tldr)}</div>` : ''}${acts(lead)}</div><div class="list fit">${items.slice(1, 6).map((it, i) => paperRow(it, i + 2, false)).join('')}</div></div>` };
+    if (size === 'Wide') return { sub, html: `<div class="fit-x" style="gap:12px">${items.slice(0, 8).map(paperCard).join('')}</div>` };
+    return { sub, html: `${paperLead(lead)}<div class="list fit">${items.slice(1, 8).map((it, i) => paperRow(it, i + 2, true)).join('')}</div>` };
+  }
+
+  if (pres === '榜单') {
+    if (size === 'S') return { html: `<div class="s-lab">${ic('subscription', 16)}${esc(title)}</div><div class="list fit" style="margin-top:8px">${items.slice(0, 5).map(rankRow(max)).join('')}</div>` };
+    if (size === 'M') return { sub, html: `<div class="grid2 r3">${items.slice(0, 6).map(rankRow(max)).join('')}</div>` };
+    if (size === 'Wide') return { sub, html: `<div class="grid2 r3" style="grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(4,auto)">${items.slice(0, 12).map(rankRow(max)).join('')}</div>` };
+    return { sub, html: `<div class="list fit">${items.slice(0, 10).map(rankRow(max)).join('')}</div>` };
+  }
+
+  if (pres === '产品') {
+    const lead = items[0];
+    if (size === 'S') return { deco: 'subscription', html: `<div class="s-lab">${esc(title)}</div><div class="s-narrow" style="display:flex;flex-direction:column;gap:6px">${monoTile(lead.title)}${itemLink(lead, 's-title c1', esc(lead.title))}<div class="meta c2" style="white-space:normal">${esc(lead.summary || '')}</div></div>` };
+    if (size === 'M') return { sub, html: `<div class="grid2" style="row-gap:4px">${items.slice(0, 4).map(prodRow).join('')}</div>` };
+    if (size === 'Wide') return { sub, html: `<div class="fit-x" style="gap:12px">${items.slice(0, 8).map(prodCard).join('')}</div>` };
+    return { sub, html: `<div class="list fit">${items.slice(0, 9).map(prodRow).join('')}</div>` };
+  }
+
+  // 图文
   const lead = items[0];
   if (size === 'S') {
-    if (pres === '榜单') return { html: `<div class="s-lab">${ic('subscription', 16)}${esc(title)}</div><div class="list fit" style="margin-top:8px">${items.slice(0, 5).map(rankRow).join('')}</div>` };
     if (lead.cover) return { cls: 'w--photo', bg: `<div class="bgimg"><img src="${esc(lead.cover)}" alt=""></div>`, html: `<div class="s-lab">${esc(title)}</div><div>${itemLink(lead, 's-title c3', esc(lead.title))}<div class="meta" style="margin-top:4px">${metaLine(lead)}</div></div>${acts(lead)}` };
-    if (pres === '产品') return { deco: 'subscription', html: `<div class="s-lab">${esc(title)}</div><div class="s-narrow" style="display:flex;flex-direction:column;gap:6px">${monoTile(lead.title)}${itemLink(lead, 's-title c1', esc(lead.title))}<div class="meta c2" style="white-space:normal">${esc(lead.summary || '')}</div></div>` };
-    return { deco: 'subscription', html: `<div class="s-lab">${esc(title)}</div><div class="s-narrow">${itemLink(lead, 's-title c3', esc(lead.title))}<div class="meta" style="margin-top:4px">${metaLine(lead)}</div></div>` };
+    return { deco: 'subscription', html: `<div class="s-lab">${esc(title)}</div><div class="s-narrow"><div class="nl-top" style="margin-bottom:6px">${scoreBadge(lead)}${matchChip(lead)}</div>${itemLink(lead, 's-title c3', esc(lead.title))}</div><div class="meta">${relTime(lead.publishedAt)}</div>` };
   }
-  if (size === 'Wide') return { sub, html: `<div class="fit-x">${items.slice(0, 8).map((it, i) => tileHTML(it, pres, i)).join('')}</div>` };
-  if (size === 'M') {
-    if (pres === '榜单') return { sub, html: `<div class="grid2 r3">${items.slice(0, 6).map(rankRow).join('')}</div>` };
-    if (pres === '论文' || pres === '视频') return { sub, html: `<div class="grid2 fit tight" style="row-gap:8px">${items.slice(0, 4).map((it) => mediaRow(it, pres)).join('')}</div>` };
-    if (pres === '产品') return { sub, html: `<div class="grid2" style="row-gap:4px">${items.slice(0, 4).map(prodRow).join('')}</div>` };
-    return { sub, html: `<div class="m-split"><div class="lead">${lead.score != null ? `<span class="chip chip-score" style="align-self:flex-start">${lead.score} 分</span>` : ''}${itemLink(lead, 'lead-t c3', esc(lead.title))}<span class="meta">${metaLine(lead)}</span>${acts(lead)}</div><div class="list fit">${items.slice(1, 6).map(artRow).join('')}</div></div>` };
-  }
-  // L
-  if (pres === '榜单') return { sub, html: `<div class="list fit">${items.slice(0, 10).map(rankRow).join('')}</div>` };
-  if (pres === '产品') return { sub, html: `<div class="list fit">${items.slice(0, 9).map(prodRow).join('')}</div>` };
-  const leadHTML = lead.cover
-    ? `<div class="lead"><div class="cover">${itemLink(lead, '', `<img src="${esc(lead.cover)}" alt="">`)}</div>${itemLink(lead, 'lead-t c2', esc(lead.title))}<span class="meta">${metaLine(lead)}</span>${acts(lead)}</div>`
-    : `<div class="lead">${lead.score != null ? `<span class="chip chip-score" style="align-self:flex-start">${lead.score} 分 · ${esc(lead.origin || '')}</span>` : ''}${itemLink(lead, 'lead-t lg c2', esc(lead.title))}${lead.reason ? `<div class="reason c2">${esc(lead.reason)}</div>` : ''}<span class="meta">${relTime(lead.publishedAt)}</span>${acts(lead)}</div>`;
-  return { sub, html: `${leadHTML}<div class="list fit">${items.slice(1, 9).map(rowFor(pres)).join('')}</div>` };
+  if (size === 'M') return { sub, html: `<div class="m-split">${newsLead(lead, false)}<div class="list fit">${items.slice(1, 6).map(newsRow).join('')}</div></div>` };
+  if (size === 'Wide') return { sub, html: `<div class="fit-x" style="gap:12px">${items.slice(0, 8).map(newsCard).join('')}</div>` };
+  return { sub, html: `${catTabs(w)}${newsLead(lead, true)}<div class="list fit">${items.slice(1, 10).map(newsRow).join('')}</div>` };
 };
 
+// ---- calendar ----
+const toMin = (hm) => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
+const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
 function evState(ev) {
   if (ev.d !== 0) return '';
-  const now = new Date(); const hm = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
-  if (hm >= ev.e) return 'past';
-  if (hm >= ev.s) return 'now';
+  const n = nowMin();
+  if (n >= toMin(ev.e)) return 'past';
+  if (n >= toMin(ev.s)) return 'now';
   return '';
 }
 const evHTML = (ev) => { const st = evState(ev); return `<div class="ev ${st === 'past' ? 'past' : ''}" style="${ev.c ? `--c:${ev.c}` : ''}"><div style="min-width:0"><div class="ev-t c1">${esc(ev.t)}</div><div class="ev-h">${st === 'now' ? '<span class="now">进行中 · </span>' : ''}${ev.s}–${ev.e}<span class="meta"> · ${esc(ev.p)}</span></div></div></div>`; };
 const nextEvent = () => EVENTS.find((e) => e.d === 0 && evState(e) !== 'past') || null;
+const untilText = (ev) => {
+  if (evState(ev) === 'now') return `进行中 · 还剩 ${toMin(ev.e) - nowMin()} 分钟`;
+  const m = toMin(ev.s) - nowMin(); const h = Math.floor(m / 60);
+  return `下一个 · 还有 ${h ? h + ' 小时 ' : ''}${m % 60} 分`;
+};
+const TL0 = 8; const TL1 = 24;
+function timeline(day = 0) {
+  const span = (TL1 - TL0) * 60;
+  const pct = (min) => Math.max(0, Math.min(100, ((min - TL0 * 60) / span) * 100));
+  const blocks = EVENTS.filter((e) => e.d === day).map((e) => { const l = pct(toMin(e.s)); const w = Math.max(1.6, pct(toMin(e.e)) - l); return `<span class="tl-b ${evState(e) === 'past' ? 'past' : ''}" style="left:${l}%;width:${w}%;${e.c ? `--c:${e.c}` : ''}" title="${e.s} ${esc(e.t)}">${w > 5 ? esc(e.t) : ''}</span>`; }).join('');
+  const n = nowMin();
+  const now = day === 0 && n >= TL0 * 60 && n <= TL1 * 60 ? `<i class="tl-now" style="left:${pct(n)}%" title="现在"></i>` : '';
+  return `<div class="tl"><div class="tl-track">${blocks}${now}</div><div class="tl-ticks">${[8, 10, 12, 14, 16, 18, 20, 22, 24].map((h) => `<span>${pad2(h)}</span>`).join('')}</div></div>`;
+}
+function nextBlock() {
+  const nx = nextEvent();
+  if (nx) return `<div class="nx" style="${nx.c ? `--c:${nx.c}` : ''}"><span class="nx-l">${untilText(nx)}</span><div class="nx-t c1">${esc(nx.t)}</div><div class="nx-m c1">${nx.s}–${nx.e} · ${esc(nx.p)}</div></div>`;
+  const tm = EVENTS.find((e) => e.d === 1);
+  return `<div class="nx"><span class="nx-l" style="color:var(--ink-3)">今天的日程都结束了${tm ? ' · 明天第一件' : ''}</span>${tm ? `<div class="nx-t c1">${esc(tm.t)}</div><div class="nx-m c1">明天 ${tm.s}–${tm.e} · ${esc(tm.p)}</div>` : '<div class="nx-t">好好休息</div>'}</div>`;
+}
 R.calendar = (w, size) => {
   const d = new Date();
   const dateBlock = `<div class="cal-s"><div class="cal-d">${d.getDate()}</div><div class="cal-w"><b>星期${WEEK[d.getDay()]}</b><span>${d.getFullYear()}年${d.getMonth() + 1}月</span></div></div>`;
   const today = EVENTS.filter((e) => e.d === 0);
   const nx = nextEvent();
   const tomorrow = EVENTS.find((e) => e.d === 1);
-  if (size === 'S') return { html: `${dateBlock}${nx ? evHTML(nx) : `<div class="meta" style="white-space:normal">今天没有更多日程${tomorrow ? `<br>明天 ${tomorrow.s} ${esc(tomorrow.t)}` : ''}</div>`}` };
-  const upcoming = today.filter((e) => evState(e) !== 'past');
-  const sub = `今天 ${today.length} 项`;
-  const nextDay = EVENTS.filter((e) => e.d === 1);
-  const mList = upcoming.length ? upcoming.map(evHTML).join('') : `<div class="agenda-h" style="padding-top:0">今天的日程都结束了 · 明天</div>${nextDay.map(evHTML).join('')}`;
-  if (size === 'M') return { sub, html: `<div class="cal-m">${dateBlock}<div class="list fit" style="gap:6px">${mList}</div></div>` };
+  if (size === 'S') return { html: `${dateBlock}${nx ? `<div><div class="nx-l" style="margin-bottom:4px">${untilText(nx)}</div>${evHTML(nx)}</div>` : `<div class="meta" style="white-space:normal">今天没有更多日程${tomorrow ? `<br>明天 ${tomorrow.s} ${esc(tomorrow.t)}` : ''}</div>`}` };
+  const left = today.filter((e) => evState(e) !== 'past').length;
+  const sub = `今天 ${today.length} 项${left ? ` · 还剩 ${left} 项` : ' · 已全部结束'}`;
+  if (size === 'M') return { sub, html: `<div class="cal-m">${dateBlock}<div class="cal-r">${nextBlock()}${timeline(0)}</div></div>` };
   const days = [...Array(7)].map((_, i) => { const x = new Date(d); x.setDate(d.getDate() + i); return x; });
-  return { sub, html: `<div class="week">${days.map((x, i) => `<div class="day ${i === 0 ? 'today' : ''}"><small>${i === 0 ? '今天' : '周' + WEEK[x.getDay()]}</small><b>${x.getDate()}</b><i class="${EVENTS.some((e) => e.d === i) ? 'has' : ''}"></i></div>`).join('')}</div>
-    <div class="list fit" style="gap:6px">${[0, 1, 2, 3, 4].map((di) => { const evs = EVENTS.filter((e) => e.d === di); if (!evs.length) return ''; return `<div class="agenda-h">${di === 0 ? '今天' : di === 1 ? '明天' : '周' + WEEK[days[di].getDay()]}</div>` + evs.map(evHTML).join(''); }).join('')}</div>` };
+  const agenda = [1, 2, 3, 4, 5, 6].map((di) => { const evs = EVENTS.filter((e) => e.d === di); if (!evs.length) return ''; return `<div class="agenda-h">${di === 1 ? '明天' : '周' + WEEK[days[di].getDay()]} · ${days[di].getMonth() + 1}/${days[di].getDate()}</div>` + evs.map((e) => `<div class="ag" style="${e.c ? `--c:${e.c}` : ''}"><code>${e.s}</code><i></i><span class="c1 grow">${esc(e.t)}</span><span class="meta">${esc(e.p)}</span></div>`).join(''); }).join('');
+  return { sub, html: `<div class="cal-m" style="flex:none">${dateBlock}<div class="cal-r">${nextBlock()}${timeline(0)}</div></div><div class="week">${days.map((x, i) => `<div class="day ${i === 0 ? 'today' : ''}"><small>${i === 0 ? '今天' : '周' + WEEK[x.getDay()]}</small><b>${x.getDate()}</b><i class="${EVENTS.some((e) => e.d === i) ? 'has' : ''}"></i></div>`).join('')}</div><div class="list fit">${agenda}</div>` };
 };
 
 R.capture = (w, size) => {
@@ -1085,6 +1457,8 @@ function renderWidget(id) {
   el.className = cls + (el.classList.contains('is-ph') ? ' is-ph' : '');
   el.innerHTML = html;
   fit(el);
+  const dk = el.querySelector('.deck');
+  if (dk) { dk.classList.add('no-anim'); layoutDeck(dk); void dk.offsetWidth; requestAnimationFrame(() => requestAnimationFrame(() => dk.classList.remove('no-anim'))); }
   if (keepFocus) { const f = document.getElementById(keepFocus); if (f) f.focus(); }
 }
 function renderGrid(animate = true) {
@@ -1118,7 +1492,7 @@ function renderBoard(fade = true) {
   if (fade && !reduceMotion) grid.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 240, easing: 'ease-out' });
 }
 function refreshTypes(types) {
-  for (const el of grid.children) { const w = state.widgets[el.dataset.id]; if (w && types.includes(w.type)) renderWidget(w.id); }
+  for (const el of grid.children) { const w = state.widgets[el.dataset.id]; if (w && types.includes(w.type) && w.id !== deckHold) renderWidget(w.id); }
   renderHero();
 }
 function rerenderAll() { for (const el of grid.children) if (el.dataset.id) renderWidget(el.dataset.id); renderHero(); }
@@ -1285,13 +1659,16 @@ function settingsSheet(id) {
   renderSettings();
 }
 function renderSettings() {
+  const intr = $('#set-interests'); if (intr) state.interests = intr.value.split(/[,，、\s]+/).map((x) => x.trim()).filter(Boolean);
   const w = state.widgets[draft.id]; const s = draft.settings;
   let body;
   if (w.type === 'subscription') {
     body = `<label class="fld"><span>标题</span><input type="text" id="set-title" value="${esc(draft.title)}" placeholder="${esc(subTitle({ settings: s }))}"></label>
       <div class="fld"><span>来源（可多选）</span><div class="chips">${Object.entries(SOURCES).map(([k, v]) => `<button class="chipbtn" data-act="set-src" data-v="${k}" aria-pressed="${(s.sources || []).includes(k)}">${esc(v.label)}</button>`).join('')}</div></div>
       <div class="fld"><span>呈现</span><div class="seg sm">${PRES.map((p) => `<button data-act="set-pres" data-v="${p}" aria-pressed="${(s.pres || '图文') === p}">${p}</button>`).join('')}</div></div>
-      <div class="fld"><span>排序</span><div class="seg sm">${[['new', '最新'], ['score', '评分'], ['rank', '排名']].map(([k, v]) => `<button data-act="set-sort" data-v="${k}" aria-pressed="${(s.sort || 'new') === k}">${v}</button>`).join('')}</div></div>
+      <div class="fld"><span>布局</span><div class="seg sm"><button data-act="set-deck" data-v="0" aria-pressed="${!s.deck}">列表</button><button data-act="set-deck" data-v="1" aria-pressed="${Boolean(s.deck)}">卡片流 · 一次一条</button></div>${s.deck ? `<div class="seg sm" style="align-self:flex-start"><button data-act="set-auto" data-v="0" aria-pressed="${!s.auto}">手动切换</button><button data-act="set-auto" data-v="1" aria-pressed="${Boolean(s.auto)}">S 尺寸自动轮播</button></div>` : ''}</div>
+      <div class="fld"><span>排序</span><div class="seg sm">${[['match', '关注优先'], ['new', '最新'], ['score', '评分'], ['rank', '排名']].map(([k, v]) => `<button data-act="set-sort" data-v="${k}" aria-pressed="${(s.sort || 'new') === k}">${v}</button>`).join('')}</div></div>
+      <label class="fld"><span>关注词（逗号分隔，所有订阅共用）</span><input type="text" id="set-interests" value="${esc(state.interests.join('，'))}"><span class="meta" style="white-space:normal">命中的条目会带上标记；排序选「关注优先」时排在前面。</span></label>
       <div class="fld"><span>刷新</span><div class="seg sm">${[['source', '跟随来源节奏'], ['30', '每 30 分钟'], ['manual', '手动']].map(([k, v]) => `<button data-act="set-refresh" data-v="${k}" aria-pressed="${(s.refresh || 'source') === k}">${v}</button>`).join('')}</div><span class="meta" style="white-space:normal">${esc((s.sources || []).map((x) => `${SOURCES[x].label} ${SOURCES[x].cadence}`).join('，'))}</span></div>`;
   } else if (w.type === 'task') {
     const ps = [[null, '全部'], ...PROJECTS.map((p) => [p.name, p.name]), ['生活', '生活']];
@@ -1309,7 +1686,7 @@ function galleryOpen(preset = {}) {
   renderGallery();
 }
 function galWidget() {
-  const settings = gal.type === 'subscription' ? { sources: gal.sources, pres: gal.pres || SOURCES[gal.sources[0]]?.pres, sort: gal.sources[0] === 'aihot-hot' ? 'rank' : 'new' } : {};
+  const settings = gal.type === 'subscription' ? { sources: gal.sources, pres: gal.pres || SOURCES[gal.sources[0]]?.pres, sort: gal.sources[0] === 'aihot-hot' ? 'rank' : 'new', deck: Boolean(gal.deck), auto: Boolean(gal.deck) } : {};
   return { id: 'preview', type: gal.type, settings };
 }
 function renderGallery() {
@@ -1317,7 +1694,7 @@ function renderGallery() {
   if (!t.sizes[gal.size]) gal.size = Object.keys(t.sizes)[0];
   const groups = ['P0', 'P1', 'P2'].map((p) => `<h3>${p === 'P0' ? '常用' : p === 'P1' ? '更多' : '即将推出'}</h3>${Object.entries(T).filter(([, v]) => v.pri === p).map(([k, v]) => `<button class="gal-it" data-act="g-type" data-v="${k}" aria-pressed="${k === gal.type}">${ic(k, 36)}<span style="min-width:0"><b>${esc(v.name)}</b><small>${esc(v.desc)}</small></span>${v.soon ? '<span class="soon-b">SOON</span>' : ''}</button>`).join('')}`).join('');
   const board = state.boards.find((b) => b.id === state.active);
-  const srcPick = gal.type === 'subscription' ? `<div class="fld"><span>来源</span><div class="chips">${Object.entries(SOURCES).map(([k, v]) => `<button class="chipbtn" data-act="g-src" data-v="${k}" aria-pressed="${gal.sources.includes(k)}">${esc(v.label)}</button>`).join('')}</div></div><div class="fld"><span>呈现</span><div class="seg sm">${PRES.map((p) => `<button data-act="g-pres" data-v="${p}" aria-pressed="${(gal.pres || SOURCES[gal.sources[0]]?.pres) === p}">${p}</button>`).join('')}</div></div>` : '';
+  const srcPick = gal.type === 'subscription' ? `<div class="fld"><span>来源</span><div class="chips">${Object.entries(SOURCES).map(([k, v]) => `<button class="chipbtn" data-act="g-src" data-v="${k}" aria-pressed="${gal.sources.includes(k)}">${esc(v.label)}</button>`).join('')}</div></div><div class="fld"><span>呈现</span><div class="seg sm">${PRES.map((p) => `<button data-act="g-pres" data-v="${p}" aria-pressed="${(gal.pres || SOURCES[gal.sources[0]]?.pres) === p}">${p}</button>`).join('')}</div></div><div class="fld"><span>布局</span><div class="seg sm"><button data-act="g-deck" data-v="0" aria-pressed="${!gal.deck}">列表</button><button data-act="g-deck" data-v="1" aria-pressed="${Boolean(gal.deck)}">卡片流</button></div></div>` : '';
   openModal(`<div class="sheet" role="dialog" aria-modal="true" aria-label="Widget 库">
     <header class="sh-h"><h2>Widget 库</h2><span class="meta">选一个类型、尺寸和来源，加到「${esc(board.name)}」</span><button class="icon-btn" data-act="modal-close" aria-label="关闭">${I.x}</button></header>
     <div class="gal"><div class="gal-l">${groups}</div>
@@ -1345,6 +1722,7 @@ function renderPreview() {
   const scale = Math.min(1, (box.width - 40) / W, (box.height - 56) / H);
   $('.pv-in', pv).style.transform = `translate(-50%, -50%) scale(${scale})`;
   fit(pv);
+  $$('.deck', pv).forEach((d) => { d.classList.add('no-anim'); deckIdx[d.dataset.deck] = 0; layoutDeck(d); });
 }
 
 function agentOpen(text) {
@@ -1515,6 +1893,8 @@ document.addEventListener('click', (e) => {
   const a = e.target.closest('[data-act]');
   if (!e.target.closest('.pop') && !e.target.closest('[data-act="w-menu"]') && !e.target.closest('[data-act="board-new"]')) closePop();
   if (!e.target.closest('#cmd') && cmd.open) { cmd.open = false; renderCmd(); }
+  const opened = e.target.closest('a[data-open]');
+  if (opened && !state.seen.has(opened.dataset.open)) { state.seen.add(opened.dataset.open); setTimeout(() => refreshTypes(['subscription']), 250); }
   const ci = e.target.closest('[data-ci]');
   if (ci && !ci.href) { runCmd(Number(ci.dataset.ci)); return; }
   if (!a) return;
@@ -1546,6 +1926,17 @@ document.addEventListener('click', (e) => {
     case 'focus-reset': Object.assign(state.focus, { running: false, left: state.focus.total }); refreshTypes(['focus']); break;
     case 'focus-next-task': { const open = state.tasks.filter((t) => t.list === 'today' && !t.done); const i = open.findIndex((t) => t.id === state.focus.task); state.focus.task = open[(i + 1) % open.length]?.id; refreshTypes(['focus']); break; }
     case 'w-menu': widgetMenu(a, ds.w); break;
+    case 'dk-next': deckGo(ds.w, 1); break;
+    case 'dk-prev': deckGo(ds.w, -1); break;
+    case 'dk-later': deckAct(ds.w, 'later'); break;
+    case 'dk-task': deckAct(ds.w, 'task'); break;
+    case 'dk-skip': deckAct(ds.w, 'skip'); break;
+    case 'dk-flip': deckAct(ds.w, 'flip'); break;
+    case 'dk-restart': deckIdx[ds.w] = 0; layoutDeck(a.closest('.deck')); break;
+    case 'set-deck': draft.settings.deck = ds.v === '1'; draft.title = $('#set-title')?.value ?? draft.title; renderSettings(); break;
+    case 'set-auto': draft.settings.auto = ds.v === '1'; draft.title = $('#set-title')?.value ?? draft.title; renderSettings(); break;
+    case 'g-deck': gal.deck = ds.v === '1'; renderGallery(); break;
+    case 'sub-cat': state.widgets[ds.w].settings.cat = ds.v || null; renderWidget(ds.w); break;
     case 'w-size': closePop(); setSize(ds.w, ds.size); break;
     case 'w-dup': closePop(); dupWidget(ds.w); break;
     case 'w-remove': closePop(); removeWidget(ds.w); break;
@@ -1557,7 +1948,7 @@ document.addEventListener('click', (e) => {
     case 'set-sort': draft.settings.sort = ds.v; draft.title = $('#set-title')?.value ?? draft.title; renderSettings(); break;
     case 'set-refresh': draft.settings.refresh = ds.v; draft.title = $('#set-title')?.value ?? draft.title; renderSettings(); break;
     case 'set-proj': draft.settings.project = ds.v || null; renderSettings(); break;
-    case 'set-save': { const w = state.widgets[draft.id]; const ti = $('#set-title'); if (ti) w.title = ti.value.trim() || undefined; w.settings = draft.settings; closeModal(); renderWidget(w.id); toast('设置已保存'); break; }
+    case 'set-save': { const w = state.widgets[draft.id]; const ti = $('#set-title'); const intr = $('#set-interests'); if (intr) { state.interests = intr.value.split(/[,，、\s]+/).map((x) => x.trim()).filter(Boolean); setTimeout(() => refreshTypes(['subscription']), 0); } if (ti) w.title = ti.value.trim() || undefined; w.settings = draft.settings; closeModal(); renderWidget(w.id); toast('设置已保存'); break; }
     case 'g-type': gal.type = ds.v; gal.size = Object.keys(T[ds.v].sizes).includes(gal.size) ? gal.size : Object.keys(T[ds.v].sizes)[0]; renderGallery(); break;
     case 'g-size': gal.size = ds.v; renderGallery(); break;
     case 'g-src': gal.sources = gal.sources.includes(ds.v) ? (gal.sources.length > 1 ? gal.sources.filter((x) => x !== ds.v) : gal.sources) : [...gal.sources, ds.v]; gal.pres = null; renderGallery(); break;
@@ -1588,6 +1979,13 @@ document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#cmd-in').focus(); return; }
   if (e.key === '/' && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) { e.preventDefault(); $('#cmd-in').focus(); return; }
   if (e.key === 'Escape') { if ($('.pop')) closePop(); else if (modal) closeModal(); else if (cmd.open) { cmd.open = false; renderCmd(); $('#cmd-in').blur(); } else if (state.edit) $('#edit-sw').click(); }
+  const fd = document.activeElement?.closest?.('.deck');
+  if (fd && !modal) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); deckGo(fd.dataset.deck, 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); deckGo(fd.dataset.deck, -1); }
+    if (e.key.toLowerCase() === 'l') deckAct(fd.dataset.deck, 'later');
+    if (e.key === ' ' || e.key.toLowerCase() === 'f') { e.preventDefault(); deckAct(fd.dataset.deck, 'flip'); }
+  }
   if (document.activeElement?.id === 'cmd-in' && cmd.open) {
     const n = cmd.items.filter((x) => x.run || x.href).length;
     if (e.key === 'ArrowDown') { e.preventDefault(); cmd.sel = (cmd.sel + 1) % Math.max(1, n); renderCmd(); }
@@ -1598,6 +1996,38 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('focusin', (e) => { if (e.target.id === 'cmd-in') { cmd.open = true; cmd.sel = 0; renderCmd(); } });
 document.addEventListener('input', (e) => { if (e.target.id === 'cmd-in') { cmd.open = true; cmd.sel = 0; renderCmd(); } });
 document.addEventListener('pointerdown', onPointerDown);
+document.addEventListener('pointerdown', (e) => {
+  if (state.edit || e.button !== 0) return;
+  const card = e.target.closest('.dk-card[data-pos="cur"]');
+  if (!card || e.target.closest('button, a, .dk-ctl') || card.classList.contains('dk-end')) return;
+  const deck = card.closest('.deck'); const v = deck.classList.contains('v'); const wid = deck.dataset.deck;
+  const sx = e.clientX; const sy = e.clientY; let dx = 0; let moved = false;
+  const sL = card.querySelector('.stamp.later'); const sK = card.querySelector('.stamp.skip');
+  const move = (ev) => {
+    dx = v ? ev.clientY - sy : ev.clientX - sx;
+    if (!moved && Math.abs(dx) < 6) return;
+    moved = true; deck.classList.add('dragging');
+    card.style.transform = v ? `translateY(${dx * 0.6}px)` : `translateX(${dx}px) rotate(${dx / 22}deg)`;
+    if (sL) sL.style.opacity = Math.max(0, Math.min(1, dx / 90)); if (sK) sK.style.opacity = Math.max(0, Math.min(1, -dx / 90));
+  };
+  const up = () => {
+    removeEventListener('pointermove', move); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+    deck.classList.remove('dragging'); card.style.transform = ''; if (sL) sL.style.opacity = ''; if (sK) sK.style.opacity = '';
+    if (!moved) { if (card.classList.contains('paper')) card.classList.toggle('flipped'); else if (v) deckGo(wid, 1); return; }
+    if (v) { if (dx < -30) deckGo(wid, 1); else if (dx > 30) deckGo(wid, -1); return; }
+    if (dx > 90) deckAct(wid, 'later'); else if (dx < -90) deckAct(wid, 'skip');
+  };
+  addEventListener('pointermove', move); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+});
+let wheelLock = 0;
+document.addEventListener('wheel', (e) => {
+  const deck = e.target.closest?.('.deck:not(.v)'); if (!deck || state.edit) return;
+  if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+  e.preventDefault();
+  if (performance.now() < wheelLock || Math.abs(e.deltaX) < 18) return;
+  wheelLock = performance.now() + 520; deckGo(deck.dataset.deck, e.deltaX > 0 ? 1 : -1);
+}, { passive: false });
+document.addEventListener('animationend', (e) => { if (e.animationName === 'seg') { const d = e.target.closest('.deck'); if (d) deckGo(d.dataset.deck, 1); } });
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyPrefs);
 
 // ---------- responsive columns ----------

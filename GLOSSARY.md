@@ -28,6 +28,10 @@ _Avoid_: RSS 组件, Feed widget
 A 订阅 Widget's setting for how its Items look: 图文, 榜单, 论文, 产品 or 视频. A Source suggests the default.
 _Avoid_: kind, 卡片形态, layout
 
+**卡片流 (Deck)**:
+A layout of a 订阅 Widget that shows one Item at a time as a stack of cards the user swipes through, instead of a list.
+_Avoid_: 轮播, carousel, slider
+
 **App**:
 The full page for one kind of data, such as the RSS reader or the task manager, that a Widget opens into.
 _Avoid_: Module, 完整页面
@@ -41,6 +45,10 @@ _Avoid_: Feed, 信息源 (when meaning a card)
 **Item**:
 One piece of content fetched from a Source, always carrying its Source and original link.
 _Avoid_: Article, post, entry
+
+**关注词 (Interest)**:
+A keyword the user cares about; Items that match one are marked and can be ranked first. Interests are shared by all 订阅 Widgets.
+_Avoid_: 标签, tag, 偏好
 
 **Read Later**:
 The list of Items the user has set aside to read.

@@ -39,12 +39,16 @@
     "index.js",
     "client.js",
     "feed.js",
+    "daily.js",
+    "personal.js",
     "cordis.patch.yml",
     "dsh.plugin.json",
     "icon.svg",
+    "assets",
     "README.md",
     "README_EN.md",
     "CHANGELOG.md",
+    "GLOSSARY.md",
     "LICENSE",
     "docs"
   ],
@@ -59,7 +63,7 @@
     }
   },
   "scripts": {
-    "check": "node --check index.js && node --check client.js && node --check feed.js",
+    "check": "node --check index.js && node --check client.js && node --check feed.js && node --check daily.js && node --check personal.js",
     "test": "node dev/selftest.mjs",
     "test:offline": "node dev/selftest.mjs --offline"
   }

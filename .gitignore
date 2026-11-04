@@ -20,3 +20,6 @@ output/
 # Prototype: real Items and their covers stay local (AIHOT terms forbid public redistribution)
 prototype/snapshot.js
 prototype/covers/
+
+# Screenshot scratch from visual verification
+.shots/

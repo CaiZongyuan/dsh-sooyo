@@ -1,7 +1,11 @@
 # DSH 个人工作台插件 — 设计构思（v0.1 草案）
 
+> **先读这一段。** 这份文档记录的是第一代（0.1）的设计与实测，它描述的「一个源 = 一张卡」的模型已经被 [ADR 0001](./adr/0001-widget-decoupled-from-source.md) 取代：现在 Source 只供 Item 并建议一个呈现，Board / Widget / 布局 / 尺寸都是用户数据，落在 `daily.js` + `personal.js` 里，客户端渲染 `/sooyo/daily` 返回的模型。改造的实施步骤见 [`docs/handoff-sooyo-redesign.md`](./handoff-sooyo-redesign.md)，现行约束见 [`AGENTS.md`](../AGENTS.md)，术语见 [`GLOSSARY.md`](../GLOSSARY.md)。
+>
+> 下文凡是出现 `SOURCES[].widget`、`kind` 决定尺寸、`colSpan`/`rowSpan` 的地方，都是**历史记录**，读作「当时是怎么做的、为什么后来改掉」，不要照着写代码。
+>
 > 目标：一个装在 DSH profile 里的「个人信息工作台」插件：多源聚合 → 归一化 → 去重排序 → 在 Web UI 里看 → 也能喂给 Agent 写早报。
-> 2026-11-04 起产品更名为 **sooyo daily**（包名 `dsh-sooyo`，路由 `/sooyo/*`，工具 `sooyo_*`）；下文的「工作台」指同一个插件。卡片与源一一对应的设定已被 [ADR 0001](./adr/0001-widget-decoupled-from-source.md) 取代，术语以 [GLOSSARY.md](../GLOSSARY.md) 为准。
+> 2026-11-04 起产品更名为 **sooyo daily**（包名 `dsh-sooyo`，路由 `/sooyo/*`，工具 `sooyo_*`）；下文的「工作台」指同一个插件。
 > 这份文档只做设计；所有 Harness 侧的接口事实都已用 `cordis_inspect_query` 核对，外部信息源的行为都用本机实测过（见 §3）。
 
 ---

@@ -40,9 +40,18 @@ function tagText(block, tag) {
   return match ? match[1] : null
 }
 
+/**
+ * Read one attribute out of the first `<tag …>` in the block.
+ *
+ * The attribute is searched for inside the matched tag rather than required to follow the
+ * tag name, because feeds do not agree on attribute order (YouTube writes
+ * `<media:starRating count=… average=… />`, other feeds put the interesting attribute last).
+ */
 function tagAttr(block, tag, attribute) {
-  const match = block.match(new RegExp(`<${tag}[^>]*\\s${attribute}="([^"]*)"`, 'i'))
-  return match ? match[1] : null
+  const tagMatch = block.match(new RegExp(`<${tag}\\b[^>]*>`, 'i'))
+  if (!tagMatch) return null
+  const attr = tagMatch[0].match(new RegExp(`\\b${attribute}=["']([^"']*)["']`, 'i'))
+  return attr ? attr[1] : null
 }
 
 export function readFeed(xml) {
@@ -57,15 +66,23 @@ export function readFeed(xml) {
       ?? (rawLink ? decodeEntities(rawLink.trim()) : null)
     const id = tagText(block, 'id') ?? tagText(block, 'guid') ?? link ?? ''
     const summary = tagText(block, 'summary') ?? tagText(block, 'content') ?? tagText(block, 'description')
+    // YouTube publishes its per-video block inside `<media:group>`, and the tag regexes
+    // above already reach into it because a block is matched whole.
+    const description = tagText(block, 'media:description')
     const views = tagAttr(block, 'media:statistics', 'views')
+    const likes = tagAttr(block, 'media:starRating', 'count')
+    const metrics = {}
+    if (views && Number.isFinite(Number(views))) metrics.views = Number(views)
+    if (likes && Number.isFinite(Number(likes))) metrics.likes = Number(likes)
     return {
       nativeId: stripTags(id) || link || '',
       title: stripTags(tagText(block, 'title') ?? ''),
       url: link ?? '',
       publishedAt: (tagText(block, 'published') ?? tagText(block, 'pubDate') ?? tagText(block, 'updated') ?? '').trim() || null,
       summary: summary ? stripTags(summary).slice(0, 1200) : '',
+      description: description ? stripTags(description).slice(0, 1200) : '',
       thumbnail: tagAttr(block, 'media:thumbnail', 'url') ?? tagAttr(block, 'media:content', 'url') ?? null,
-      metrics: views && Number.isFinite(Number(views)) ? { views: Number(views) } : undefined,
+      metrics: Object.keys(metrics).length > 0 ? metrics : undefined,
     }
   })
 }

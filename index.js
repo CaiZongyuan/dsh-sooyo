@@ -14,6 +14,9 @@
  */
 
 import { readFeed, extractOgImage } from './feed.js'
+import * as daily from './daily.js'
+import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 
 export const name = '@local/dsh-sooyo'
 
@@ -31,6 +34,20 @@ const PAGE_USER_AGENT = 'dsh-sooyo/0.1 (+personal, non-commercial; og:image only
 /** Stands in for a zod schema: the storage domain's only call on it is `.parse()`. */
 const LENIENT_SCHEMA = { parse: (value) => value }
 
+/**
+ * The Loader config for this bundle, read by the source loaders at fetch time.
+ *
+ * A Host module is instantiated once per process, so a module-level value set in `apply`
+ * is the same object the loaders close over — and it lets a source decide its request from
+ * the config without threading it through every `load()` signature.
+ */
+let CONFIG = { mode: 'selected' }
+
+/**
+ * The domain's stored `version` must stay 1: opening a domain whose stored version differs
+ * from its spec rejects with `version-mismatch`, and this redesign adds tables rather than
+ * changing one. New tables simply start empty.
+ */
 const DOMAIN_SPEC = {
   name: 'sooyo',
   version: 1,
@@ -41,8 +58,20 @@ const DOMAIN_SPEC = {
     items: { valueSchema: LENIENT_SCHEMA },
     sources: { valueSchema: LENIENT_SCHEMA },
     read: { valueSchema: LENIENT_SCHEMA },
+    // Personal data. A Widget is a placed instance (ADR 0001), so the layout is user data:
+    // one record per Board per breakpoint, keyed `boardId-cols`.
+    boards: { valueSchema: LENIENT_SCHEMA },
+    widgets: { valueSchema: LENIENT_SCHEMA },
+    layouts: { valueSchema: LENIENT_SCHEMA },
+    tasks: { valueSchema: LENIENT_SCHEMA },
+    notes: { valueSchema: LENIENT_SCHEMA },
+    readlater: { valueSchema: LENIENT_SCHEMA },
+    settings: { valueSchema: LENIENT_SCHEMA },
   },
 }
+
+/** Icons ship with the bundle; this is the directory the `/sooyo/assets/` route reads. */
+const ASSET_ROOT = new URL('./assets/', import.meta.url)
 
 const nowIso = () => new Date().toISOString()
 
@@ -120,9 +149,9 @@ const SOURCES = [
     about: '中文 AI 资讯站的编辑精选，带评分与推荐理由',
     attribution: ATTRIBUTION_AIHOT,
     cadenceMinutes: 10,
-    widget: { layout: 2, kind: 'feed', colSpan: 2, rowSpan: 4, title: 'AIHOT 精选', hint: '编辑精选 · 带推荐理由' },
+    suggests: { pres: '图文' },
     async load(signal, previous) {
-      const result = await getJson(`${AIHOT_DIRECT}/items?mode=selected&window=7d&by=timeline&limit=60`, previous, signal)
+      const result = await getJson(`${AIHOT_DIRECT}/items?mode=${CONFIG.mode === 'all' ? 'all' : 'selected'}&window=7d&by=timeline&limit=60`, previous, signal)
       if (result.notModified) return result
       const items = (Array.isArray(result.payload?.items) ? result.payload.items : []).map((raw) => ({
         nativeId: raw?.id,
@@ -147,7 +176,7 @@ const SOURCES = [
     attribution: ATTRIBUTION_AIHOT,
     cadenceMinutes: 30,
     replace: true,
-    widget: { layout: 2, kind: 'rank', colSpan: 1, rowSpan: 2, title: '热榜 Top 10', hint: '多源热点' },
+    suggests: { pres: '榜单' },
     async load(signal, previous) {
       const result = await getJson(`${AIHOT_DIRECT}/hot-topics`, previous, signal)
       if (result.notModified) return result
@@ -173,7 +202,7 @@ const SOURCES = [
     about: 'HuggingFace 每日论文榜',
     attribution: { name: 'HuggingFace', url: 'https://huggingface.co/papers' },
     cadenceMinutes: 360,
-    widget: { layout: 2, kind: 'papers', colSpan: 2, rowSpan: 2, title: 'HF 今日论文', hint: '每日论文榜' },
+    suggests: { pres: '论文' },
     async load(signal) {
       const response = await fetch('https://huggingface.co/api/daily_papers?limit=20', {
         headers: { accept: 'application/json' },
@@ -183,22 +212,35 @@ const SOURCES = [
       const payload = await response.json()
       const items = (Array.isArray(payload) ? payload : []).map((entry) => {
         const paper = entry?.paper ?? {}
+        const authors = Array.isArray(paper?.authors) ? paper.authors : []
+        // `mediaUrls` is a mixed bag — teaser figures, project logos, non-image assets. Only
+        // an image is usable as a cover; anything else is dropped rather than guessed at.
+        const media = Array.isArray(paper?.mediaUrls) ? paper.mediaUrls : []
+        const figure = media.find((url) => /\.(png|jpe?g|webp|gif|avif)(\?|$)/i.test(String(url))) ?? null
         return {
           nativeId: paper?.id,
           title: paper?.title ?? entry?.title ?? '(无标题)',
           url: `https://huggingface.co/papers/${paper?.id ?? ''}`,
           altUrl: paper?.githubRepo ?? null,
-          // HuggingFace renders a real cover for every paper; verified 200 image/png.
-          thumbnail: paper?.id
-            ? `https://cdn-thumbnails.huggingface.co/social-thumbnails/papers/${paper.id}.png`
-            : null,
+          project: paper?.projectPage ?? null,
+          // HuggingFace renders a real cover for every paper; verified 200 image/png. The
+          // teaser figure, when there is one, is a better cover and replaces it below.
+          thumbnail: figure
+            ?? (paper?.id ? `https://cdn-thumbnails.huggingface.co/social-thumbnails/papers/${paper.id}.png` : null),
           publishedAt: entry?.publishedAt ?? paper?.publishedAt ?? null,
           summary: paper?.summary ?? entry?.summary ?? '',
+          tldr: paper?.ai_summary ?? '',
+          keywords: Array.isArray(paper?.ai_keywords) ? paper.ai_keywords.slice(0, 5) : [],
           score: typeof paper?.upvotes === 'number' ? paper.upvotes : null,
           category: 'paper',
           origin: paper?.organization?.fullname ?? paper?.organization?.name ?? 'HuggingFace',
-          tags: (Array.isArray(paper?.authors) ? paper.authors : []).slice(0, 3).map((a) => a?.name).filter(Boolean),
-          metrics: { upvotes: paper?.upvotes ?? 0, comments: entry?.numComments ?? 0, stars: paper?.githubStars ?? 0 },
+          tags: authors.slice(0, 3).map((a) => a?.name).filter(Boolean),
+          authorCount: authors.length,
+          metrics: {
+            upvotes: paper?.upvotes ?? 0,
+            comments: entry?.numComments ?? 0,
+            stars: paper?.githubStars ?? 0,
+          },
         }
       })
       return { items }
@@ -210,7 +252,7 @@ const SOURCES = [
     about: 'Product Hunt 今日新产品',
     attribution: { name: 'Product Hunt', url: 'https://www.producthunt.com' },
     cadenceMinutes: 180,
-    widget: { layout: 2, kind: 'products', colSpan: 2, rowSpan: 2, title: 'Product Hunt 今日', hint: '新产品' },
+    suggests: { pres: '产品' },
     async load(signal, previous) {
       const result = await getXml('https://www.producthunt.com/feed', previous, signal)
       if (result.notModified) return result
@@ -234,7 +276,7 @@ const SOURCES = [
     about: 'Dwarkesh Patel 的最新视频与播客',
     attribution: { name: 'YouTube', url: 'https://www.youtube.com/@DwarkeshPatel' },
     cadenceMinutes: 180,
-    widget: { layout: 2, kind: 'media', colSpan: 1, rowSpan: 2, title: 'Dwarkesh Patel', hint: '最新视频 / 播客' },
+    suggests: { pres: '视频' },
     async load(signal, previous) {
       // The handle was resolved to a channel id once; the feed only needs the id.
       const url = 'https://www.youtube.com/feeds/videos.xml?channel_id=UCXl4i9dYBrFOabk0xGmbkRA'
@@ -242,17 +284,31 @@ const SOURCES = [
       if (result.notModified) return result
       return {
         etag: result.etag,
-        items: result.entries.slice(0, 12).map((entry) => ({
-          nativeId: entry.nativeId,
-          title: entry.title || '(无标题)',
-          url: entry.url,
-          publishedAt: entry.publishedAt,
-          summary: entry.summary,
-          category: 'podcast',
-          origin: 'Dwarkesh Patel',
-          thumbnail: entry.thumbnail,
-          metrics: entry.metrics,
-        })),
+        items: result.entries.slice(0, 12).map((entry) => {
+          // A Short is published on the same feed as an episode; only the URL says which.
+          const short = /\/shorts\//.test(entry.url ?? '')
+          const id = String(entry.nativeId ?? '').replace(/^yt:video:/, '')
+          // `oardefault.jpg` is the 9:16 frame, but YouTube 404s it for some Shorts, so the
+          // client gets both and falls back on error.
+          const cover = id
+            ? (short ? `https://i.ytimg.com/vi/${id}/oardefault.jpg` : `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`)
+            : entry.thumbnail
+          return {
+            nativeId: entry.nativeId,
+            title: entry.title || '(无标题)',
+            url: entry.url,
+            publishedAt: entry.publishedAt,
+            summary: entry.summary,
+            description: entry.description || entry.summary,
+            kind: short ? 'short' : 'episode',
+            category: 'podcast',
+            origin: 'Dwarkesh Patel',
+            thumbnail: entry.thumbnail ?? cover,
+            thumbnailFallback: short && entry.thumbnail !== cover ? entry.thumbnail : null,
+            cover,
+            metrics: entry.metrics,
+          }
+        }),
       }
     },
   },
@@ -263,6 +319,7 @@ const SOURCE_IDS = new Set(SOURCES.map((source) => source.id))
 // ---- plugin ----------------------------------------------------------------
 
 export function apply(ctx, config = {}) {
+  CONFIG = { mode: config.mode === 'all' ? 'all' : 'selected' }
   const enabledIds = new Set(
     Array.isArray(config.sources) && config.sources.length > 0 ? config.sources : SOURCES.map((s) => s.id),
   )
@@ -289,7 +346,7 @@ export function apply(ctx, config = {}) {
     let handle = null
     ctx.storageDomain
       .open(DOMAIN_SPEC)
-      .then((opened) => {
+      .then(async (opened) => {
         if (disposed) {
           void opened.close()
           return
@@ -297,6 +354,8 @@ export function apply(ctx, config = {}) {
         handle = opened
         domain = opened
         openError = null
+        // A first run gets the default Boards; a second one keeps whatever the user made.
+        await daily.ensureSeeded(table)
       })
       .catch((error) => {
         openError = error
@@ -428,7 +487,7 @@ export function apply(ctx, config = {}) {
         label: source.label,
         about: source.about ?? '',
         attribution: source.attribution ?? null,
-        widget: source.widget,
+        suggests: source.suggests ?? null,
         cadenceMinutes: Math.round(cadenceOf(source) / 60000),
         lastRunAt: nowIso(),
         lastError: null,
@@ -451,7 +510,7 @@ export function apply(ctx, config = {}) {
         ...previous,
         id: sourceId,
         label: source.label,
-        widget: source.widget,
+        suggests: source.suggests ?? null,
         lastRunAt: nowIso(),
         lastError: message,
         lastResult: 'failed',
@@ -483,11 +542,19 @@ export function apply(ctx, config = {}) {
         publishedAt: entry.publishedAt ?? null,
         discoveredAt: existing?.discoveredAt ?? nowIso(),
         summary: entry.summary ?? '',
+        description: entry.description ?? '',
+        tldr: entry.tldr ?? '',
+        keywords: entry.keywords ?? [],
         reason: entry.reason ?? '',
         score: entry.score ?? null,
         category: entry.category ?? 'other',
         origin: entry.origin ?? source.label,
+        kind: entry.kind ?? null,
         tags: entry.tags ?? [],
+        authorCount: entry.authorCount ?? null,
+        project: entry.project ?? null,
+        cover: entry.cover ?? null,
+        thumbnailFallback: entry.thumbnailFallback ?? null,
         metrics: entry.metrics ?? null,
         attribution: entry.attribution ?? source.attribution ?? null,
         fetchedAt: nowIso(),
@@ -645,7 +712,7 @@ export function apply(ctx, config = {}) {
         id: source.id,
         label: source.label,
         about: source.about ?? '',
-        widget: source.widget,
+        suggests: source.suggests ?? null,
         attribution: source.attribution ?? null,
         cadenceMinutes: Math.round(cadenceOf(source) / 60000),
         itemCount: state.itemCount ?? 0,
@@ -694,9 +761,78 @@ export function apply(ctx, config = {}) {
 
   // ---- HTTP surface (read by the Client half) ------------------------------
 
+  /**
+   * Every mutation the panel performs, named.
+   *
+   * A single dispatcher keeps the route table from growing one line per button, and it means
+   * an unknown action fails loudly with 404 instead of silently doing nothing.
+   */
+  const ACTIONS = {
+    'board.create': (tables, body) => daily.createBoard(tables, body),
+    'board.rename': (tables, body) => daily.renameBoard(tables, body),
+    'board.remove': (tables, body) => daily.removeBoard(tables, body),
+    'board.active': (tables, body) => daily.setActiveBoard(tables, body),
+    'widget.add': (tables, body) => daily.addWidget(tables, body),
+    'widget.update': (tables, body) => daily.updateWidget(tables, body),
+    'widget.remove': (tables, body) => daily.removeWidget(tables, body),
+    'widget.duplicate': (tables, body) => daily.duplicateWidget(tables, body),
+    'widget.resize': (tables, body) => daily.resizeWidget(tables, body),
+    'layout.set': (tables, body) => daily.setLayout(tables, body),
+    'task.add': (tables, body) => daily.addTask(tables, body),
+    'task.update': (tables, body) => daily.updateTask(tables, body),
+    'task.remove': (tables, body) => daily.removeTask(tables, body),
+    'capture': (tables, body) => daily.capture(tables, body),
+    'note.add': (tables, body) => daily.addNote(tables, body),
+    'note.remove': (tables, body) => daily.removeNote(tables, body),
+    'readlater.set': (tables, body) => daily.setReadLater(tables, body),
+    'interests.set': (tables, body) => daily.setInterests(tables, body),
+    'bookmarks.set': (tables, body) => daily.setBookmarks(tables, body),
+    'habit.tick': (tables, body) => daily.tickHabit(tables, body),
+    'focus.set': (tables, body) => daily.setFocus(tables, body),
+    // Marking an Item seen is the same write the reader already performs.
+    'item.state': async (tables, body) => markState(body),
+    // An Item becomes a Task or a Note while keeping its Origin (source + original link).
+    'item.toTask': (tables, body) => daily.addTask(tables, {
+      title: String(body?.title ?? '').slice(0, 300) || '未命名',
+      list: 'inbox',
+      origin: body?.origin ?? null,
+    }),
+    'item.toNote': (tables, body) => daily.addNote(tables, {
+      text: String(body?.title ?? '').slice(0, 800) || '未命名',
+      origin: body?.origin ?? null,
+    }),
+  }
+
   const isLoopback = (req) => {
     const address = req.socket?.remoteAddress ?? ''
     return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1'
+  }
+
+  /**
+   * Serve one icon out of the bundle.
+   *
+   * The Client half renders `<img src="/sooyo/assets/a/<type>.webp">`, so the Host has to be
+   * the file server: a pnpm-linked bundle is not inside the web app's static root. The path
+   * is restricted to a flat `style/name.webp` shape so nothing can walk out of `assets/`.
+   */
+  const ICON_PATH = /^([a-c])\/([a-z0-9-]{1,40})\.webp$/
+
+  async function serveIcon(res, match) {
+    const [, style, name] = match
+    try {
+      const bytes = await readFile(fileURLToPath(new URL(`${style}/${name}.webp`, ASSET_ROOT)))
+      res.writeHead(200, {
+        'content-type': 'image/webp',
+        // Immutable content: a changed icon gets a new filename.  
+        'cache-control': 'public, max-age=604800',
+        'content-length': bytes.length,
+      })
+      res.end(bytes)
+      return true
+    } catch {
+      send(res, 404, { error: 'no such icon', style, name })
+      return true
+    }
   }
 
   const send = (res, status, value) => {
@@ -729,6 +865,16 @@ export function apply(ctx, config = {}) {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')
     const route = url.pathname.slice(ROUTE_PREFIX.length) || '/'
     const method = req.method ?? 'GET'
+
+    if (method === 'GET' && route.startsWith('/assets/')) {
+      const match = route.slice('/assets/'.length).match(ICON_PATH)
+      if (!match) {
+        send(res, 404, { error: 'no such icon', route })
+        return
+      }
+      await serveIcon(res, match)
+      return
+    }
 
     if (method === 'GET' && route === '/ping') {
       send(res, 200, { ok: true, at: nowIso(), ready: domain !== null })
@@ -784,6 +930,40 @@ export function apply(ctx, config = {}) {
       send(res, 200, await markState(await readJsonBody(req)))
       return
     }
+
+    // ---- personal data ------------------------------------------------------
+    // One `POST /action` with `{ name, body }` keeps this table short and keeps the Client's
+    // calls uniform: every mutation the UI performs is one named action.
+    if (method === 'GET' && route === '/daily') {
+      if (!domain) {
+        send(res, 200, { ready: false, error: meta().error, boards: [], widgets: {}, layouts: {}, tasks: [], sources: [] })
+        return
+      }
+      const snapshot = daily.readDaily(table, active)
+      send(res, 200, {
+        ready: true,
+        ...snapshot,
+        focus: daily.resolveFocus(snapshot.focus),
+        meta: { articleCount: meta().articleCount, unreadCount: meta().unreadCount, generatedAt: nowIso() },
+      })
+      return
+    }
+    if (method === 'POST' && route === '/action') {
+      if (!domain) {
+        send(res, 503, { ok: false, error: '存储域尚未就绪' })
+        return
+      }
+      const body = await readJsonBody(req).catch(() => ({}))
+      const name = String(body?.name ?? '')
+      const handler = ACTIONS[name]
+      if (!handler) {
+        send(res, 404, { ok: false, error: `没有这个动作：${name}` })
+        return
+      }
+      send(res, 200, await handler(table, body?.body ?? {}))
+      return
+    }
+
     send(res, 404, { error: 'unknown sooyo route', method, route })
   }
 

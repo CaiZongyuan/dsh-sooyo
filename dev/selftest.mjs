@@ -1,5 +1,5 @@
 /**
- * Offline self-test for workbench/index.js + workbench/feed.js.
+ * Offline self-test for index.js + feed.js.
  *
  * The harness caches a Host plugin's module body per specifier, so a Host code change
  * only takes effect after a DSH restart. This script exercises the real `apply()` against
@@ -109,7 +109,7 @@ function makeTable() {
     },
     put: async (key, value) => {
       // Mirrors the real per-record backend, which is what rejected the first attempt.
-      if (!PATH_SAFE.test(key)) throw new Error(`unit 'workbench': per-record key '${key}' is not path-safe`)
+      if (!PATH_SAFE.test(key)) throw new Error(`unit 'sooyo': per-record key '${key}' is not path-safe`)
       map.set(key, value)
     },
     delete: async (key) => map.delete(key),
@@ -195,9 +195,9 @@ function makeResponse() {
 
 async function call(routes, method, url, body) {
   const route = routes[0]
-  assert.ok(route, 'the plugin must register one /workbench route')
+  assert.ok(route, 'the plugin must register one /sooyo route')
   assert.equal(route.kind, 'prefix')
-  assert.equal(route.path, '/workbench')
+  assert.equal(route.path, '/sooyo')
   const req = makeRequest(method, url, body)
   const res = makeResponse()
   await route.handler(req, res)
@@ -214,7 +214,7 @@ check('route registered', routes.length === 1)
 check('tools registered', tools.length === 3, tools.map((t) => t.name).join(', '))
 check('no effect warnings', warnings.length === 0, warnings.join(' | ') || 'none')
 
-const ping = await call(routes, 'GET', '/workbench/ping')
+const ping = await call(routes, 'GET', '/sooyo/ping')
 check('GET /ping -> 200 ready', ping.status === 200 && ping.body?.ready === true, JSON.stringify(ping.body))
 
 // Skipped entirely under --offline: this block is the only part that makes requests.
@@ -222,7 +222,7 @@ if (OFFLINE) {
   console.log('\n-- network checks skipped (--offline): no requests made --')
 } else {
 console.log('\n-- refreshing every declared source (network) --')
-const refresh = await call(routes, 'POST', '/workbench/refresh')
+const refresh = await call(routes, 'POST', '/sooyo/refresh')
 for (const entry of refresh.body?.results ?? []) {
   if (entry.ok) console.log(`   ok      ${entry.sourceId}  added=${entry.added ?? 0}${entry.notModified ? ' (304)' : ''} total=${entry.total ?? '-'}`)
   else console.log(`   failed  ${entry.sourceId}  ${String(entry.error).slice(0, 90)}`)
@@ -231,54 +231,54 @@ const okSources = (refresh.body?.results ?? []).filter((entry) => entry.ok)
 check('at least the AIHOT sources refreshed', okSources.some((entry) => entry.sourceId === 'aihot'), okSources.map((e) => e.sourceId).join(', '))
 check('refresh reported no unexpected throw', Array.isArray(refresh.body?.results), `${(refresh.body?.results ?? []).length} sources`)
 
-const meta = await call(routes, 'GET', '/workbench/meta')
+const meta = await call(routes, 'GET', '/sooyo/meta')
 check('meta is ready', meta.body?.ready === true, meta.body?.error)
 check('meta describes the grid (source -> widget)', (meta.body?.sources ?? []).every((s) => s.widget?.kind && s.widget?.colSpan && s.widget?.title),
   (meta.body?.sources ?? []).map((s) => `${s.id}:${s.widget?.kind} ${s.widget?.colSpan}x${s.widget?.rowSpan}`).join(' | '))
 check('meta counts articles separately from ranks', (meta.body?.articleCount ?? 0) > 0 && (meta.body?.articleCount ?? 0) <= (meta.body?.itemCount ?? 0),
   `articles=${meta.body?.articleCount} items=${meta.body?.itemCount}`)
 
-const all = await call(routes, 'GET', '/workbench/items?limit=300&kind=all')
+const all = await call(routes, 'GET', '/sooyo/items?limit=300&kind=all')
 check('GET /items -> stored items', (all.body?.items?.length ?? 0) > 0, `matched=${all.body?.matched}`)
 check('every stored key is path-safe', (all.body?.items ?? []).every((item) => PATH_SAFE.test(item.id)),
   (all.body?.items ?? []).slice(0, 2).map((item) => item.id).join(', '))
 check('every item carries sourceId + itemKind', (all.body?.items ?? []).every((item) => item.sourceId && item.itemKind))
 
-const articles = await call(routes, 'GET', '/workbench/items?limit=300')
+const articles = await call(routes, 'GET', '/sooyo/items?limit=300')
 check('default listing excludes rank rows', (articles.body?.items ?? []).every((item) => item.itemKind !== 'rank'),
   `${(articles.body?.items ?? []).length} articles`)
 
-const hot = await call(routes, 'GET', '/workbench/items?source=aihot-hot&kind=all')
+const hot = await call(routes, 'GET', '/sooyo/items?source=aihot-hot&kind=all')
 check('rank source is reachable by id', (hot.body?.items ?? []).length > 0, `${(hot.body?.items ?? []).length} rows`)
 check('rank rows carry their rank in metrics', (hot.body?.items ?? []).every((item) => item.itemKind === 'rank' && typeof item.metrics?.rank === 'number'))
 
-const aihot = await call(routes, 'GET', '/workbench/items?source=aihot&limit=3')
+const aihot = await call(routes, 'GET', '/sooyo/items?source=aihot&limit=3')
 const first = aihot.body?.items?.[0]
 check('aihot item carries the fields the UI draws', Boolean(first?.title && first?.url && first?.origin), first?.title)
 check('aihot reason present (from /items, not the snapshot API)', typeof first?.reason === 'string' && first.reason.length > 0, `${first?.reason?.length ?? 0} chars`)
 
-const mark = await call(routes, 'POST', '/workbench/state', { ids: [first?.id], seen: true, starred: true })
+const mark = await call(routes, 'POST', '/sooyo/state', { ids: [first?.id], seen: true, starred: true })
 check('POST /state -> ok', mark.body?.ok === true, JSON.stringify(mark.body))
-const afterMark = await call(routes, 'GET', '/workbench/items?source=aihot&limit=3')
+const afterMark = await call(routes, 'GET', '/sooyo/items?source=aihot&limit=3')
 const marked = (afterMark.body?.items ?? []).find((item) => item.id === first?.id)
 check('state round-trips', marked?.state?.seen === true && marked?.state?.starred === true, JSON.stringify(marked?.state))
 
-const brief = tools.find((tool) => tool.name === 'workbench_brief')
+const brief = tools.find((tool) => tool.name === 'sooyo_brief')
 const briefResult = await brief.execute({ hours: 24 * 30, limit: 5 })
-check('workbench_brief aggregates across sources', Array.isArray(briefResult?.items) && briefResult.items.length > 0, `count=${briefResult?.count}`)
-check('workbench_brief carries the untrusted-content note', typeof briefResult?.note === 'string' && briefResult.note.includes('指令'))
-check('workbench_brief render() produces a text block', brief.output.render({}, briefResult)[0]?.type === 'text')
+check('sooyo_brief aggregates across sources', Array.isArray(briefResult?.items) && briefResult.items.length > 0, `count=${briefResult?.count}`)
+check('sooyo_brief carries the untrusted-content note', typeof briefResult?.note === 'string' && briefResult.note.includes('指令'))
+check('sooyo_brief render() produces a text block', brief.output.render({}, briefResult)[0]?.type === 'text')
 check('tool output is JSON-serializable', typeof JSON.stringify(briefResult) === 'string')
 
-const sourcesTool = await tools.find((tool) => tool.name === 'workbench_sources').execute({})
-check('workbench_sources lists the registry', (sourcesTool?.sources?.length ?? 0) === (meta.body?.sources?.length ?? -1), `${sourcesTool?.sources?.length} sources`)
+const sourcesTool = await tools.find((tool) => tool.name === 'sooyo_sources').execute({})
+check('sooyo_sources lists the registry', (sourcesTool?.sources?.length ?? 0) === (meta.body?.sources?.length ?? -1), `${sourcesTool?.sources?.length} sources`)
 
 // Cover images for the sources that publish none: read og:image off the linked page.
 const thumb = await plugin.resolveThumbnails(3)
 check('og:image pass read some pages', (thumb.checked ?? 0) > 0, JSON.stringify(thumb))
 check('og:image pass resolved a real cover', (thumb.resolved ?? 0) > 0, `resolved=${thumb.resolved} skipped=${thumb.skipped} failed=${thumb.failed}`)
 
-const withImages = await call(routes, 'GET', '/workbench/items?limit=300&kind=all')
+const withImages = await call(routes, 'GET', '/sooyo/items?limit=300&kind=all')
 const resolvedSample = (withImages.body?.items ?? []).find((item) => item.thumbnail && item.thumbnailCheckedAt)
 check('resolved cover is stored on the item', Boolean(resolvedSample?.thumbnail), resolvedSample?.thumbnail)
 check('resolved cover looks like an image url', /\.(jpe?g|png|webp|avif)|image/i.test(resolvedSample?.thumbnail ?? ''), String(resolvedSample?.thumbnail).slice(0, 90))
@@ -287,7 +287,7 @@ check('a page with no image is remembered, not refetched', (withImages.body?.ite
 // End of the network-dependent block.
 }
 
-const notFound = await call(routes, 'GET', '/workbench/nope')
+const notFound = await call(routes, 'GET', '/sooyo/nope')
 check('unknown route -> 404', notFound.status === 404)
 
 // ---- teardown --------------------------------------------------------------

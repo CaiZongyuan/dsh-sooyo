@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="./icon.svg" width="96" height="96" alt="dsh-my-homepage" />
+  <img src="./icon.svg" width="96" height="96" alt="dsh-sooyo" />
 </p>
 
-<h1 align="center">dsh-my-homepage</h1>
+<h1 align="center">sooyo daily</h1>
 
 <p align="center"><b>A widget-style personal homepage for <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness</a> —
 it aggregates several sources into one bento grid, and every source declares its own card shape.</b></p>
@@ -24,7 +24,7 @@ it aggregates several sources into one bento grid, and every source declares its
 
 ---
 
-A **工作台** ("workbench") entry appears in the DSH sidebar. Opening it shows your homepage: a greeting and status strip on top, then a bento grid where each card is one information source.
+A **sooyo daily** entry appears in the DSH sidebar. Opening it shows your homepage: a greeting and status strip on top, then a bento grid where each card is one information source.
 
 ## Highlights
 
@@ -33,7 +33,7 @@ A **工作台** ("workbench") entry appears in the DSH sidebar. Opening it shows
 - **Zero dependencies, no build step** — plain JavaScript, so the package installs and runs as-is.
 - **Its own fetch layer**: per-source cadence, conditional requests (ETag/304), a global concurrency cap, and proportional retry (1/2/4… minutes) so one failing source never affects the others.
 - **Fetched content is data, never instructions** — every item carries its source and original link.
-- **Model-visible too**: `workbench_brief`, `workbench_refresh`, and `workbench_sources` tools, which pair with DSH's own scheduler for a daily digest.
+- **Model-visible too**: `sooyo_brief`, `sooyo_refresh`, and `sooyo_sources` tools, which pair with DSH's own scheduler for a daily digest.
 
 ## Sources
 
@@ -50,7 +50,7 @@ A **工作台** ("workbench") entry appears in the DSH sidebar. Opening it shows
 Requires [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) `>=0.2.0-rc.1` and Node.js `>=20`.
 
 ```sh
-dsh plugin --profile web add github:CaiZongyuan/dsh-my-homepage
+dsh plugin --profile web add github:CaiZongyuan/dsh-sooyo
 ```
 
 Then restart DSH once (a Host module is cached per specifier, so code changes need a fresh

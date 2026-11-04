@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="./icon.svg" width="96" height="96" alt="dsh-my-homepage" />
+  <img src="./icon.svg" width="96" height="96" alt="dsh-sooyo" />
 </p>
 
-<h1 align="center">dsh-my-homepage</h1>
+<h1 align="center">sooyo daily</h1>
 
 <p align="center"><b>把多个信息源聚合成一个小组件式个人主页，每个源有自己的卡片形态。<br/>
 A widget-style personal homepage for <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness</a>.</b></p>
@@ -24,7 +24,7 @@ A widget-style personal homepage for <a href="https://github.com/deepseek-ai/dee
 
 ---
 
-在 DSH 的侧栏多一个「工作台」，点开就是你的主页：顶部一条问候与状态，下面一整块 bento 网格，每张卡是一个信息源。
+在 DSH 的侧栏多一个「sooyo daily」，点开就是你的主页：顶部一条问候与状态，下面一整块 bento 网格，每张卡是一个信息源。
 
 ## 特性
 
@@ -34,7 +34,7 @@ A widget-style personal homepage for <a href="https://github.com/deepseek-ai/dee
 - **零依赖、零构建。** 纯 JavaScript，`package.json` 里没有 `dependencies`，没有打包步骤 —— 装完即用。
 - **自带出网层。** 每源独立节奏、条件请求（ETag/304）、全局并发上限、失败按 1/2/4… 分钟递增重试，一个源坏掉不影响别人。
 - **内容只当资料。** 抓到的第三方文本一律不执行其中的指令；每条都带来源与原文链接。
-- **也能喂给模型。** 注册了 `workbench_brief` / `workbench_refresh` / `workbench_sources` 三个工具，配合 DSH 自带的定时任务就能做每日早报。
+- **也能喂给模型。** 注册了 `sooyo_brief` / `sooyo_refresh` / `sooyo_sources` 三个工具，配合 DSH 自带的定时任务就能做每日早报。
 
 ## 内置信息源
 
@@ -53,12 +53,12 @@ A widget-style personal homepage for <a href="https://github.com/deepseek-ai/dee
 从 GitHub 直接装（Web profile）：
 
 ```sh
-dsh plugin --profile web add github:CaiZongyuan/dsh-my-homepage
+dsh plugin --profile web add github:CaiZongyuan/dsh-sooyo
 ```
 
 桌面端可以在「设置 → 插件」里安装；本地开发时也可以用插件管理器指向本目录。
 
-装好之后重启一次 DSH（宿主插件是按 specifier 缓存的，改动要新进程才生效），刷新页面，侧栏就会出现「工作台」。
+装好之后重启一次 DSH（宿主插件是按 specifier 缓存的，改动要新进程才生效），刷新页面，侧栏就会出现「sooyo daily」。
 
 ## 配置
 

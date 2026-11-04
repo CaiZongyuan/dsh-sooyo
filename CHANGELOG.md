@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Renamed to **sooyo daily**: package `dsh-sooyo`, panel id `sooyo`, routes `/sooyo/*`,
+  storage domain `sooyo`, tools `sooyo_brief` / `sooyo_refresh` / `sooyo_sources`.
+  Data stored under the old `workbench` domain is not migrated.
+
 ## 0.1.0
 
 First public version.

@@ -1,5 +1,5 @@
 - insert:
-    - id: my-homepage
-      name: dsh-my-homepage
+    - id: sooyo
+      name: dsh-sooyo
       config:
         mode: selected

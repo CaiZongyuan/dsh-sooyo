@@ -1,6 +1,7 @@
 # DSH 个人工作台插件 — 设计构思（v0.1 草案）
 
 > 目标：一个装在 DSH profile 里的「个人信息工作台」插件：多源聚合 → 归一化 → 去重排序 → 在 Web UI 里看 → 也能喂给 Agent 写早报。
+> 2026-11-04 起产品更名为 **sooyo daily**（包名 `dsh-sooyo`，路由 `/sooyo/*`，工具 `sooyo_*`）；下文的「工作台」指同一个插件。卡片与源一一对应的设定已被 [ADR 0001](./adr/0001-widget-decoupled-from-source.md) 取代，术语以 [GLOSSARY.md](../GLOSSARY.md) 为准。
 > 这份文档只做设计；所有 Harness 侧的接口事实都已用 `cordis_inspect_query` 核对，外部信息源的行为都用本机实测过（见 §3）。
 
 ---
@@ -16,13 +17,13 @@
                     │  settings.section    工作台设置页                              │
                     └───────────────▲──────────────────────────┬───────────────────┘
                         HTTP/SSE    │                          │ fetch
-                        /workbench/*│                          │
+                        /sooyo/*│                          │
    ┌────────────────────────────────┴──────────────────────────▼───────────────────┐
-   │  dsh-my-homepage  —— Host 半                                              │
+   │  dsh-sooyo  —— Host 半                                              │
    │   ctx.workbench  ── 源注册表 · 抓取引擎 · 归一化/去重 · 评分 · 已读 · 检索        │
    │   ctx.storageDomain 域 `workbench`（items / sources / read / meta）              │
-   │   ctx.webServer      → /workbench/items|sources|refresh|state|events(SSE)       │
-   │   ctx.tools.register → workbench_brief / search / refresh / read / sources      │
+   │   ctx.webServer      → /sooyo/items|sources|refresh|state|events(SSE)       │
+   │   ctx.tools.register → sooyo_brief / search / refresh / read / sources      │
    │   ctx.schedule       → 每日早报投递进会话                                        │
    │   event `workbench/changed`  → 驱动 UI 与其它插件                                │
    └───────▲────────────┬───────────────┬──────────────┬─────────────┬──────────────┘
@@ -43,23 +44,23 @@
 
 | 行 id（= 包名） | 职责 | 阶段 |
 |---|---|---|
-| `dsh-my-homepage` | **唯一的包**：Host 半 = `ctx.workbench` 服务（源注册表、抓取调度、归一化、去重、评分、域存储）+ `/workbench/*` 路由 + Agent 工具；Client 半 = 主面板页、侧栏图标、设置页 | **P0** |
-| `dsh-my-homepage-source-aihot` | AIHOT JSON API 同步（`snapshot` + `changes`） | 从 P0 的内置源拆出（P1） |
-| `dsh-my-homepage-source-rss` | **通用源**：给任意 RSS/Atom 地址就能加源（纯配置驱动，不写代码） | P1 |
-| `dsh-my-homepage-source-youtube` | 频道 handle → channel_id → Atom feed | P1 |
-| `dsh-my-homepage-source-hf-papers` | HuggingFace 每日论文 API | P1 |
-| `dsh-my-homepage-source-producthunt` | Product Hunt Atom feed | P1 |
-| `dsh-my-homepage-source-bilibili` | UP 主投稿变更通知（见 §6.6 降级方案） | P3 |
-| `dsh-my-homepage-fetch-firecrawl` | 可选：注册「出网后端」供兜底阶梯用 | P3 |
-| `dsh-my-homepage-tools` | （可选）把 Agent 工具拆出来单独开关 | 按需 |
+| `dsh-sooyo` | **唯一的包**：Host 半 = `ctx.workbench` 服务（源注册表、抓取调度、归一化、去重、评分、域存储）+ `/sooyo/*` 路由 + Agent 工具；Client 半 = 主面板页、侧栏图标、设置页 | **P0** |
+| `dsh-sooyo-source-aihot` | AIHOT JSON API 同步（`snapshot` + `changes`） | 从 P0 的内置源拆出（P1） |
+| `dsh-sooyo-source-rss` | **通用源**：给任意 RSS/Atom 地址就能加源（纯配置驱动，不写代码） | P1 |
+| `dsh-sooyo-source-youtube` | 频道 handle → channel_id → Atom feed | P1 |
+| `dsh-sooyo-source-hf-papers` | HuggingFace 每日论文 API | P1 |
+| `dsh-sooyo-source-producthunt` | Product Hunt Atom feed | P1 |
+| `dsh-sooyo-source-bilibili` | UP 主投稿变更通知（见 §6.6 降级方案） | P3 |
+| `dsh-sooyo-fetch-firecrawl` | 可选：注册「出网后端」供兜底阶梯用 | P3 |
+| `dsh-sooyo-tools` | （可选）把 Agent 工具拆出来单独开关 | 按需 |
 
 每个源独立成包 ⇒ 在 Plugins 页面**逐行开关**，一个源炸了不影响别人，也不会让 core 启动失败。
 
-**但 P0 不要一开始就拆包。** 一个包可以同时有 Host 半和 Client 半（decoration 模板就是这个形状），所以 P0 = **一个包 `dsh-my-homepage`**：host 半放 core + aihot 源 + 路由 + 工具，client 半放 UI，一行、一次安装，最快打通端到端。到 P1 再把每个源提升成独立包（`dsh-my-homepage-source-*`，各自 host-only、各自一行），那时才真正拿到「逐源开关」的收益。
+**但 P0 不要一开始就拆包。** 一个包可以同时有 Host 半和 Client 半（decoration 模板就是这个形状），所以 P0 = **一个包 `dsh-sooyo`**：host 半放 core + aihot 源 + 路由 + 工具，client 半放 UI，一行、一次安装，最快打通端到端。到 P1 再把每个源提升成独立包（`dsh-sooyo-source-*`，各自 host-only、各自一行），那时才真正拿到「逐源开关」的收益。
 
 理由是：P0 的真正未知数是「HTTP 前缀路由能不能通」和「域存储能不能写」。先用最小结构把这两件事验证掉，之后摊开包结构几乎没有返工成本（源模块本来就是接口隔离的，搬文件而已）。
 
-`dsh-my-homepage-source-rss` 仍是杠杆最大的一块：Product Hunt、绝大多数博客/播客、很多站点的 `/feed` 都能靠它覆盖，值得优先于所有专用源实现（§6.1 有 18 个现成种子源）。
+`dsh-sooyo-source-rss` 仍是杠杆最大的一块：Product Hunt、绝大多数博客/播客、很多站点的 `/feed` 都能靠它覆盖，值得优先于所有专用源实现（§6.1 有 18 个现成种子源）。
 
 ---
 
@@ -135,7 +136,7 @@ GraphQL v2 需要开发者 token 且 Cloudflare 较严；**个人工作台用 fe
 | `ctx.layout.selectPanel(panelId)`「选择全局中央面板，不改变当前 Session」，未注册的 key 会抛错 | client `Service layout` | 需要从别处（如「打开工作台」命令/工具）跳转时用它；正常情况下用不上 |
 | 主面板/侧栏组件的 standardProps 含 `useResource`、`usePanelInfo`、`useSessions`、`useSessionStatus`、`useWorkspaces` | 同上 | 数据获取用 `useResource`，不用自己造 store |
 | `ctx.tools.register(definition)` → `execute(args, exec: ToolRunContext)`，`ToolRunContext extends ToolExecution`，带 `agent?: Agent`(= `{id: SessionId}`) 与 `signal` | host `Service tools` | **工具里能拿到发起会话 id**，所以「订阅每日早报」可以直接把 schedule 绑到当前会话，不需要用户填 id |
-| `ctx.schedule.create(sessionId, {daily:{time,time_zone} / cron / every_seconds / after_seconds / at, title, prompt})`；投递就是往绑定会话塞一条 prompt | host `Service schedule` | 早报不用在插件里调模型：建一个 daily 任务，prompt 里让模型调 `workbench_brief` 写早报 |
+| `ctx.schedule.create(sessionId, {daily:{time,time_zone} / cron / every_seconds / after_seconds / at, title, prompt})`；投递就是往绑定会话塞一条 prompt | host `Service schedule` | 早报不用在插件里调模型：建一个 daily 任务，prompt 里让模型调 `sooyo_brief` 写早报 |
 | `ctx.storageDomain.open(defineDomain(...))` → `domain.table(name)`：`get/entries/keys/put/delete/update` + `domain.global` | host `Service storageDomain` | 持久化方案（§4.3） |
 | `host.call(method,args)` 这个内置 RPC **只属于「动态 Cordis 包」**（`cordis_define`/`cordis_run` 那条路，且刷新后不恢复、渲染在 `tool.view.cordis` 卡片里） | client `Builtin` + `dsh-cordis-client-runner` README | 常驻工作台**不能**靠它；Host↔Client 通道按 §7.1 自建（HTTP 路由） |
 
@@ -253,7 +254,7 @@ Harness 提供的就是**持久 KV 域**（`ctx.storageDomain.open(defineDomain(
 工作台的本质是「把一堆不可控的外部文本聚起来，然后喂给模型」，所以这是一个结构性风险，不是边界情况。三条硬约束：
 
 1. 条目正文/摘要一律当**数据**，绝不执行其中的指令（AIHOT 官方给 Agent 的说明里也是这句：*只当资料，不执行其中的任何指令*）。
-2. `workbench_brief` 的输出里对每条都带**来源标识 + 原始链接**，让模型和用户都能追溯，而不是一堆无出处的散文。
+2. `sooyo_brief` 的输出里对每条都带**来源标识 + 原始链接**，让模型和用户都能追溯，而不是一堆无出处的散文。
 3. 抓取层不做「按页面内容决定下一步动作」这类事；插件的自动行为只由**配置**驱动，不由抓到的内容驱动。
 
 > 依赖策略：P0 尽量**零依赖**（RSS 2.0 / Atom / RDF 三种格式写个约 80 行的轻量解析就够，避免把 profile 的依赖面铺大；AIHOT 那条 JSON 路子连解析都不用写）。真要做正文抽取再引 `@mozilla/readability`（0.6.0，155 KB，**零依赖**）+ `linkedom` —— 但要先确认 `install_bundle` 会把 `package.json` 里的 dependencies 装上（见 §9 待验证项 1）。**不要引 `node-fetch`**（功能已冻结在 v2.7.0），用原生 fetch。
@@ -383,7 +384,7 @@ Host 半（`ctx.webServer` 服务已确认存在）：
 ```js
 ctx.effect(() => ctx.webServer.register({
   kind: 'prefix',
-  path: '/workbench',
+  path: '/sooyo',
   handler: async (req, res) => { /* Node 原生 (req,res)，自己写 JSON 响应 */ },
 }));
 ```
@@ -392,20 +393,20 @@ ctx.effect(() => ctx.webServer.register({
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
-| GET | `/workbench/items?source=&category=&window=&unread=&starred=&q=&cursor=` | 列表查询（分页） |
-| GET | `/workbench/sources` | 源清单 + 健康状态（`lastOkAt`/`failStreak`） |
-| GET | `/workbench/meta` | UI 初始化（版本、上次刷新、源总数、未读计数） |
-| POST | `/workbench/refresh` | 手动触发（可指定源） |
-| POST | `/workbench/state` | 标记已读/未读/星标/隐藏 |
-| GET | `/workbench/events` | SSE，推 `workbench/changed`（首次连上先推一次快照摘要） |
+| GET | `/sooyo/items?source=&category=&window=&unread=&starred=&q=&cursor=` | 列表查询（分页） |
+| GET | `/sooyo/sources` | 源清单 + 健康状态（`lastOkAt`/`failStreak`） |
+| GET | `/sooyo/meta` | UI 初始化（版本、上次刷新、源总数、未读计数） |
+| POST | `/sooyo/refresh` | 手动触发（可指定源） |
+| POST | `/sooyo/state` | 标记已读/未读/星标/隐藏 |
+| GET | `/sooyo/events` | SSE，推 `workbench/changed`（首次连上先推一次快照摘要） |
 
-Client 半就是 `fetch('/workbench/...')` + `EventSource('/workbench/events')`。好处：
+Client 半就是 `fetch('/sooyo/...')` + `EventSource('/sooyo/events')`。好处：
 
 - 纯 JS 可写，零生成产物，版本升级不易碎；
 - 可流式（SSE）拿到实时更新，不用轮询；
 - **同一套 core 方法同时服务 UI 和 Agent 工具**，不会出现「UI 看到的」和「模型看到的」两套逻辑。
 
-更贴合宿主习惯的一层精修（可选，P3）：Host 数据就绪后，Client 半用 `ctx.resources.register({ protocol: 'workbench', async *open(address, {signal}) {...} })` 注册一个 `dsh-resource://workbench/...` 协议，组件统一走 standard prop `useResource`。这样列表/详情各自成为一个可 pin 的活资源，切换视图不重开流、不重抓。
+更贴合宿主习惯的一层精修（可选，P3）：Host 数据就绪后，Client 半用 `ctx.resources.register({ protocol: 'workbench', async *open(address, {signal}) {...} })` 注册一个 `dsh-resource://sooyo/...` 协议，组件统一走 standard prop `useResource`。这样列表/详情各自成为一个可 pin 的活资源，切换视图不重开流、不重抓。
 
 待验证项：`prefix` 路由与 SPA fallback（`registerFallback` 由 dist server 占用）的优先级；以及本地回环下的信任面（`ctx.connection.admit` / `authorizeIndex`）。P0 第一件事就是用一个最小路由打通它。
 
@@ -414,14 +415,14 @@ Client 半就是 `fetch('/workbench/...')` + `EventSource('/workbench/events')`�
 ## 8. 与 Agent 的集成（这才是「工作台」相对普通 RSS 阅读器的增量）
 
 1. **Host 工具**（`ctx.tools.register`，模型可直接调）：
-   - `workbench_brief({since, sources?, unreadOnly?})` → 结构化更新摘要（供写早报）
-   - `workbench_search({q})` → 本地全量检索（比联网搜更快更准，因为是你订阅的源）
-   - `workbench_refresh({source?})` → 手动触发抓取
-   - `workbench_read({id})` → 取单条正文/字幕（懒抓取 + 缓存）
-   - `workbench_sources()` → 源清单与健康状态
+   - `sooyo_brief({since, sources?, unreadOnly?})` → 结构化更新摘要（供写早报）
+   - `sooyo_search({q})` → 本地全量检索（比联网搜更快更准，因为是你订阅的源）
+   - `sooyo_refresh({source?})` → 手动触发抓取
+   - `sooyo_read({id})` → 取单条正文/字幕（懒抓取 + 缓存）
+   - `sooyo_sources()` → 源清单与健康状态
 2. **每日早报**：`ctx.schedule` 已确认支持 `daily {time, time_zone}` / `cron` / `every` / `at` / `after_seconds`，且投递就是「往绑定会话塞一条 prompt」。所以早报不需要在插件里写 LLM 调用：
-   - 你的 profile 里**已经有 `schedule_create` / `schedule_list` / `schedule_update` / `schedule_delete` 这套工具**，所以「每天早上 8:30 给我一份工作台早报」这句话，模型直接用现成工具就能建，工作台只要提供 `workbench_brief` 就行。
-   - 插件再提供一个便利工具 `workbench_subscribe_digest({time})`：内部 `ctx.schedule.create(exec.agent.id, { daily: {...}, title: '工作台早报', prompt: '调用 workbench_brief 取过去 24h 更新，按主题分块写一份中文早报……' })`——省得用户每次复述 prompt。
+   - 你的 profile 里**已经有 `schedule_create` / `schedule_list` / `schedule_update` / `schedule_delete` 这套工具**，所以「每天早上 8:30 给我一份工作台早报」这句话，模型直接用现成工具就能建，工作台只要提供 `sooyo_brief` 就行。
+   - 插件再提供一个便利工具 `sooyo_subscribe_digest({time})`：内部 `ctx.schedule.create(exec.agent.id, { daily: {...}, title: '工作台早报', prompt: '调用 sooyo_brief 取过去 24h 更新，按主题分块写一份中文早报……' })`——省得用户每次复述 prompt。
    - 好处：早报内容本身进了会话日志，可回看、可追问、可 fork；模型判断力也优于插件里的启发式。
 3. **不要在插件里做 LLM 打分**。AIHOT 已经给了 `score` + `reason`；其余源用「源权重 × 新鲜度 × 关键词规则」先排，真要语义排序就交给 §8.2 的早报会话。
 4. **事件**：`workbench/changed` 供 UI 与其它插件订阅；条目的 `contentRef` 让「打开一条 → 和 AI 讨论」不用重新抓一遍。
@@ -516,7 +517,7 @@ workbench/
 
 ```json
 {
-  "name": "dsh-my-homepage",
+  "name": "dsh-sooyo",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -533,7 +534,7 @@ workbench/
 ```yaml
 - insert:
     - id: workbench
-      name: 'dsh-my-homepage'
+      name: 'dsh-sooyo'
 ```
 
 安装：`plugin_manager` `install_bundle`，`target` 传 `workbench/` 的绝对路径。一次安装，插一行。
@@ -545,11 +546,11 @@ workbench/
 3. **注册路由**（P0 第一个要验证的东西）：
    ```js
    ctx.effect(() => ctx.webServer.register({
-     kind: 'prefix', path: '/workbench',
+     kind: 'prefix', path: '/sooyo',
      handler: async (req, res) => { /* 手写 JSON 响应 */ },
    }));
    ```
-   先只做 `GET /workbench/ping` 返回 `{"ok":true}`，确认它不被 SPA fallback 吃掉、且浏览器能取到。
+   先只做 `GET /sooyo/ping` 返回 `{"ok":true}`，确认它不被 SPA fallback 吃掉、且浏览器能取到。
 4. **出网层**：`fetchJson(url, {etag})` —— 用全局 `fetch` + `AbortSignal.timeout(20000)` + `Accept-Encoding` + `If-None-Match`，304 返回 `{notModified:true}`。
 5. **源注册表**：`sources = new Map()`，`registerSource(provider)` 返回 disposer；P0 只注册 aihot。
 6. **AIHOT 源**：
@@ -560,15 +561,15 @@ workbench/
    - 轮询：自重排 `setTimeout`，间隔取 `max(60s, s-maxage)`（P0 先用 10 分钟）。
 7. **查询**：`query({source, unreadOnly, q, limit})` 在 `items` 表上过滤后按 `publishedAt` 倒序。
 8. **标记**：`markState(ids, {seen, starred, hidden})` 写 `read` 表。
-9. **工具**：P0 先只注册 `workbench_brief`（`{since, unreadOnly}` → 结构化更新列表）和 `workbench_refresh`。`execute(args, exec)` 里用 `exec.agent.id` 拿会话。
+9. **工具**：P0 先只注册 `sooyo_brief`（`{since, unreadOnly}` → 结构化更新列表）和 `sooyo_refresh`。`execute(args, exec)` 里用 `exec.agent.id` 拿会话。
 
 ### 13.3 Client 半（`client.js`）要做的事
 
-1. `window.__ModuleLoader__.load({ id: 'dsh-my-homepage', factory(require) { ... } })`，`const React = require('react')`。
+1. `window.__ModuleLoader__.load({ id: 'dsh-sooyo', factory(require) { ... } })`，`const React = require('react')`。
 2. 返回 `{ inject: ['slots'], apply(ctx) {...} }`，在 `apply` 里用 `ctx.effect` 挂两处注册：
    - `ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({ name: 'sidebar.panellist', id: 'workbench', order: 50, label: '工作台' }, Icon))` — `Icon` 收 `{size, active}`，画一个内联 SVG。
    - `ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'workbench' }, Panel))`。
-3. `Panel`：`useState` + `useEffect` 拉 `/workbench/items`，渲染三栏（筛选 / 列表 / 详情）。点击条目标已读（`POST /workbench/state`）。
+3. `Panel`：`useState` + `useEffect` 拉 `/sooyo/items`，渲染三栏（筛选 / 列表 / 详情）。点击条目标已读（`POST /sooyo/state`）。
 4. 样式：只引 `--dsw-alias-*` token；用 `styles.insert(css)` 或在 `apply` 里注入一个 `<style>` React 元素。文案先硬编码中文（`ctx.locale` 可选化留到 P1）。
 5. **不要** `require` 任何 `@deepseek-ai/dsh-client-*` 包。
 
@@ -577,7 +578,7 @@ workbench/
 1. `install_bundle` 的结果里读 `application` 与 `warnings` —— 必须是 `applied`。
 2. `cordis_inspect_query` client `Slots.listSubTree` root=`main`，确认 `workbench` 出现在 `occupants`；同样确认 `sidebar.panellist` 多了一行 `id: workbench`。
 3. 浏览器打开本机 URL，点侧栏新图标 → 应切到工作台页面；看控制台有没有 `slot entry crashed`。
-4. `GET /workbench/ping` 能返回 JSON —— 这一步确认前缀路由优先级（P0 唯一的真未知数）。
+4. `GET /sooyo/ping` 能返回 JSON —— 这一步确认前缀路由优先级（P0 唯一的真未知数）。
 5. 触发一次刷新，确认条目落进域存储；重启 DSH 后条目还在。
 6. 明暗主题各看一遍，确认只用 token 没有硬编码颜色。
 
@@ -587,24 +588,24 @@ workbench/
 - 面板里能看到 AIHOT 精选条目（标题 / 来源 / 时间 / 分数 / 推荐理由），能按未读筛选；
 - 点「刷新」能拉到增量（第二次刷新命中 ETag 返回 304，`lastNotModified: true`）；
 - 重启 DSH 后数据还在；
-- 会话里让模型调 `workbench_brief` 能拿到结构化更新列表。
+- 会话里让模型调 `sooyo_brief` 能拿到结构化更新列表。
 
 ---
 
 ## 14. P0 实施记录（实测纠正）
 
-代码在 [`workbench/`](../workbench/)，一次 `install_bundle` 即装上，`application: applied`。
+代码在 [`workbench/`](../sooyo/)，一次 `install_bundle` 即装上，`application: applied`。
 
 ### 14.1 被验证成立的
 
 | 结论 | 证据 |
 |---|---|
-| **HTTP 前缀路由可用**（P0 唯一的真未知数） | `GET /workbench/ping` → `{"ok":true,"ready":true}`，没有被 SPA fallback 吃掉，回环下也不需要额外授权 |
+| **HTTP 前缀路由可用**（P0 唯一的真未知数） | `GET /sooyo/ping` → `{"ok":true,"ready":true}`，没有被 SPA fallback 吃掉，回环下也不需要额外授权 |
 | **存储域能开** | `ctx.storageDomain.open(纯对象 spec)` 成功，默认 backend 会被路由到（`dsh-storage-domain/lib/index.js:359` 是 `routes[spec.name] ?? config.backend`） |
 | **Host 进程能出网** | 同一个进程里 `fetch` 拿到 100 条 AIHOT 条目并落库（`added: 100`） |
 | **侧栏图标 + 主面板自动接通** | 只注册 `sidebar.panellist{id:'workbench'}` + `main{key:'workbench'}`，`Slots` 巡检里 `workbench` 直接成为 active occupant，没写任何导航代码 |
 | **Client 半热重载** | 改完 `client.js` 无需刷新页面，侧栏条目就出现了（宿主按 mtime/size 算 revision） |
-| **工具能注册并被模型看到** | `workbench_brief` / `workbench_refresh` / `workbench_sources` 三个工具当场出现在可用工具表里 |
+| **工具能注册并被模型看到** | `sooyo_brief` / `sooyo_refresh` / `sooyo_sources` 三个工具当场出现在可用工具表里 |
 | `output.render` 的 ContentBlock 形状 | `[{ type: 'text', text }]` 被接受 |
 
 ### 14.2 踩到的坑（都已修）
@@ -616,7 +617,7 @@ workbench/
 2. **Host 模块体是按 specifier 缓存的，改 Host 代码必须重启 DSH。** 实测 `set_bundle` 禁用再启用会重新执行 `apply()`（`runs` 归零、路由重新注册），但**模块体还是旧的那份**，所以 `normalize()` 的修复没有生效。客户端相反：改 `client.js` 立刻生效。
    → 开发节奏：Host 改动攒一批再重启；UI/版式改动可以实时迭代。
    → 另外 dsh 启动**不带** `--preserve-symlinks`，所以 `install_bundle` 的 `link:` 安装下，插件里的**裸导入会从工作区目录往上找**，找不到 profile 的 `node_modules`。这就是 `index.js` 零导入的原因：zod 用 `{ parse: v => v }` 顶替（域对它只调用 `.parse()`，`dsh-storage-domain/lib/index.js:371`）。以后要引依赖，得先解决这个解析问题（或把包放进 profile 目录而不是链接）。
-3. **`/workbench/refresh` 实测 100 条全带 `reason`**，验证了 §13.2 里改用 `/api/v1/items` 的判断（`selected/snapshot` + `changes` 至今不带这个字段）。
+3. **`/sooyo/refresh` 实测 100 条全带 `reason`**，验证了 §13.2 里改用 `/api/v1/items` 的判断（`selected/snapshot` + `changes` 至今不带这个字段）。
 
 ### 14.3 一个可复用的开发手段
 
@@ -630,7 +631,7 @@ PASS  GET /ping -> 200     PASS  POST /refresh -> ok  -> {"added":100,...}
 PASS  item keys are path-safe -> aihot-cyq72z49wj36fz07iy6o4mvok, ...
 PASS  reason present (from /items, not the snapshot API) -> 54 chars
 PASS  POST /state -> ok    PASS  state round-trips -> {"seen":true,"starred":true,...}
-PASS  workbench_brief returns items -> count=3
+PASS  sooyo_brief returns items -> count=3
 PASS  meta reports a healthy source -> {"fail":0,...}
 ```
 
@@ -655,7 +656,7 @@ PASS  meta reports a healthy source -> {"fail":0,...}
 }
 ```
 
-`GET /workbench/meta` 把这些描述符原样交给客户端，`client.js` **照着描述符渲染网格** —— 加一个源就多一张卡，客户端一行都不用改。
+`GET /sooyo/meta` 把这些描述符原样交给客户端，`client.js` **照着描述符渲染网格** —— 加一个源就多一张卡，客户端一行都不用改。
 
 **第二版的关键修正：一个源一种卡片形态，不是一种通用列表。**
 第一版所有源都渲染成同一个列表，被指出「视觉上不够好，可能都是文字的原因」+「你要根据不同的消息源设置不同的小组件」。所以现在每种数据形态有自己的卡片：
@@ -761,4 +762,4 @@ Product Hunt 2x2 ov=0 | Dwarkesh 1x2 ov=0 | 今日新增 1x1 ov=0 | 本地时间
 overflowing: []
 ```
 
-**顺带纠正一个之前的判断**：我先前说「要重启才能看到新源的数据」是**错的**。实测 `/workbench/meta` 返回 `itemCount: 117 / articleCount: 107`，5 个源全部抓到了（信息源组件里能看到 60/10/… 的条数条）。宿主模块是哪个世代、和它有没有数据，是两件事。重启只为拿到 v4 的 kind 声明（以及 HF 的真实论文封面），不是为了数据。
+**顺带纠正一个之前的判断**：我先前说「要重启才能看到新源的数据」是**错的**。实测 `/sooyo/meta` 返回 `itemCount: 117 / articleCount: 107`，5 个源全部抓到了（信息源组件里能看到 60/10/… 的条数条）。宿主模块是哪个世代、和它有没有数据，是两件事。重启只为拿到 v4 的 kind 声明（以及 HF 的真实论文封面），不是为了数据。

@@ -1,6 +1,6 @@
 # Working on this repo
 
-Guidance for an agent (or a person) changing `dsh-my-homepage`. Read this before editing;
+Guidance for an agent (or a person) changing `dsh-sooyo`. Read this before editing;
 every rule below was learned the hard way and each one has a failure it prevents.
 
 ## What this is
@@ -14,7 +14,7 @@ reader. There is **no build step and no dependency**.
 
 | File | Role |
 |---|---|
-| `index.js` | Host half: `SOURCES` registry, fetch + store + `/workbench/*` routes + tools |
+| `index.js` | Host half: `SOURCES` registry, fetch + store + `/sooyo/*` routes + tools |
 | `client.js` | Client half: `main` panel and `sidebar.panellist` icon; the widget grid |
 | `feed.js` | RSS 2.0 / Atom / RDF reader plus `og:image` extraction (fixture-tested) |
 | `cordis.patch.yml` | The Loader row this bundle inserts |
@@ -33,7 +33,7 @@ reader. There is **no build step and no dependency**.
 2. **A Host change needs a DSH restart to take effect.** The Loader caches a Host module per
    specifier, and Node's ESM cache is keyed by the **resolved file URL** — so re-installing
    the bundle, even under a *different package name*, re-runs `apply()` from the same cached
-   module body. Verified: after renaming the package and re-installing, `/workbench/meta`
+   module body. Verified: after renaming the package and re-installing, `/sooyo/meta`
    still reported the previous generation's descriptors. The Client half is different: it
    hot-reloads on file save (revisions come from mtime and size). So: batch Host edits, and
    iterate visually on the client.

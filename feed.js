@@ -2,7 +2,7 @@
  * Deliberately small readers: RSS 2.0 / Atom / RDF for syndication, plus `og:image`
  * extraction for pages a source links to but publishes no image for (AIHOT and Product
  * Hunt both do this). Zero dependencies, and readers rather than parsers — they extract
- * the handful of fields the workbench stores and ignore everything else.
+ * the handful of fields sooyo daily stores and ignore everything else.
  *
  * Relative imports are safe here even though the bundle is installed as a pnpm link
  * (which breaks bare specifiers); a relative specifier resolves against this file.

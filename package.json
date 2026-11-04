@@ -1,17 +1,17 @@
 {
-  "name": "dsh-my-homepage",
+  "name": "dsh-sooyo",
   "version": "0.1.0",
   "type": "module",
   "license": "MIT",
   "author": "CaiZongyuan",
-  "description": "DSH 个人工作台：把多个信息源聚合成一个小组件式主页，每个源有自己的卡片形态 | A widget-style personal homepage for DeepSeek Harness",
-  "homepage": "https://github.com/CaiZongyuan/dsh-my-homepage#readme",
+  "description": "sooyo daily —— DSH 个人空间：把多个信息源聚合成一个小组件式主页，每个源有自己的卡片形态 | A widget-style personal homepage for DeepSeek Harness",
+  "homepage": "https://github.com/CaiZongyuan/dsh-sooyo#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/CaiZongyuan/dsh-my-homepage.git"
+    "url": "git+https://github.com/CaiZongyuan/dsh-sooyo.git"
   },
   "bugs": {
-    "url": "https://github.com/CaiZongyuan/dsh-my-homepage/issues"
+    "url": "https://github.com/CaiZongyuan/dsh-sooyo/issues"
   },
   "keywords": [
     "dsh",

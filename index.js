@@ -1,10 +1,10 @@
 /**
- * Host half of the personal workbench.
+ * Host half of sooyo daily.
  *
  * The registry below is the whole extension point: a source declares how to fetch, how
  * often, and — this is what makes the panel a widget workspace rather than a list — the
  * card it wants in the bento grid (`widget`). The Client half renders whatever the
- * registry declares, so adding a source adds a component. See docs/workbench-design.md.
+ * registry declares, so adding a source adds a component. See docs/design.md.
  *
  * DELIBERATE CONSTRAINT — no import from node_modules.
  * `plugin_manager install_bundle` installs a local directory as a pnpm link, and the
@@ -15,24 +15,24 @@
 
 import { readFeed, extractOgImage } from './feed.js'
 
-export const name = '@local/dsh-workbench'
+export const name = '@local/dsh-sooyo'
 
 export const inject = ['storageDomain', 'webServer']
 
-const ROUTE_PREFIX = '/workbench'
+const ROUTE_PREFIX = '/sooyo'
 const REQUEST_TIMEOUT_MS = 25000
 const TICK_MS = 30 * 1000
 const FIRST_REFRESH_DELAY_MS = 1200
 const ATTRIBUTION_AIHOT = { name: 'AIHOT', url: 'https://aihot.news' }
 const AIHOT_DIRECT = 'https://aihot.news/api/v1'
 /** Identifies this tool when it reads the pages an item links to. */
-const PAGE_USER_AGENT = 'dsh-my-homepage/0.1 (+personal, non-commercial; og:image only)'
+const PAGE_USER_AGENT = 'dsh-sooyo/0.1 (+personal, non-commercial; og:image only)'
 
 /** Stands in for a zod schema: the storage domain's only call on it is `.parse()`. */
 const LENIENT_SCHEMA = { parse: (value) => value }
 
 const DOMAIN_SPEC = {
-  name: 'workbench',
+  name: 'sooyo',
   version: 1,
   layout: 'per-record',
   invalidRecords: 'backup-and-skip',
@@ -68,7 +68,7 @@ async function getJson(url, previous, signal) {
 }
 
 async function getXml(url, previous, signal) {
-  const headers = { accept: 'application/atom+xml, application/xml', 'user-agent': 'dsh-workbench/0.1 (+personal, non-commercial)' }
+  const headers = { accept: 'application/atom+xml, application/xml', 'user-agent': 'dsh-sooyo/0.1 (+personal, non-commercial)' }
   if (previous?.etag) headers['if-none-match'] = previous.etag
   const response = await fetch(url, { headers, signal })
   if (response.status === 304) return { notModified: true }
@@ -280,7 +280,7 @@ export function apply(ctx, config = {}) {
   const runtime = { running: false, lastTickAt: null, runs: 0, thumbnails: { resolved: 0, skipped: 0, failed: 0, running: false } }
 
   const table = (tableName) => {
-    if (!domain) throw new Error('workbench store is not open yet')
+    if (!domain) throw new Error('sooyo store is not open yet')
     return domain.table(tableName)
   }
 
@@ -300,14 +300,14 @@ export function apply(ctx, config = {}) {
       })
       .catch((error) => {
         openError = error
-        ctx.logger?.warn?.('workbench: could not open the workbench domain', error)
+        ctx.logger?.warn?.('sooyo: could not open the sooyo domain', error)
       })
     return () => {
       disposed = true
       domain = null
       if (handle) void handle.close()
     }
-  }, 'workbench: domain')
+  }, 'sooyo: domain')
 
   ctx.effect(() => {
     let stopped = false
@@ -331,7 +331,7 @@ export function apply(ctx, config = {}) {
       stopped = true
       if (handle) clearTimeout(handle)
     }
-  }, 'workbench: poll')
+  }, 'sooyo: poll')
 
   // ---- ingestion -----------------------------------------------------------
 
@@ -723,7 +723,7 @@ export function apply(ctx, config = {}) {
 
   async function handle(req, res) {
     if (!isLoopback(req)) {
-      send(res, 403, { error: 'workbench routes are loopback-only' })
+      send(res, 403, { error: 'sooyo routes are loopback-only' })
       return
     }
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')
@@ -784,7 +784,7 @@ export function apply(ctx, config = {}) {
       send(res, 200, await markState(await readJsonBody(req)))
       return
     }
-    send(res, 404, { error: 'unknown workbench route', method, route })
+    send(res, 404, { error: 'unknown sooyo route', method, route })
   }
 
   ctx.effect(
@@ -794,12 +794,12 @@ export function apply(ctx, config = {}) {
         path: ROUTE_PREFIX,
         handler: (req, res) =>
           handle(req, res).catch((error) => {
-            ctx.logger?.warn?.('workbench: route failed', error)
+            ctx.logger?.warn?.('sooyo: route failed', error)
             if (!res.headersSent) send(res, 500, { error: String(error?.message ?? error) })
             else res.end()
           }),
       }),
-    'workbench: http route',
+    'sooyo: http route',
   )
 
   // ---- Agent tools ---------------------------------------------------------
@@ -811,16 +811,16 @@ export function apply(ctx, config = {}) {
         disposers.push(toolsCtx.tools.register(definition))
         return true
       } catch (error) {
-        ctx.logger?.warn?.(`workbench: could not register tool ${definition.name}`, error)
+        ctx.logger?.warn?.(`sooyo: could not register tool ${definition.name}`, error)
         return false
       }
     }
     const text = (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }]
 
     register({
-      name: 'workbench_brief',
+      name: 'sooyo_brief',
       description:
-        '读取个人工作台里最近的更新（标题/来源/时间/分数/推荐理由/原文链接），跨全部信息源。用于写日报、早报，或回答"今天有什么值得看的"。',
+        '读取 sooyo daily 里最近的更新（标题/来源/时间/分数/推荐理由/原文链接），跨全部信息源。用于写日报、早报，或回答"今天有什么值得看的"。',
       parameters: {
         type: 'object',
         properties: {
@@ -871,8 +871,8 @@ export function apply(ctx, config = {}) {
     })
 
     register({
-      name: 'workbench_refresh',
-      description: '立即触发个人工作台的信息源抓取。可指定单个源，缺省则刷新全部。',
+      name: 'sooyo_refresh',
+      description: '立即触发 sooyo daily 的信息源抓取。可指定单个源，缺省则刷新全部。',
       parameters: {
         type: 'object',
         properties: { source: { type: 'string', description: '源 id，例如 aihot、hf-papers、youtube、producthunt、aihot-hot。' } },
@@ -889,8 +889,8 @@ export function apply(ctx, config = {}) {
     })
 
     register({
-      name: 'workbench_sources',
-      description: '列出个人工作台的信息源、卡片配置与健康状态（上次运行、连续失败次数、条目数）。',
+      name: 'sooyo_sources',
+      description: '列出 sooyo daily 的信息源、卡片配置与健康状态（上次运行、连续失败次数、条目数）。',
       parameters: { type: 'object', properties: {}, additionalProperties: false },
       output: { schema: { type: 'object' }, render: text },
       execute: async () => {

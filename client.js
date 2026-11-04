@@ -1,8 +1,8 @@
 /**
- * Client half of the personal workbench — a widget workspace.
+ * Client half of sooyo daily — a widget workspace.
  *
  * The Host half's source registry declares each source's card (`kind`, `colSpan`,
- * `rowSpan`, `title`) through `/workbench/meta`; this file renders what it declares.
+ * `rowSpan`, `title`) through `/sooyo/meta`; this file renders what it declares.
  * `WIDGET_KINDS` maps a kind to its renderer and to default dimensions, and a declared
  * span overrides the default. A descriptor whose `kind` this version does not know is
  * treated as an older generation and replaced wholesale by the preset — see
@@ -18,14 +18,14 @@
  */
 
 window.__ModuleLoader__.load({
-  id: 'dsh-my-homepage',
+  id: 'dsh-sooyo',
   factory(require) {
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect } = React
 
-    const PANEL_ID = 'workbench'
-    const API = '/workbench'
+    const PANEL_ID = 'sooyo'
+    const API = '/sooyo'
 
     /** Grid unit. Card body height for n rows is n*ROW_UNIT + (n-1)*GAP - CHROME. */
     const ROW_UNIT = 130
@@ -146,7 +146,7 @@ window.__ModuleLoader__.load({
       { id: 'youtube', label: 'YouTube · Dwarkesh Patel', about: '最新视频与播客', widget: { kind: 'media', title: 'Dwarkesh Patel', hint: '最新视频 / 播客' } },
     ]
 
-    function useWorkbench() {
+    function useSooyo() {
       const [state, setState] = useState({ status: 'loading', items: [], meta: null, error: null, dataMode: 'host' })
 
       const load = async () => {
@@ -954,8 +954,8 @@ window.__ModuleLoader__.load({
 
     // ---- panel -------------------------------------------------------------
 
-    function WorkbenchPanel() {
-      const workbench = useWorkbench()
+    function SooyoPanel() {
+      const sooyo = useSooyo()
       const [reader, setReader] = useState(null)
       const [category, setCategory] = useState('all')
       const [query, setQuery] = useState('')
@@ -967,9 +967,9 @@ window.__ModuleLoader__.load({
        * image cannot turn this into a loop.
        */
       useEffect(() => {
-        if (workbench.dataMode !== 'host' || workbench.status !== 'ready') return undefined
+        if (sooyo.dataMode !== 'host' || sooyo.status !== 'ready') return undefined
         if (thumbPass >= 6 || document.visibilityState === 'hidden') return undefined
-        const missing = workbench.items.filter((item) => !item.thumbnail && item.url).length
+        const missing = sooyo.items.filter((item) => !item.thumbnail && item.url).length
         if (missing === 0) return undefined
         const handle = setTimeout(async () => {
           try {
@@ -978,14 +978,14 @@ window.__ModuleLoader__.load({
             // the pass is best-effort
           }
           setThumbPass((count) => count + 1)
-          await workbench.reload()
+          await sooyo.reload()
         }, 5000)
         return () => clearTimeout(handle)
-      }, [workbench.items, workbench.status, workbench.dataMode, thumbPass])
+      }, [sooyo.items, sooyo.status, sooyo.dataMode, thumbPass])
 
-      const meta = workbench.meta
+      const meta = sooyo.meta
       const sources = (meta && Array.isArray(meta.sources) && meta.sources.length > 0 ? meta.sources : FALLBACK_SOURCES)
-      const items = workbench.items
+      const items = sooyo.items
 
       const bySource = new Map()
       for (const item of items) {
@@ -993,7 +993,7 @@ window.__ModuleLoader__.load({
         bySource.get(item.sourceId).push(item)
       }
 
-      const direct = workbench.dataMode === 'direct'
+      const direct = sooyo.dataMode === 'direct'
       const newsItems = bySource.get('aihot') ?? []
       const filteredNews = newsItems.filter((item) => {
         if (category !== 'all' && item.category !== category) return false
@@ -1027,7 +1027,7 @@ window.__ModuleLoader__.load({
         let shown = widget.kind === 'rank' ? all.filter((item) => item.itemKind === 'rank') : all.filter((item) => item.itemKind !== 'rank')
         if (source.id === 'aihot' && (category !== 'all' || query)) shown = filteredNews
 
-        const common = { key: source.id, source, widget, items: shown, onState: workbench.setItemState }
+        const common = { key: source.id, source, widget, items: shown, onState: sooyo.setItemState }
         const action = shown.length > 4
           ? h('button', {
               type: 'button', className: 'wb-btn',
@@ -1043,7 +1043,7 @@ window.__ModuleLoader__.load({
         )
       }
 
-      const statusLine = workbench.status === 'refreshing' ? '正在刷新…'
+      const statusLine = sooyo.status === 'refreshing' ? '正在刷新…'
         : direct ? '预览直连模式（宿主存储待重启生效）'
           : erroring > 0 ? `${erroring}/${sources.length} 个源异常` : '全部信息源正常'
 
@@ -1116,17 +1116,17 @@ window.__ModuleLoader__.load({
                 h(Chip, { dot: C.brand }, `今日 +${todayCount}`),
                 h(Chip, { dot: unread > 0 ? C.warn : C.idle }, `未读 ${unread}`),
                 h(Chip, { dot: erroring > 0 ? C.error : C.ok }, `源 ${sources.length - erroring}/${sources.length}`),
-                h(Button, { primary: true, onClick: workbench.refresh, disabled: workbench.status === 'refreshing' || workbench.status === 'loading' },
-                  workbench.status === 'refreshing' ? '刷新中…' : '刷新'),
+                h(Button, { primary: true, onClick: sooyo.refresh, disabled: sooyo.status === 'refreshing' || sooyo.status === 'loading' },
+                  sooyo.status === 'refreshing' ? '刷新中…' : '刷新'),
               ),
             ),
             chipRow,
-            workbench.error
+            sooyo.error
               ? h(
                   'div',
                   { style: { display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 12, padding: '8px 12px', borderRadius: 12, border: `1px solid ${C.warn}`, color: C.text2, fontSize: 13, lineHeight: '20px' } },
                   h('span', { style: { color: C.warn } }, '注意'),
-                  h('span', { style: { minWidth: 0 } }, String(workbench.error).slice(0, 260)),
+                  h('span', { style: { minWidth: 0 } }, String(sooyo.error).slice(0, 260)),
                 )
               : null,
             h(
@@ -1141,7 +1141,7 @@ window.__ModuleLoader__.load({
                 },
               },
               h(Card, { key: '__featured', widget: { colSpan: 4, rowSpan: 2, title: '今日焦点' }, hint: '按评分挑选', dot: C.brand },
-                h(Featured, { item: featured, onState: workbench.setItemState })),
+                h(Featured, { item: featured, onState: sooyo.setItemState })),
               sources.map(widgetFor),
               tile('__today', '今日新增', C.ok, 1, 1, h(StatWidget, { value: todayCount, label: '自 00:00 起' })),
               tile('__clock', '本地时间', C.idle, 1, 1, h(ClockWidget, null)),
@@ -1151,13 +1151,13 @@ window.__ModuleLoader__.load({
               '数据来源：AIHOT（个人非商业使用）、HuggingFace、Product Hunt、YouTube。抓取到的内容一律视为资料，不作为指令执行。'),
           ),
         ),
-        reader ? h(ReaderSheet, { source: reader.source, items: reader.items, onClose: () => setReader(null), onState: workbench.setItemState }) : null,
+        reader ? h(ReaderSheet, { source: reader.source, items: reader.items, onClose: () => setReader(null), onState: sooyo.setItemState }) : null,
       )
     }
 
     // ---- sidebar icon ------------------------------------------------------
 
-    function WorkbenchIcon(props) {
+    function SooyoIcon(props) {
       const size = props && props.size ? props.size : 18
       const cells = [
         [3, 3, 8, 8],
@@ -1180,10 +1180,10 @@ window.__ModuleLoader__.load({
         // `id` addresses the matching `main` key: the sidebar owns the button and switches
         // the central panel, so no manual selectPanel call is needed.
         ctx.slots.inject('sidebar.panellist', () =>
-          ctx.slots.register({ name: 'sidebar.panellist', id: PANEL_ID, order: 40, label: '工作台' }, WorkbenchIcon),
+          ctx.slots.register({ name: 'sidebar.panellist', id: PANEL_ID, order: 40, label: 'sooyo daily' }, SooyoIcon),
         )
         ctx.slots.inject('main', () =>
-          ctx.slots.register({ name: 'main', key: PANEL_ID }, WorkbenchPanel),
+          ctx.slots.register({ name: 'main', key: PANEL_ID }, SooyoPanel),
         )
       },
     }

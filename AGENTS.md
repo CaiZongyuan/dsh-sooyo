@@ -85,6 +85,21 @@ RSS/Atom reader. There is **no build step and no dependency**.
     and the Host serves that path out of `assets/`, so a new Widget Type needs its icon added
     there and listed in `package.json` `files`. The route only accepts a flat
     `<style>/<name>.webp` shape; do not widen it.
+12. **The Host skin can reach into the panel, and only `!important` + `revert` stops it.**
+    An installed UI skin (here `dsh-claude-style`) sets tag-level colours with `!important`
+    on `a`, `code` and headings. Any reset without `!important` loses regardless of
+    specificity, which is why every link rendered salmon and every `<code>` orange. The
+    resets in `client.js` therefore use `color: inherit !important` for anchors, code and
+    headings. The counterpart trap: **never use the `font` shorthand in a reset.** It also
+    overrides each component's own `font-size`/`font-weight` and flattened the 40px headline
+    to 14px/400 once. Reset `font-family` only. Both failures are invisible in a screenshot
+    diff; assert them with `getComputedStyle`, and keep the `client.css guards` block in
+    `dev/selftest.mjs` green.
+13. **A backtick inside the CSS template literal breaks the module.** `CSS` is a template
+    literal, so a backtick in a CSS comment (e.g. quoting a selector) terminates it early and
+    the whole client half fails to parse — the panel disappears with a `SyntaxError` rather
+    than a visible symptom. Write selector names in comments without backticks; the offline
+    self-test asserts none are present.
 
 ## Testing
 

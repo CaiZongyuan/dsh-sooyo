@@ -1,5 +1,5 @@
 /**
- * Offline self-test for index.js + feed.js.
+ * Offline self-test for index.js + feed.js, plus static checks on client.js.
  *
  * The harness caches a Host plugin's module body per specifier, so a Host code change
  * only takes effect after a DSH restart. This script exercises the real `apply()` against
@@ -10,6 +10,7 @@
  */
 
 import { strict as assert } from 'node:assert'
+import { readFileSync } from 'node:fs'
 
 import { apply } from '../index.js'
 import { readFeed, decodeEntities, stripTags, extractOgImage, absoluteUrl } from '../feed.js'
@@ -289,6 +290,25 @@ const okSources = (refresh.body?.results ?? []).filter((entry) => entry.ok)
 check('at least the AIHOT sources refreshed', okSources.some((entry) => entry.sourceId === 'aihot'), okSources.map((e) => e.sourceId).join(', '))
 check('refresh reported no unexpected throw', Array.isArray(refresh.body?.results), `${(refresh.body?.results ?? []).length} sources`)
 
+/**
+ * Upstream availability is not this repo's regression.
+ *
+ * A source's own host going 404/500 says nothing about a code change here, and a test that
+ * fails on it trains everyone to ignore red. Each per-source assertion below therefore skips
+ * (printing why) when that one source failed to refresh, instead of failing the run. A source
+ * that refreshed but yielded no items is still a real failure: that is our parsing.
+ */
+const failedSources = new Set((refresh.body?.results ?? []).filter((entry) => !entry.ok).map((entry) => entry.sourceId))
+const skipFeedback = []
+const checkSource = (sourceId, name, condition, detail) => {
+  if (failedSources.has(sourceId)) {
+    skipFeedback.push(`${sourceId}: ${String(refresh.body?.results?.find((e) => e.sourceId === sourceId)?.error ?? '').slice(0, 60)}`)
+    console.log(`SKIP  ${name}  -> ${sourceId} did not refresh upstream`)
+    return
+  }
+  check(name, condition, detail)
+}
+
 const meta = await call(routes, 'GET', '/sooyo/meta')
 check('meta is ready', meta.body?.ready === true, meta.body?.error)
 // ADR 0001: a Source no longer owns a card. It suggests a 呈现, and layout is user data.
@@ -323,38 +343,43 @@ check('aihot item keeps its category for the 图文 tabs', typeof first?.categor
 // because a parsing change that silently yields undefined only shows up in the UI.
 const papers = await call(routes, 'GET', '/sooyo/items?source=hf-papers&limit=8')
 const paperItems = papers.body?.items ?? []
-check('hf-papers items are stored', paperItems.length > 0, `${paperItems.length} papers`)
-check('hf-papers keeps a one-line summary (tldr)', paperItems.some((item) => typeof item.tldr === 'string' && item.tldr.length > 0),
+checkSource('hf-papers', 'hf-papers items are stored', paperItems.length > 0, `${paperItems.length} papers`)
+checkSource('hf-papers', 'hf-papers keeps a one-line summary (tldr)', paperItems.some((item) => typeof item.tldr === 'string' && item.tldr.length > 0),
   paperItems.map((item) => (item.tldr ? `${item.tldr.length}c` : '-')).join(' '))
-check('hf-papers keeps ai_keywords', paperItems.some((item) => Array.isArray(item.keywords) && item.keywords.length > 0),
+checkSource('hf-papers', 'hf-papers keeps ai_keywords', paperItems.some((item) => Array.isArray(item.keywords) && item.keywords.length > 0),
   paperItems.map((item) => (item.keywords?.length ?? 0)).join(','))
-check('hf-papers keeps the author count', paperItems.some((item) => typeof item.authorCount === 'number' && item.authorCount > 0),
+checkSource('hf-papers', 'hf-papers keeps the author count', paperItems.some((item) => typeof item.authorCount === 'number' && item.authorCount > 0),
   paperItems.map((item) => item.authorCount ?? '-').join(','))
-check('hf-papers keeps the full abstract', paperItems.some((item) => (item.summary ?? '').length > 400),
+checkSource('hf-papers', 'hf-papers keeps the full abstract', paperItems.some((item) => (item.summary ?? '').length > 400),
   paperItems.map((item) => (item.summary ?? '').length).join(','))
 // The handoff warns teaser figures are rare; the card must read well without one.
-check('hf-papers works when a paper has no teaser figure', paperItems.every((item) => Boolean(item.thumbnail) || Boolean(item.url)),
+checkSource('hf-papers', 'hf-papers works when a paper has no teaser figure', paperItems.every((item) => Boolean(item.thumbnail) || Boolean(item.url)),
   `${paperItems.filter((item) => item.thumbnail?.includes('social-thumbnails')).length} on the generated cover`)
 
 const videos = await call(routes, 'GET', '/sooyo/items?source=youtube&limit=12')
 const videoItems = videos.body?.items ?? []
-check('youtube items are stored', videoItems.length > 0, `${videoItems.length} videos`)
-check('youtube marks every entry as a Short or an episode',
+checkSource('youtube', 'youtube items are stored', videoItems.length > 0, `${videoItems.length} videos`)
+checkSource('youtube', 'youtube marks every entry as a Short or an episode',
   videoItems.every((item) => ['short', 'episode'].includes(item.kind)),
   videoItems.map((item) => `${item.kind}:${item.title?.slice(0, 18)}`).join(' | ').slice(0, 160))
-check('youtube carries a per-video cover', videoItems.every((item) => /^https:\/\/i\.ytimg\.com\//.test(item.cover ?? '') || Boolean(item.thumbnail)),
+checkSource('youtube', 'youtube carries a per-video cover', videoItems.every((item) => /^https:\/\/i\.ytimg\.com\//.test(item.cover ?? '') || Boolean(item.thumbnail)),
   videoItems.slice(0, 3).map((item) => item.cover ?? item.thumbnail).join(' '))
-check('youtube a Short cover is the 9:16 frame, not a 16:9 one',
+checkSource('youtube', 'youtube a Short cover is the 9:16 frame, not a 16:9 one',
   videoItems.filter((item) => item.kind === 'short').every((item) => !String(item.cover ?? '').includes('maxresdefault'))
   || videoItems.every((item) => item.kind !== 'short'),
   videoItems.filter((item) => item.kind === 'short').map((item) => item.cover).join(' ') || 'no Shorts this run')
-check('youtube parses likes when the feed publishes them',
+checkSource('youtube', 'youtube parses likes when the feed publishes them',
   videoItems.some((item) => typeof item.metrics?.likes === 'number')
   || videoItems.every((item) => item.metrics?.likes === undefined),
   videoItems.map((item) => item.metrics?.likes ?? '-').join(','))
-check('youtube keeps views where published',
+checkSource('youtube', 'youtube keeps views where published',
   videoItems.some((item) => typeof item.metrics?.views === 'number'),
   videoItems.map((item) => item.metrics?.views ?? '-').join(','))
+
+if (skipFeedback.length > 0) {
+  console.log(`\nNOTE  ${skipFeedback.length} source(s) skipped: upstream did not answer — ${skipFeedback.join(' | ')}`)
+  console.log('      A source that fails to fetch is not a regression here; re-run when it is back.')
+}
 
 const mark = await call(routes, 'POST', '/sooyo/state', { ids: [first?.id], seen: true, starred: true })
 check('POST /state -> ok', mark.body?.ok === true, JSON.stringify(mark.body))
@@ -380,7 +405,9 @@ check('og:image pass resolved a real cover', (thumb.resolved ?? 0) > 0, `resolve
 const withImages = await call(routes, 'GET', '/sooyo/items?limit=300&kind=all')
 const resolvedSample = (withImages.body?.items ?? []).find((item) => item.thumbnail && item.thumbnailCheckedAt)
 check('resolved cover is stored on the item', Boolean(resolvedSample?.thumbnail), resolvedSample?.thumbnail)
-check('resolved cover looks like an image url', /\.(jpe?g|png|webp|avif)|image/i.test(resolvedSample?.thumbnail ?? ''), String(resolvedSample?.thumbnail).slice(0, 90))
+// Not every resolved cover ends in a file extension: a CDN thumbnail can be a query-only URL
+// (pbs.twimg.com/…?format=jpg), which is still an image. Assert the host is http(s) instead.
+check('resolved cover is an absolute http(s) url', /^https?:\/\//i.test(resolvedSample?.thumbnail ?? ''), String(resolvedSample?.thumbnail).slice(0, 90))
 check('a page with no image is remembered, not refetched', (withImages.body?.items ?? []).some((item) => !item.thumbnail && item.thumbnailCheckedAt))
 
 // End of the network-dependent block.
@@ -512,6 +539,42 @@ check('every stored key across the daily tables is path-safe', [...tables.entrie
   [...tables.entries()].map(([name, table]) => `${name}:${[...table.keys()].length}`).join(' '))
 check('the daily snapshot is stable across reloads', offlineDaily.body?.active === afterBoard.body?.active
   || offlineDaily.body?.boards?.length > 0, `${offlineDaily.body?.boards?.length} boards`)
+
+// ---- client.js static guards ------------------------------------------------
+// Two regressions reached a real UI before anyone noticed, and both are cheap to assert on
+// the source. A skin installed in the profile sets tag-level colours with !important, so a
+// reset that loses makes every link salmon; a "font" shorthand in a reset silently flattens
+// component type. Neither shows up in a screenshot assertion, only in computed style.
+
+console.log('\n-- client.css guards (no browser) --')
+
+const clientSource = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
+
+check('anchor reset survives an !important skin rule', /:where\(a\)\s*\{[^}]*color:\s*inherit\s*!important/.test(clientSource),
+  'expects `.sy-root :where(a) { color: inherit !important; ... }`')
+check('code/kbd reset survives an !important skin rule', /:where\(code,\s*kbd,\s*samp\)[^{]*\{[^}]*color:\s*inherit\s*!important/.test(clientSource),
+  'expects a color: inherit !important on code/kbd/samp')
+check('heading reset touches font-family only, never the font shorthand',
+  (() => {
+    const rule = clientSource.match(/:where\(h1,[^}]*\}/)?.[0] ?? ''
+    return rule.length > 0 && /font-family:/.test(rule) && !/(^|[;{\s])font:/.test(rule)
+  })(),
+  'a `font:` shorthand here overrides every component font-size (it flattened the headline once)')
+check('no stray backtick inside the CSS template literal',
+  (() => {
+    const start = clientSource.indexOf('const CSS = `')
+    if (start < 0) return false
+    // The literal ends at the first backtick that closes it — find it by scanning forward
+    // for a backtick at end of line, which is how the block is delimited.
+    const rest = clientSource.slice(start + 'const CSS = `'.length)
+    const close = rest.search(/^`$/m)
+    if (close < 0) return false
+    return !rest.slice(0, close).includes('`')
+  })(),
+  'a backtick in a CSS comment terminates the template literal and breaks the module')
+check('element resets keep zero specificity so component classes win',
+  /\.sy-root :where\(button\)/.test(clientSource) && !/^\.sy-root button \{/m.test(clientSource),
+  'a plain `.sy-root button` reset outranks `.sy-btn` and strips its border')
 
 // ---- teardown --------------------------------------------------------------
 

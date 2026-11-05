@@ -46,6 +46,22 @@ a Source's card). Package `dsh-sooyo`, panel id `sooyo`, routes `/sooyo/*`, stor
   longer asserts the retired `widget.kind` model.
 - New fixtures pin the two YouTube shapes that broke parsing: per-video data inside
   `<media:group>`, and `media:starRating` with `count` not first.
+- A `client.css guards` block asserts four source-level invariants that a browser test would
+  not catch: the anchor/code resets survive an `!important` skin rule, the heading reset never
+  uses the `font` shorthand, no backtick closes the CSS template literal early, and the
+  element resets keep zero specificity.
+
+### Fixed
+
+- **Links and inline code no longer inherit the host skin's colour.** An installed UI skin
+  sets tag-level colours with `!important`, so the panel's zero-specificity resets lost:
+  every link rendered salmon and every `<code>` orange. The resets now use
+  `color: inherit !important`, verified against a clone profile that loads the same skin.
+- **The greeting headline is 38px again.** A `font: inherit !important` heading reset was
+  also resetting every component's size and weight; it now resets `font-family` only, so the
+  skin's serif face is still rejected without flattening the type ramp.
+- A backtick inside a CSS comment terminated the `CSS` template literal and broke the whole
+  client half with a `SyntaxError`; removed, and now asserted.
 
 ## 0.1.0
 

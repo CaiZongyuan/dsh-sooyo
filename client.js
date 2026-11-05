@@ -212,13 +212,33 @@ window.__ModuleLoader__.load({
   color-scheme: dark;
 }
 .sy-root *, .sy-root *::before, .sy-root *::after { box-sizing: border-box; }
-/* The element resets go through :where() so they carry ZERO specificity. Written plainly
-   (a bare ".sy-root button" selector) they outrank every single-class component rule —
-   ".sy-btn" is one class — which silently stripped the border and padding off every button
-   in the panel: the gallery's primary action rendered as bare text. */
+/* Element resets.
+ *
+ * Two separate hazards, and they pull in opposite directions:
+ *
+ * 1. SPECIFICITY. A plain ".sy-root button { border: 0 }" is (0,1,1) and outranks every
+ *    single-class component rule — ".sy-btn" is only (0,1,0) — which silently stripped the
+ *    border and padding off every button in the panel. So the resets go through :where(),
+ *    which contributes nothing.
+ *
+ * 2. INHERITED COLOUR FROM THE HOST SKIN. Zero specificity is not enough for the color
+ *    property here: an installed UI skin sets tag-level colours (!important on anchor and
+ *    code elements), so a reset that loses paints every link in salmon and every code span
+ *    in orange — which is exactly what happened. The revert keyword plus !important is the
+ *    only combination that wins against a !important author rule of any specificity, and
+ *    revert keeps the browser default (currentColor for a link, monospace for code) instead
+ *    of hard-coding a colour. Do not weaken these two declarations; verify with
+ *    getComputedStyle after any change.
+ */
 .sy-root :where(button) { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 .sy-root :where(input, textarea) { font: inherit; color: inherit; }
-.sy-root :where(a) { color: inherit; text-decoration: none; }
+.sy-root :where(a) { color: inherit !important; text-decoration: none !important; }
+.sy-root :where(code, kbd, samp) { color: inherit !important; font-family: var(--sy-mono) !important; }
+/* Headings are the skin's most visible fingerprint: it swaps in a serif display face and a
+   second type ramp. Reset the FACE only, never the shorthand: a "font" shorthand here (or
+   font: inherit) also overrides every component's own font-size and font-weight, which
+   silently flattened the panel's 40px headline to 14px/400. */
+.sy-root :where(h1, h2, h3, h4, h5, h6) { font-family: var(--sy-font) !important; color: inherit !important; margin: 0; }
 .sy-root :focus-visible { outline: 2px solid var(--sy-accent); outline-offset: 2px; border-radius: 8px; }
 .sy-root svg { display: block; flex: none; }
 .sy-root .c1, .sy-root .c2, .sy-root .c3, .sy-root .c4, .sy-root .c8 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }

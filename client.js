@@ -217,23 +217,59 @@ window.__ModuleLoader__.load({
   --sy-t-habit: #D27690; --sy-t-focus: #C3654A; --sy-t-calendar: #E05A46;
   --sy-t-weather: #5E9FD3; --sy-t-briefing: #B8963A; --sy-t-embed: #6C7C93;
   --sy-t-agentInbox: #7C6FD4;
+  /* Frosted chrome. The sticky bar must let content show through, or a headline scrolling under
+     it is sliced in half — which is exactly what a phone reported. The blur alone is not enough:
+     a translucent tint plus a hairline keeps the bar readable over a photo card, and the inset
+     highlight is what gives it the frosted-glass edge rather than a flat wash. */
+  --sy-chrome: rgba(243,244,246,.72); --sy-chrome-line: rgba(20,22,30,.06);
+  --sy-chrome-lift: inset 0 1px 0 rgba(255,255,255,.65);
+  --sy-blur: saturate(180%) blur(20px);
   --sy-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Segoe UI", sans-serif;
   --sy-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   --sy-row: 88px; --sy-gap: 14px; --sy-radius: 16px;
   height: 100%; overflow: auto; background: var(--sy-bg); color: var(--sy-ink);
   font: 14px/1.45 var(--sy-font); -webkit-font-smoothing: antialiased;
 }
+/* Dark theme.
+ *
+ * The palette is warm-neutral rather than blue-black: a #121211 ground with #181816 surfaces.
+ * A pure #0E0F12 reads as a screen; a slightly warm black reads as a surface, which is what
+ * makes the frosted chrome on top of it look like glass instead of a lighter rectangle. The
+ * values are deliberately close together — the separation comes from the hairline and the inset
+ * highlight, not from a big luminance jump, which is what keeps a dense grid calm.
+ */
 .sy-root[data-theme="dark"] {
-  --sy-bg: #0E0F12; --sy-card: #18191D; --sy-well: #212227;
-  --sy-line: rgba(255,255,255,.07); --sy-line2: rgba(255,255,255,.13);
-  --sy-ink: #F1F2F4; --sy-ink2: #A5A9B2; --sy-ink3: #6D727C;
-  --sy-accent: #9C9FF2; --sy-accent-soft: rgba(156,159,242,.14); --sy-accent-ink: #BABCF7;
-  --sy-bad: #EE7066; --sy-ok: #5DBB8A; --sy-skel: rgba(255,255,255,.06); --sy-scrim: rgba(0,0,0,.55);
-  --sy-shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 28px -16px rgba(0,0,0,.7);
-  --sy-shadow-hover: 0 2px 4px rgba(0,0,0,.4), 0 16px 36px -16px rgba(0,0,0,.8);
-  --sy-shadow-lift: 0 4px 10px rgba(0,0,0,.45), 0 28px 56px -18px rgba(0,0,0,.9);
+  --sy-bg: #121211; --sy-card: #181816; --sy-well: #201F1D;
+  --sy-line: rgba(239,237,231,.07); --sy-line2: rgba(239,237,231,.14);
+  --sy-ink: #EFEDE7; --sy-ink2: #D3D0C8; --sy-ink3: #8B8880;
+  --sy-accent: #9CA4FF; --sy-accent-soft: rgba(156,164,255,.14); --sy-accent-ink: #BCC1FF;
+  --sy-bad: #F2766A; --sy-ok: #88C49C; --sy-skel: rgba(239,237,231,.06); --sy-scrim: rgba(0,0,0,.62);
+  /* Inset top highlight first: on a dark surface the 1px "lit edge" is what sells the material. */
+  --sy-shadow: inset 0 1px 0 rgba(239,237,231,.035), 0 1px 2px rgba(0,0,0,.4), 0 12px 30px -18px rgba(0,0,0,.75);
+  --sy-shadow-hover: inset 0 1px 0 rgba(239,237,231,.05), 0 2px 6px rgba(0,0,0,.45), 0 18px 38px -18px rgba(0,0,0,.85);
+  --sy-shadow-lift: inset 0 1px 0 rgba(239,237,231,.06), 0 8px 20px rgba(0,0,0,.5), 0 32px 60px -20px rgba(0,0,0,.9);
+  /* Chrome sits *over* content, so it is a tinted veil, not a solid fill. */
+  --sy-chrome: rgba(18,18,17,.72); --sy-chrome-line: rgba(239,237,231,.08);
+  --sy-chrome-lift: inset 0 1px 0 rgba(239,237,231,.05);
   color-scheme: dark;
 }
+/* Grain.
+ *
+ * A flat dark fill shows banding on OLED phones and looks synthetic next to photos. One inline
+ * SVG turbulence at a few percent breaks it up and costs a single cached paint — no texture
+ * file, no request. Blend mode overlay keeps it from washing out the ink beneath.
+ *
+ * It rides on a dedicated child element rather than ::after: the panel already uses ::after on
+ * .sy-root for nothing else today, but a pseudo-element is one rule away from a collision, and
+ * a real node can be toggled and inspected. A fixed position with inset zero covers the viewport
+ * without changing layout, and pointer-events none keeps every click on the card beneath.
+ */
+.sy-grain {
+  position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: .03;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+.sy-root[data-theme="dark"] .sy-grain { opacity: .05; }
 .sy-root *, .sy-root *::before, .sy-root *::after { box-sizing: border-box; }
 /* Element resets.
  *
@@ -274,7 +310,34 @@ window.__ModuleLoader__.load({
 .sy-page { padding: 0 20px 72px; }
 .sy-frame { max-width: 1440px; margin: 0 auto; container: sy / inline-size; }
 .sy-main { min-width: 0; }
-.sy-topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 14px; padding-block: 12px; background: var(--sy-bg); }
+/* The sticky bar.
+ *
+ * It used to paint an opaque background. On a phone the bar wraps to four rows and stands 156px
+ * tall, so a headline scrolling under it was cut through the middle of its glyphs and the panel
+ * looked broken. Three changes fix that and make it feel like glass:
+ *
+ *  1. a translucent tint plus a backdrop filter, so content shows through blurred instead of
+ *     being sliced by an opaque rectangle;
+ *  2. a hairline instead of a shadow, because a shadow under a wrapped bar reads as a second
+ *     card edge on a small screen;
+ *  3. a blurred veil rather than a solid fill, so the bar stays legible over a photo card.
+ *
+ * The webkit-prefixed property is listed for Safari and iOS, which is where a phone browser
+ * usually is.
+ */
+.sy-topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 14px;
+  padding-block: 12px;
+  background: var(--sy-chrome);
+  -webkit-backdrop-filter: var(--sy-blur); backdrop-filter: var(--sy-blur);
+  box-shadow: var(--sy-chrome-lift), 0 1px 0 var(--sy-chrome-line);
+}
+/* A fallback for a browser that ignores backdrop-filter: the tint must still hide scrolled text,
+   or the bug this block exists for comes back. The supports-not query keeps it to exactly those. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .sy-topbar { background: var(--sy-bg); }
+}
 .sy-brand { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 17px; letter-spacing: -.02em; white-space: nowrap; }
 .sy-brand i { width: 22px; height: 22px; border-radius: 7px; background: conic-gradient(from 210deg, #93A8F0, #C9A6EE, #93A8F0); box-shadow: inset 0 0 0 1px rgba(255,255,255,.5); }
 .sy-brand span { color: var(--sy-ink3); font-weight: 500; }
@@ -316,12 +379,21 @@ window.__ModuleLoader__.load({
   .sy-topbar { flex-wrap: wrap; row-gap: 10px; }
   .sy-cmd { order: 5; flex-basis: 100%; max-width: none; }
 }
-@container sy (max-width: 640px) {
-  .sy-seg-boards { order: 6; flex-basis: 100%; }
-  .sy-btn-add .lbl, .sy-switch .lbl { display: none; }
-  .sy-btn-add { width: 34px; padding: 0; }
-  .sy-cmd-box kbd { display: none; }
-}
+/* Phone.
+ *
+ * The bar used to become four stacked rows (brand + actions / command / boards), 156px tall on a
+ * 390px screen — 18% of the viewport spent on chrome, and enough to swallow the headline when it
+ * scrolled. This keeps it to two rows by putting the board strip on the *same* row as the brand,
+ * scrolling horizontally when it does not fit. That is how a mobile tab bar behaves, and it is
+ * what the strip's own overflow rule was already built for.
+ *
+ * The brand drops its word mark and the command box drops its shortcut hint: both are affordances
+ * a touch screen does not have, so removing them buys the row the strip needs.
+ *
+ * Placement matters: this block sits AFTER the base rules it overrides. A container query does not
+ * add specificity, so a phone rule written above its base rule loses on source order — which is
+ * exactly how the first attempt produced a 20px headline that still measured 24px.
+ */
 .sy-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding-block: 26px 22px; }
 .sy-tag { display: inline-block; font: 500 11px/1 var(--sy-mono); letter-spacing: .06em; border: 1px solid var(--sy-ink2); color: var(--sy-ink); border-radius: 5px; padding: 4px 6px; margin-bottom: 16px; }
 .sy-headline { margin: 0; font-size: clamp(24px, 3cqi, 40px); line-height: 1.2; letter-spacing: -.028em; font-weight: 500; color: var(--sy-ink3); max-width: 23em; text-wrap: balance; }
@@ -710,6 +782,54 @@ window.__ModuleLoader__.load({
 .sy-toast button { font-weight: 600; color: var(--sy-bg); text-decoration: underline; text-underline-offset: 3px; padding: 2px 4px; }
 @media (prefers-reduced-motion: reduce) {
   .sy-root *, .sy-root *::before, .sy-root *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+/* ============================================================================
+   Phone overrides — LAST, on purpose.
+   ============================================================================
+   A container query adds no specificity, so it only wins on source order. Written above its base
+   rule it loses silently, which is how a 20px headline still measured 24px on the first attempt.
+   Everything a narrow screen needs to override therefore lives here, after every base rule.
+
+   The sticky bar was the actual bug in the phone screenshot: it wrapped to four rows and stood
+   156px tall (18% of a 844px viewport) with an opaque background, so a headline scrolling under
+   it was sliced through the middle of its glyphs. Two rows plus the frosted tint above fix it.
+   ============================================================================ */
+@container sy (max-width: 640px) {
+  .sy-topbar { gap: 8px; row-gap: 8px; padding-block: 9px; }
+  .sy-brand { flex: none; font-size: 15px; gap: 6px; }
+  .sy-brand span { display: none; }
+  /* Share the brand's row and scroll, instead of taking a row of its own.
+     The right edge fades out: a strip that is cut mid-button reads as broken, while a strip that
+     fades reads as "there is more, swipe". The mask is what makes horizontal overflow legible
+     without a scrollbar, which a touch device does not show. */
+  .sy-seg-boards {
+    flex: 1 1 0; min-width: 0;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent 100%);
+  }
+  .sy-seg { padding: 2px; }
+  .sy-seg button { padding: 6px 10px; font-size: 13px; }
+  .sy-btn-add .lbl, .sy-switch .lbl { display: none; }
+  .sy-btn-add { width: 34px; padding: 0; }
+  .sy-cmd-box kbd { display: none; }
+  .sy-actions { gap: 6px; }
+  .sy-cmd { flex: 1 1 100%; }
+  /* A headline is a lead paragraph on a phone, not a billboard: 24px pushes the first card off
+     screen and wraps to four lines. */
+  .sy-headline { font-size: 20px; max-width: none; text-wrap: pretty; }
+  .sy-hero { flex-direction: column; align-items: flex-start; gap: 10px; padding-block: 14px 12px; }
+  .sy-status { font-size: 11px; padding-bottom: 0; }
+}
+/* .sy-page is the PARENT of the sy container, so a container query can never reach it — the
+   first version put its padding here and nothing happened. Media queries are the right tool for
+   a box that sizes the container. */
+@media (max-width: 640px) {
+  .sy-page { padding: 0 14px 80px; }
+}
+@container sy (max-width: 420px) {
+  .sy-headline { font-size: 19px; }
+  .sy-seg button { padding: 6px 8px; }
 }
 `
 
@@ -1892,6 +2012,10 @@ window.__ModuleLoader__.load({
         onPointerDown,
       }, [
         h('style', { key: 'css' }, CSS),
+        // The grain layer: a fixed, non-interactive veil over the whole viewport. It is a real
+        // node rather than a pseudo-element so it cannot collide with another ::after rule, and
+        // so the reduced-motion block can leave it alone.
+        h('div', { className: 'sy-grain', key: 'grain', 'aria-hidden': 'true' }),
         h('div', { className: 'sy-page', key: 'page' },
           h('div', { className: 'sy-frame' + (editing ? ' sy-editing' : ''), 'data-cols': cols },
             h('header', { className: 'sy-topbar', key: 'top' }, [

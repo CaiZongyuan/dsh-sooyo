@@ -1169,6 +1169,70 @@ check('element resets keep zero specificity so component classes win',
   /\.sy-root :where\(button\)/.test(clientSource) && !/^\.sy-root button \{/m.test(clientSource),
   'a plain `.sy-root button` reset outranks `.sy-btn` and strips its border')
 
+/**
+ * Layout guards for the two phone bugs.
+ *
+ * Both were found by measuring a real layout at 390px, and both are invisible to any assertion
+ * about "does it render" — the panel rendered fine, it was just 156px of chrome over a cut
+ * headline. These checks encode the two structural causes so they cannot come back silently:
+ *
+ *  - a container query placed BEFORE its base rule loses on source order (it adds no
+ *    specificity), which is how a 20px phone headline still measured 24px;
+ *  - `.sy-page` is the parent of the `sy` container, so a container query can never style it.
+ */
+const cssBlock = (() => {
+  const start = clientSource.indexOf('const CSS = `')
+  if (start < 0) return ''
+  const rest = clientSource.slice(start + 'const CSS = `'.length)
+  const close = rest.search(/^`$/m)
+  return close < 0 ? '' : rest.slice(0, close)
+})()
+
+const cssIndexOf = (needle) => cssBlock.indexOf(needle)
+
+check('the phone container query comes after the base rules it overrides',
+  cssIndexOf('@container sy (max-width: 640px)') > cssIndexOf('.sy-headline { margin: 0;'),
+  'a container query has no extra specificity, so source order is the only thing that makes it win')
+
+check('.sy-page is styled by a media query, not the container query it parents',
+  (() => {
+    // Slice to the END of that container block (its matching brace), not to the end of the file:
+    // the wrong slice swallowed the media query below it and reported a false failure.
+    const start = cssIndexOf('@container sy (max-width: 640px)')
+    if (start < 0) return false
+    let depth = 0
+    let end = start
+    for (let i = start; i < cssBlock.length; i += 1) {
+      if (cssBlock[i] === '{') depth += 1
+      else if (cssBlock[i] === '}') {
+        depth -= 1
+        if (depth === 0) { end = i; break }
+      }
+    }
+    const containerBlock = cssBlock.slice(start, end + 1)
+    const declaredInContainer = /^\s*\.sy-page\s*\{/m.test(containerBlock)
+    const declaredInMedia = /@media \(max-width: 640px\) \{\s*\n\s*\.sy-page\s*\{/.test(cssBlock)
+    return !declaredInContainer && declaredInMedia
+  })(),
+  '.sy-page wraps the container, so @container can never reach it')
+
+check('the sticky bar is frosted rather than an opaque fill',
+  /\.sy-topbar \{[^}]*backdrop-filter: var\(--sy-blur\)/.test(cssBlock)
+  && /--sy-chrome: rgba\(/.test(cssBlock),
+  'an opaque bar slices any headline that scrolls under it — the reported phone bug')
+
+check('the frost has a fallback for browsers without backdrop-filter',
+  /@supports not \(\(backdrop-filter/.test(cssBlock),
+  'without the fallback a browser that ignores the filter shows scrolled text through the bar')
+
+check('the dark palette is warm-neutral, not blue-black',
+  /--sy-bg: #121211/.test(cssBlock) && !/--sy-bg: #0E0F12/.test(cssBlock),
+  'a warm black reads as a surface; a blue-black reads as a screen')
+
+check('the grain layer is a real node with a matching style',
+  /\.sy-grain \{/.test(cssBlock) && /className: 'sy-grain'/.test(clientSource),
+  'grain breaks up OLED banding on a flat dark fill')
+
 // ---- teardown --------------------------------------------------------------
 
 // The poll effect owns a 30s setTimeout: a live timer would keep node alive forever.

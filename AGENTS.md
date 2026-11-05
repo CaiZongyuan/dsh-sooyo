@@ -151,6 +151,20 @@ the object behind `SooyoService` differs. See [`docs/adr/0002`](./docs/adr/0002-
     writes the ANSI codepage and silently replaced 53 Chinese characters in `index.js` with
     U+FFFD — the file still parsed, so only a content check would have caught it. Use the
     `edit`/`write` tools, or verify `(text.match(/\uFFFD/g) || []).length === 0` afterwards.
+22. **A container query adds no specificity, so placement is its only lever.** Written above the
+    base rule it overrides, it loses silently — a phone headline set to 20px still measured 24px
+    through three attempts at "fixing" the query. Every narrow-screen override lives in one block
+    at the end of `CSS`, after every base rule; the self-test asserts that ordering.
+23. **A container cannot style its own container.** `.sy-page` wraps the `sy` container, so
+    `@container sy { .sy-page { … } }` never matches. Use a media query for any box that sizes
+    the container, and a container query only for descendants.
+24. **A sticky bar over scrolling content must be translucent, not opaque.** An opaque
+    `background: var(--sy-bg)` sliced a headline through its glyphs on a phone. Frost it
+    (`backdrop-filter` + a tint), keep a `@supports not` fallback so browsers without the filter
+    still hide scrolled text, and watch its height: four wrapped rows were 18% of the viewport.
+25. **Assert layout with measurements, not a screenshot.** `dev/measure-mobile.mjs` extracts the
+    real CSS from `client.js` and measures it at 390×844 over CDP. A screenshot showed the bug but
+    could not say why; the numbers named the 156px bar and the 66px of clipped headline.
 
 ## Testing
 

@@ -41,6 +41,49 @@ A composable, local-first personal space for <a href="https://github.com/deepsee
 - **自带出网层。** 每源独立节奏、条件请求（ETag/304）、全局并发上限、失败按 1/2/4… 分钟递增重试，一个源坏掉不影响别人。
 - **内容只当资料。** 抓到的第三方文本一律不执行其中的指令；每条都带来源与原文链接。
 - **也能喂给模型。** 注册了 `sooyo_brief` / `sooyo_refresh` / `sooyo_sources` 三个工具，配合 DSH 自带的定时任务就能做每日早报。
+- **多设备一份数据。** 一台机器当 Hub 持有权威数据并抓取信源，其它机器当 Client 代理读写；记录不启动模型，下次真人对话时按需注入一份有界的最新状态。详见 [docs/sync.md](./docs/sync.md)。
+
+## 三种角色
+
+| 角色 | 谁持有数据 | 抓取信源 | 适合 |
+|---|---|---|---|
+| `standalone`（默认） | 本机 | 本机 | 单机使用，行为与之前完全一致 |
+| `hub` | 本机 | 本机 | 常驻服务器，对外提供受令牌保护的同步 API |
+| `client` | Hub | 不抓 | 笔记本、手机等其它设备 |
+
+```yaml
+# Hub
+sync:
+  role: hub
+  tokens:
+    - { token: '至少-16-字符的随机串', device: macbook, access: write }
+```
+
+```yaml
+# Client
+sync:
+  role: client
+  endpoint: https://sooyo.example.com
+  # 令牌建议走环境变量 SOOYO_SYNC_TOKEN
+```
+
+不写 `sync` 就是 `standalone`：老配置完全不用改。Client 缺 endpoint 或缺令牌时会明确报错，
+**不会**悄悄起一个空的本地库。
+
+## Agent 工具
+
+| 工具 | 读/写 | 用途 |
+|---|---|---|
+| `sooyo_context_get` | 只读 | 今日/未完成/收件箱/最近笔记/待批建议的实时摘要 |
+| `sooyo_task_list` | 只读 | 按列表、完成状态、Project 过滤任务 |
+| `sooyo_task_create` | 写入 | 建任务（可带 Origin） |
+| `sooyo_task_update` | 写入 | 改任务，**必须带 revision**：被别的设备改过会返回 conflict |
+| `sooyo_note_capture` | 写入 | 记笔记，来源标记为 agent |
+| `sooyo_inbox_list` | 只读 | 看待审批的建议 |
+| `sooyo_proposal_create` | 写入建议 | 写一条待批准的建议，**不直接改数据** |
+| `sooyo_review_run` | 只读+游标 | 后台审阅的确定性入口：先免费扫描，再 ack 看过的条目 |
+
+保存 Todo 不调用任何模型；`sooyo_action` 这种能传任意命令名的通用工具**故意不做**。
 
 ## Widget 库
 
@@ -52,6 +95,7 @@ A composable, local-first personal space for <a href="https://github.com/deepsee
 | 书签 | S / M / Wide | 常去的网站一键直达 |
 | 项目 | S / M / L | 按任务完成度算进度，不连外部服务 |
 | 稍后读 | S / M / L | 存下来、晚点再读的文章 |
+| Agent 收件箱 | S / M / L | 后台审阅给出的建议，逐条批准或拒绝 |
 | 习惯 | S / M | 每天打卡，看连续天数 |
 | 专注计时 | S / M | 番茄钟，可关联一个任务，倒计时由宿主保存 |
 | 日程 / 天气 / 简报 / 嵌入 | — | 需要一个数据源，尚未接上；在库里标为「即将推出」而不是显示假数据 |
@@ -90,8 +134,30 @@ dsh plugin --profile web add github:CaiZongyuan/dsh-sooyo
 | `sources` | 全部 | 只启用列出的源 id |
 | `refreshMinutes` | — | 覆盖所有源的抓取节奏 |
 | `thumbnailBatch` | `6` | 每轮补封面的页面上限（最大 20） |
+| `sync.role` | `standalone` | `standalone` / `hub` / `client`，见 [docs/sync.md](./docs/sync.md) |
+| `sync.tokens` / `sync.token` | 环境变量 | Hub 的设备令牌 / Client 的令牌，只存 Host 侧 |
+| `sync.allowLoopbackOnly` | `true` | Hub 是否只接受本机连接 |
+| `sync.context` | `true` | 是否在真人对话时注入 Sooyo Context |
 
-想关掉某个源，编辑本包的 `SOURCES` 注册表把对应项注掉即可 —— 那就是唯一的信息源扩展点。
+## 后台审阅
+
+只在 Hub 上跑一条 DSH Schedule（时间取自 `GET /sooyo/review/schedule` 的 `spec`）。它的第一步是
+`sooyo_review_run` 的确定性扫描：没有新增或改动过的事项时提示模型立刻结束这一轮，不产出任何内容。
+
+建议不会直接改数据，而是进 Agent 收件箱等你在界面上批准；**同步 API 拒绝批准操作**，
+所以模型无法批准自己写的建议。审批后按条执行，失败的标为 `failed` 而不是假装成功。
+
+## 备份与迁移
+
+```sh
+GET  /sooyo/export                       # 导出 JSON（不含抓取到的条目）
+POST /sooyo/import                       # 不带 apply：dry-run，逐表列新建/相同/冲突/拒绝
+POST /sooyo/import  { apply: true }      # 真正写入；冲突仍然不覆盖
+POST /sooyo/import  { overwrite: true, apply: true }   # 显式覆盖
+```
+
+导入永不删除、永不覆盖未确认的记录，中断后重跑不会产生重复实体。切换设备到 `client` 之前先备份，
+切换本身不删除任何本地数据。
 
 ## 加一个源
 
@@ -109,12 +175,14 @@ dsh plugin --profile web add github:CaiZongyuan/dsh-sooyo
 
 源不再声明卡片：它只供 Item，以及「建议」一个呈现。布局、尺寸、放在哪个 Board 都是用户数据。
 
+想关掉某个源，编辑本包的 `SOURCES` 注册表把对应项注掉即可 —— 那就是唯一的信息源扩展点。
+
 ## 开发
 
 ```sh
-npm run check         # 五个文件的语法检查
+npm run check         # 16 个文件的语法检查
 npm run test          # 完整自测（会联网实拉 5 个源，并断言新卡片读的字段）
-npm run test:offline  # 只跑离线 fixture、个人数据接口与结构断言（CI 用这个）
+npm run test:offline  # 离线 fixture、个人数据接口、同步协议与结构断言（CI 用这个）
 ```
 
 `dev/selftest.mjs` 用假 `ctx`（假的 `storageDomain.open` / `webServer.register` / `tools.register` / `effect`）直接跑真的 `apply()`，并用假 `req`/`res` 打自己注册的路由。**宿主的改动要重启才生效，所以先在本地把逻辑跑一遍比反复重启快得多。**

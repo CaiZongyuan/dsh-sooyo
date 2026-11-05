@@ -12,7 +12,7 @@
 import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
 
-import { apply } from '../index.js'
+import { apply, DOMAIN_TABLES } from '../index.js'
 import { readFeed, decodeEntities, stripTags, extractOgImage, absoluteUrl } from '../feed.js'
 
 const PATH_SAFE = /^[a-zA-Z0-9_-]+$/
@@ -263,15 +263,53 @@ async function call(routes, method, url, body) {
   return { status: res.state.status, body: parsed, bytes: res.state.body }
 }
 
+/**
+ * The same body reader `index.js` uses, re-declared here.
+ *
+ * The sync route builder takes it as a dependency (`readJson`) rather than importing it, so this
+ * file supplies the identical implementation to prove the Hub parses bodies the same way the
+ * local route does — including the 1 MB ceiling.
+ */
+async function readJsonBody(req) {
+  const chunks = []
+  let size = 0
+  for await (const chunk of req) {
+    size += chunk.length
+    if (size > 1_000_000) throw new Error('request body too large')
+    chunks.push(chunk)
+  }
+  if (chunks.length === 0) return {}
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+}
+
 // ---- run -------------------------------------------------------------------
 
 const { ctx, routes, tools, warnings, effects, tables } = makeContext()
 const plugin = apply(ctx, {})
 await new Promise((resolve) => setTimeout(resolve, 60))
 
+/** The service `apply()` built — the sync section drives it directly, as the Hub route does. */
+const service = plugin.service
+
 check('route registered', routes.length === 1)
-check('tools registered', tools.length === 3, tools.map((t) => t.name).join(', '))
-check('no effect warnings', warnings.length === 0, warnings.join(' | ') || 'none')
+check('tools registered', tools.length === 11, tools.map((t) => t.name).join(', '))
+// The fake context has no event surface, so the Context Bridge reports that it disabled
+// itself instead of failing `apply()`. That one message is expected; anything else is not.
+const unexpectedWarnings = warnings.filter((line) => !line.includes('Sooyo Context Bridge disabled'))
+check('no unexpected effect warnings', unexpectedWarnings.length === 0, unexpectedWarnings.join(' | ') || 'none')
+check('the plugin exposes one role-agnostic service', Boolean(service) && service.role === 'standalone', String(service?.role))
+
+// The storage backend accepts only `^[a-z][a-z0-9_]*$` for a table name, and a violation
+// surfaces as "store never becomes ready" rather than as an error near the mistake — which is
+// exactly how `agentInbox`/`agentReviews` shipped broken past 188 green checks. Assert the spec.
+const { TABLES } = await import('../core/store.js')
+const TABLE_NAME_RE = /^[a-z][a-z0-9_]*$/
+check('every domain table name satisfies the storage backend rule',
+  Object.values(TABLES).every((name) => TABLE_NAME_RE.test(name)),
+  Object.entries(TABLES).filter(([, name]) => !TABLE_NAME_RE.test(name)).map(([key, name]) => `${key}=${name}`).join(', ') || `${Object.keys(TABLES).length} tables`)
+check('the domain spec declares exactly the TABLES map',
+  JSON.stringify(Object.keys(DOMAIN_TABLES)) === JSON.stringify([...new Set(Object.values(TABLES))]),
+  `${Object.keys(DOMAIN_TABLES).length} declared / ${new Set(Object.values(TABLES)).size} named`)
 
 const ping = await call(routes, 'GET', '/sooyo/ping')
 check('GET /ping -> 200 ready', ping.status === 200 && ping.body?.ready === true, JSON.stringify(ping.body))
@@ -540,7 +578,562 @@ check('every stored key across the daily tables is path-safe', [...tables.entrie
 check('the daily snapshot is stable across reloads', offlineDaily.body?.active === afterBoard.body?.active
   || offlineDaily.body?.boards?.length > 0, `${offlineDaily.body?.boards?.length} boards`)
 
-// ---- client.js static guards ------------------------------------------------
+// ---- sync protocol, roles, migration and the Agent bridge -------------------
+// Everything below is local too: the Hub/Client pair runs in this one process, with the Client
+// pointed at the Hub's route handler through a fake `fetch`. That exercises the real protocol —
+// auth, ETag, 409, idempotency, the journal — without a network or a second DSH.
+
+console.log('\n-- sync protocol (hub + client, no network) --')
+
+const {
+  createSyncHandler,
+  buildSyncRoutes,
+} = await import('../sync/routes.js')
+const { exportDomain, planImport, applyImport, describePlan } = await import('../core/migrate.js')
+const { PROTOCOL_VERSION, ERRORS, COMMANDS, LOCAL_ONLY } = await import('../core/protocol.js')
+
+const HUB_TOKEN = 'test-hub-token-0123456789'
+const READ_TOKEN = 'test-read-token-0123456789'
+
+/**
+ * A Hub backed by the same service the plugin just built.
+ *
+ * Reusing the live service is deliberate: the point is to prove the sync API, the command
+ * funnel and the local routes agree, which a second service instance would not show.
+ */
+const hubResponses = []
+function makeSyncFetch() {
+  return async (url, init = {}) => {
+    const parsed = new URL(url)
+    const body = init.body === undefined ? undefined : JSON.parse(init.body)
+    const req = {
+      method: init.method ?? 'GET',
+      // The Hub route derives its own sub-path by stripping `/sooyo/sync/v1` from the URL, so
+      // hand it the full pathname that a real client would have requested.
+      url: parsed.pathname + parsed.search,
+      headers: { ...(init.headers ?? {}) },
+      socket: { remoteAddress: '127.0.0.1' },
+      async *[Symbol.asyncIterator]() {
+        if (body !== undefined) yield Buffer.from(JSON.stringify(body), 'utf8')
+      },
+    }
+    const out = { status: 200, headers: {}, body: null }
+    const res = {
+      headersSent: false,
+      writeHead(status, headers = {}) {
+        out.status = status
+        out.headers = headers
+        this.headersSent = true
+      },
+      end(payload) {
+        out.body = payload ?? null
+      },
+    }
+    await syncRoute.handler(req, res)
+    hubResponses.push({ route: parsed.pathname, status: out.status })
+    const payload = out.body
+    return {
+      ok: out.status >= 200 && out.status < 300,
+      status: out.status,
+      headers: {
+        get: (name) => {
+          const key = String(name).toLowerCase()
+          for (const [header, headerValue] of Object.entries(out.headers ?? {})) {
+            if (header.toLowerCase() === key) return headerValue
+          }
+          return null
+        },
+      },
+      async text() {
+        return typeof payload === 'string' ? payload : ''
+      },
+      body: null,
+    }
+  }
+}
+
+const { sync: hubSync, route: syncRoute } = buildSyncRoutes({
+  service,
+  send: () => {},
+  readJson: readJsonBody,
+  tokens: [
+    { token: HUB_TOKEN, device: 'device-hub-test', access: 'write' },
+    { token: READ_TOKEN, device: 'device-read-test', access: 'read' },
+  ],
+  allowLoopbackOnly: true,
+  log: () => {},
+})
+
+/** The sync handler and the route must agree on the prefix they serve. */
+check('sync route is a /sooyo/sync prefix', syncRoute.kind === 'prefix' && syncRoute.path === '/sooyo/sync')
+check('the sync handler exposes the five documented endpoints',
+  ['/health', '/snapshot', '/items', '/context', '/command'].every((path) => hubSync.ROUTES.has(path)),
+  [...hubSync.ROUTES].join(', '))
+
+/**
+ * The sync responses are written by the route handler, which sets its own status and headers.
+ * `syncCall` drives that handler directly — the same code path `webServer` would invoke — and
+ * `makeSyncFetch` adapts the client's `fetch` onto it, so the Client role talks to the real Hub.
+ */
+
+/** Drive one sync request directly, the way the Hub's route handler does. */
+async function syncCall(method, path, { token, body, headers = {}, remote = '127.0.0.1' } = {}) {
+  const req = {
+    method,
+    url: `/sooyo/sync/v1${path}`,
+    headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers },
+    socket: { remoteAddress: remote },
+    async *[Symbol.asyncIterator]() {
+      if (body !== undefined) yield Buffer.from(JSON.stringify(body), 'utf8')
+    },
+  }
+  const state = { status: null, body: null, headers: {} }
+  const res = {
+    headersSent: false,
+    writeHead(status, responseHeaders = {}) {
+      state.status = status
+      state.headers = responseHeaders
+      this.headersSent = true
+    },
+    end(payload) {
+      state.body = payload ?? null
+    },
+  }
+  await syncRoute.handler(req, res)
+  let parsed = null
+  if (typeof state.body === 'string' && state.body.length > 0) {
+    try { parsed = JSON.parse(state.body) } catch { parsed = null }
+  }
+  return { status: state.status, body: parsed, headers: state.headers }
+}
+
+const noAuth = await syncCall('GET', '/snapshot')
+check('sync: no token -> 401', noAuth.status === 401 && noAuth.body?.error?.code === ERRORS.unauthorized, JSON.stringify(noAuth.body?.error))
+const badAuth = await syncCall('GET', '/snapshot', { token: 'wrong-token-0123456789' })
+check('sync: wrong token -> 401', badAuth.status === 401, String(badAuth.status))
+const remotePeer = await syncCall('GET', '/snapshot', { token: HUB_TOKEN, remote: '10.0.0.9' })
+check('sync: a non-loopback peer is refused while allowLoopbackOnly is on', remotePeer.status === 403, String(remotePeer.status))
+
+const health = await syncCall('GET', '/health', { token: HUB_TOKEN })
+check('sync: /health names the protocol version and the role', health.status === 200 && health.body?.protocolVersion === PROTOCOL_VERSION && health.body?.role === 'standalone',
+  JSON.stringify(health.body))
+check('sync: /health leaks no data', health.body?.tasks === undefined && health.body?.boards === undefined)
+
+const snap1 = await syncCall('GET', '/snapshot', { token: HUB_TOKEN })
+check('sync: /snapshot returns the dashboard', snap1.status === 200 && Array.isArray(snap1.body?.boards), `${snap1.status}`)
+const etag1 = snap1.headers.etag
+check('sync: /snapshot carries an ETag derived from dataRevision', typeof etag1 === 'string' && etag1.includes(`-${snap1.body?.dataRevision}"`), String(etag1))
+const snap304 = await syncCall('GET', '/snapshot', { token: HUB_TOKEN, headers: { 'if-none-match': etag1 } })
+check('sync: a matching If-None-Match -> 304 with no body', snap304.status === 304 && snap304.body === null, String(snap304.status))
+
+// ---- idempotency (AC-03) ---------------------------------------------------
+
+const beforeTasks = (await call(routes, 'GET', '/sooyo/daily')).body?.tasks?.length ?? 0
+const opId = 'devicea-retry-0001'
+const created1 = await syncCall('POST', '/command', {
+  token: HUB_TOKEN,
+  body: { protocolVersion: 1, operationId: opId, name: 'task.add', body: { title: '幂等测试任务' } },
+})
+check('sync: a create returns a dataRevision and the task', created1.status === 200 && created1.body?.ok === true && created1.body?.result?.task?.id,
+  JSON.stringify(created1.body?.result))
+const created2 = await syncCall('POST', '/command', {
+  token: HUB_TOKEN,
+  body: { protocolVersion: 1, operationId: opId, name: 'task.add', body: { title: '幂等测试任务' } },
+})
+check('sync: replaying the same operationId is flagged replayed', created2.body?.replayed === true, JSON.stringify(created2.body))
+check('sync: the replay names the same task id', created2.body?.result?.task?.id === created1.body?.result?.task?.id,
+  `${created2.body?.result?.task?.id} vs ${created1.body?.result?.task?.id}`)
+const afterTasks = (await call(routes, 'GET', '/sooyo/daily')).body?.tasks?.length ?? 0
+check('sync: a retried create adds exactly one task (AC-03)', afterTasks === beforeTasks + 1, `${beforeTasks} -> ${afterTasks}`)
+
+// ---- conflicts (AC-02) -----------------------------------------------------
+
+const taskId = created1.body?.result?.task?.id
+const taskRow = (await call(routes, 'GET', '/sooyo/daily')).body?.tasks?.find((task) => task.id === taskId)
+check('a written task carries a revision', Number.isSafeInteger(taskRow?.revision), String(taskRow?.revision))
+
+const okWrite = await syncCall('POST', '/command', {
+  token: HUB_TOKEN,
+  body: {
+    protocolVersion: 1,
+    operationId: 'devicea-write-0002',
+    name: 'task.update',
+    body: { id: taskId, done: true },
+    precondition: { entity: 'task', id: taskId, revision: taskRow.revision },
+  },
+})
+check('sync: a matching precondition is accepted', okWrite.body?.ok === true, JSON.stringify(okWrite.body?.error))
+
+const staleWrite = await syncCall('POST', '/command', {
+  token: HUB_TOKEN,
+  body: {
+    protocolVersion: 1,
+    operationId: 'deviceb-write-0003',
+    name: 'task.update',
+    body: { id: taskId, title: '同时改标题' },
+    // The revision the second device saw before the first device's write landed.
+    precondition: { entity: 'task', id: taskId, revision: taskRow.revision },
+  },
+})
+check('sync: a stale precondition -> 409 (AC-02)', staleWrite.status === 409 && staleWrite.body?.error?.code === ERRORS.conflict,
+  `${staleWrite.status} ${JSON.stringify(staleWrite.body?.error?.code)}`)
+check('sync: the 409 carries the current record so the UI can diff',
+  staleWrite.body?.error?.details?.current?.title === '幂等测试任务' && staleWrite.body?.error?.details?.revision > taskRow.revision,
+  JSON.stringify({ revision: staleWrite.body?.error?.details?.revision, title: staleWrite.body?.error?.details?.current?.title }))
+const afterConflict = (await call(routes, 'GET', '/sooyo/daily')).body?.tasks?.find((task) => task.id === taskId)
+check('sync: a refused write changed nothing (no silent overwrite)', afterConflict?.title === '幂等测试任务', afterConflict?.title)
+
+// ---- authz, validation and the local-only set -----------------------------
+
+const readOnly = await syncCall('POST', '/command', {
+  token: READ_TOKEN,
+  body: { protocolVersion: 1, operationId: 'readonly-write-0001', name: 'task.add', body: { title: 'x' } },
+})
+check('sync: a read-only token cannot write', readOnly.status === 403, String(readOnly.status))
+
+const unknownCommand = await syncCall('POST', '/command', {
+  token: HUB_TOKEN,
+  body: { protocolVersion: 1, operationId: 'unknown-cmd-0001', name: 'drop.database', body: {} },
+})
+check('sync: an unknown command -> 422', unknownCommand.status === 422 && unknownCommand.body?.error?.code === ERRORS.unsupported,
+  `${unknownCommand.status} ${unknownCommand.body?.error?.code}`)
+
+const badBody = await syncCall('POST', '/command', {
+  token: HUB_TOKEN,
+  body: { protocolVersion: 1, operationId: 'bad-body-0001', name: 'task.add', body: { title: '' } },
+})
+check('sync: an empty title -> 400, not a stored empty task', badBody.status === 400, `${badBody.status} ${badBody.body?.error?.message}`)
+
+const unsafeKey = await syncCall('POST', '/command', {
+  token: HUB_TOKEN,
+  body: { protocolVersion: 1, operationId: 'bad-key-0001', name: 'task.update', body: { id: 'a:b', done: true } },
+})
+check('sync: a non-path-safe id -> 400', unsafeKey.status === 400, `${unsafeKey.status} ${unsafeKey.body?.error?.message}`)
+
+const decide = await syncCall('POST', '/command', {
+  token: HUB_TOKEN,
+  body: { protocolVersion: 1, operationId: 'decide-remote-01', name: 'proposal.decide', body: { id: 'p-x', decision: 'approve' } },
+})
+check('sync: proposal.decide is refused over the network (a model must not approve)',
+  decide.status === 403 && /本机/.test(String(decide.body?.error?.message)), `${decide.status} ${decide.body?.error?.message}`)
+check('proposal.decide is in the local-only set', LOCAL_ONLY.has('proposal.decide'))
+check('the command whitelist derives from the action registry', COMMANDS.includes('task.add') && COMMANDS.includes('item.state'))
+
+const tooBig = await syncCall('POST', '/command', {
+  token: HUB_TOKEN,
+  body: { protocolVersion: 1, operationId: 'huge-0001', name: 'note.add', body: { text: 'x'.repeat(5000) } },
+})
+check('sync: an over-length field -> 400', tooBig.status === 400, String(tooBig.status))
+
+const wrongProtocol = await syncCall('POST', '/command', {
+  token: HUB_TOKEN,
+  body: { protocolVersion: 99, operationId: 'proto-0001', name: 'task.add', body: { title: 'x' } },
+})
+check('sync: an unsupported protocolVersion -> 400', wrongProtocol.status === 400, String(wrongProtocol.status))
+
+// ---- the Client role over the same handler --------------------------------
+
+const { RemoteSooyoService, resolveSyncConfig } = await import('../sync/remote.js')
+const originalFetch = globalThis.fetch
+globalThis.fetch = makeSyncFetch()
+const clientService = new RemoteSooyoService({
+  role: 'client',
+  endpoint: 'http://127.0.0.1:1',
+  token: HUB_TOKEN,
+  device: 'device-b',
+  cacheMs: 0,
+  timeoutMs: 4000,
+}, { sources: () => [], log: () => {} })
+
+try {
+  const clientSnap = await clientService.snapshot({ force: true })
+  check('client: snapshot comes from the Hub', Array.isArray(clientSnap?.boards) && clientSnap.boards.length > 0, `${clientSnap?.boards?.length} boards`)
+  check('client: the snapshot names the merged task', (clientSnap?.tasks ?? []).some((task) => task.id === taskId), 'task visible via Hub')
+
+  const clientCreated = await clientService.execute({ name: 'task.add', body: { title: '来自 B 设备' } })
+  check('client: a write reaches the Hub and returns the business result', clientCreated?.ok === true && clientCreated?.task?.id,
+    JSON.stringify(clientCreated))
+
+  const fromHub = await call(routes, 'GET', '/sooyo/daily')
+  check('client: the Hub is authoritative — its own local view has the new task (AC-01)',
+    (fromHub.body?.tasks ?? []).some((task) => task.title === '来自 B 设备'),
+    `${(fromHub.body?.tasks ?? []).length} tasks`)
+
+  const clientItems = await clientService.items({ limit: 5 })
+  check('client: /items proxies to the Hub without throwing', Array.isArray(clientItems?.items), `${clientItems?.items?.length} items`)
+
+  const clientContext = await clientService.context({ limit: 2 })
+  check('client: /context returns the Agent digest', clientContext?.ready === true && typeof clientContext?.counts?.open === 'number',
+    JSON.stringify(clientContext?.counts))
+
+  // A Hub that cannot be reached must not produce an empty authoritative dashboard.
+  globalThis.fetch = async () => { throw new Error('ECONNREFUSED') }
+  const offlineClient = new RemoteSooyoService({ role: 'client', endpoint: 'http://127.0.0.1:1', token: HUB_TOKEN, cacheMs: 0, timeoutMs: 500 }, { log: () => {} })
+  const offlineSnap = await offlineClient.snapshot().catch((error) => ({ threw: String(error?.message ?? error) }))
+  check('client: an unreachable Hub throws rather than showing an empty dashboard (AC-05)',
+    typeof offlineSnap?.threw === 'string' && /连不上 Hub/.test(offlineSnap.threw), JSON.stringify(offlineSnap))
+  const offlineItems = await offlineClient.items({ limit: 5 })
+  check('client: a failed /items is marked stale with an error, not silently empty',
+    offlineItems?.stale === true && typeof offlineItems?.error === 'string', JSON.stringify(offlineItems?.error))
+} finally {
+  globalThis.fetch = originalFetch
+}
+
+// A client with no endpoint or token must say so instead of falling back to a local store.
+const noEndpoint = resolveSyncConfig({ sync: { role: 'client' } })
+check('config: client without endpoint reports why', noEndpoint.role === 'client' && noEndpoint.endpoint === null && /endpoint/.test(noEndpoint.error ?? ''),
+  String(noEndpoint.error))
+const noToken = resolveSyncConfig({ sync: { role: 'client', endpoint: 'https://hub.test' } }, {})
+check('config: client without a token reports why', noToken.token === null && /令牌/.test(noToken.error ?? ''), String(noToken.error))
+const shortToken = resolveSyncConfig({ sync: { role: 'hub', tokens: ['short'] } })
+check('config: a short hub token is refused', shortToken.tokens.length === 0, `${shortToken.tokens.length} tokens`)
+const standaloneDefault = resolveSyncConfig({})
+check('config: no sync block means standalone (AC-13)', standaloneDefault.role === 'standalone')
+const badRole = resolveSyncConfig({ sync: { role: 'server' } })
+check('config: an unknown role falls back to standalone', badRole.role === 'standalone')
+
+// ---- migration (AC-14, §7) ------------------------------------------------
+
+console.log('\n-- migration (export / dry-run import) --')
+
+const exported = exportDomain(service.tables, { device: 'device-a', role: 'standalone', dataRevision: service.state().revision })
+check('export: names its format and counts', exported.kind === 'sooyo-export' && exported.exportVersion === 1 && typeof exported.counts === 'object',
+  JSON.stringify(exported.counts))
+check('export: carries the personal tables and no fetched Items', 'tasks' in exported.tables && !('items' in exported.tables) && !('sources' in exported.tables),
+  Object.keys(exported.tables).join(','))
+check('export: records the source device', exported.source.device === 'device-a' && exported.source.role === 'standalone')
+
+const dryPlan = planImport(service.tables, exported, {})
+check('import: re-importing the same data is a no-op', dryPlan.ok === true && dryPlan.summary.create === 0 && dryPlan.summary.identical > 0,
+  JSON.stringify(dryPlan.summary))
+check('import: the dry run writes nothing', dryPlan.operations.length === 0, `${dryPlan.operations.length} operations`)
+check('import: the dry run prints a per-table summary', Array.isArray(describePlan(dryPlan)) && describePlan(dryPlan).length > 1,
+  describePlan(dryPlan).slice(0, 2).join(' / '))
+
+// A second device's export: one new task, one task that differs, one unsafe key.
+const otherDevice = {
+  kind: 'sooyo-export',
+  exportVersion: 1,
+  generatedAt: new Date().toISOString(),
+  source: { device: 'device-b', role: 'standalone', dataRevision: 7 },
+  tables: {
+    tasks: [
+      { key: 't-fresh-from-b', value: { id: 't-fresh-from-b', title: '只在 B 上', list: 'inbox', done: false } },
+      { key: taskId, value: { id: taskId, title: 'B 版本的标题', list: 'inbox', done: false } },
+      { key: 'bad key', value: { id: 'bad key' } },
+    ],
+  },
+}
+const mergePlan = planImport(service.tables, otherDevice, {})
+check('import: a new record is planned as create', mergePlan.summary.create === 1, JSON.stringify(mergePlan.summary))
+check('import: a differing record is a conflict, not an overwrite', mergePlan.summary.conflict === 1 && mergePlan.summary.update === 0,
+  JSON.stringify(mergePlan.summary))
+check('import: an unsafe key is rejected, not sanitised', mergePlan.summary.rejected === 1
+  && mergePlan.rejected.some((entry) => entry.reason === 'unsafe-key'), JSON.stringify(mergePlan.rejected.map((e) => e.reason)))
+check('import: the conflict names both versions', mergePlan.conflicts[0]?.current?.title !== mergePlan.conflicts[0]?.incoming?.title,
+  `${mergePlan.conflicts[0]?.current?.title} vs ${mergePlan.conflicts[0]?.incoming?.title}`)
+
+const applied = await applyImport(service.tables, mergePlan, {})
+check('import: applying writes only the planned create', applied.ok === true && applied.written.create === 1 && applied.written.update === 0,
+  JSON.stringify(applied.written))
+check('import: the conflict target was left alone', (await call(routes, 'GET', '/sooyo/daily')).body?.tasks?.find((task) => task.id === taskId)?.title === '幂等测试任务')
+
+const overwritePlan = planImport(service.tables, otherDevice, { overwrite: true })
+check('import: overwrite is opt-in and then plans an update', overwritePlan.summary.update === 1 && overwritePlan.summary.conflict === 0,
+  JSON.stringify(overwritePlan.summary))
+
+const notOurs = planImport(service.tables, { kind: 'something-else' }, {})
+check('import: a foreign file is refused', notOurs.ok === false, String(notOurs.error))
+const futureVersion = planImport(service.tables, { kind: 'sooyo-export', exportVersion: 99, tables: {} }, {})
+check('import: a future export version is refused rather than half-read', futureVersion.ok === false, String(futureVersion.error))
+
+// ---- Agent tools (AC-08, AC-09) -------------------------------------------
+
+console.log('\n-- Agent tools and context (no network) --')
+
+const toolByName = (name) => tools.find((tool) => tool.name === name)
+check('the new read/write tools are registered',
+  ['sooyo_context_get', 'sooyo_task_list', 'sooyo_task_create', 'sooyo_task_update', 'sooyo_note_capture', 'sooyo_inbox_list', 'sooyo_proposal_create', 'sooyo_review_run']
+    .every((name) => Boolean(toolByName(name))),
+  tools.map((tool) => tool.name).join(', '))
+check('no unrestricted sooyo_action tool exists',
+  !toolByName('sooyo_action'), 'a free-form action tool would let the model name any command')
+check('the original three tools keep their names',
+  ['sooyo_brief', 'sooyo_refresh', 'sooyo_sources'].every((name) => Boolean(toolByName(name))))
+
+const contextTool = await toolByName('sooyo_context_get').execute({ limit: 5 })
+check('sooyo_context_get returns counts and a revision', contextTool?.ready === true && typeof contextTool?.counts?.open === 'number'
+  && Number.isSafeInteger(contextTool?.dataRevision), JSON.stringify(contextTool?.counts))
+check('sooyo_context_get marks the data as not-an-instruction', /不是指令/.test(String(contextTool?.note)))
+
+const createdByTool = await toolByName('sooyo_task_create').execute({ title: '工具建的任务', list: 'today' }, {})
+check('sooyo_task_create writes through the funnel', createdByTool?.ok === true && createdByTool?.result?.task?.list === 'today',
+  JSON.stringify(createdByTool?.error ?? createdByTool?.result?.task?.list))
+const toolTaskId = createdByTool?.result?.task?.id
+const toolTaskRow = (await call(routes, 'GET', '/sooyo/daily')).body?.tasks?.find((task) => task.id === toolTaskId)
+check('a tool-created task carries a revision', Number.isSafeInteger(toolTaskRow?.revision), String(toolTaskRow?.revision))
+
+const noRevision = await toolByName('sooyo_task_update').execute({ id: toolTaskId, done: true }, {})
+check('sooyo_task_update refuses a write without a revision', noRevision?.ok === false && /revision/.test(String(noRevision?.error)),
+  String(noRevision?.error))
+
+const withRevision = await toolByName('sooyo_task_update').execute({ id: toolTaskId, revision: toolTaskRow.revision, done: true }, {})
+check('sooyo_task_update applies with a matching revision', withRevision?.ok === true && withRevision?.result?.task?.done === true,
+  JSON.stringify(withRevision?.error ?? withRevision?.result?.task?.done))
+
+const staleTool = await toolByName('sooyo_task_update').execute({ id: toolTaskId, revision: toolTaskRow.revision, title: '过期写入' }, {})
+check('sooyo_task_update surfaces a conflict with a hint', staleTool?.ok === false && staleTool?.code === ERRORS.conflict && /revision/.test(String(staleTool?.hint)),
+  String(staleTool?.hint))
+
+const noteTool = await toolByName('sooyo_note_capture').execute({ text: '工具记的一条笔记', originUrl: 'https://example.com/a', originTitle: '来源条目' }, {})
+check('sooyo_note_capture stores the note with its Origin', noteTool?.ok === true && noteTool?.result?.note?.origin?.url === 'https://example.com/a',
+  JSON.stringify(noteTool?.result?.note?.origin))
+
+const proposalTool = await toolByName('sooyo_proposal_create').execute({
+  reason: '把今天的任务重新排序',
+  operations: [{ name: 'task.add', body: { title: '建议的任务' } }],
+  evidenceRefs: ['viking://user/a/memories/x.md'],
+}, {})
+check('sooyo_proposal_create writes to the Inbox', proposalTool?.ok === true && proposalTool?.result?.proposal?.status === 'pending',
+  JSON.stringify(proposalTool?.error ?? proposalTool?.result?.proposal?.status))
+const proposalId = proposalTool?.result?.proposal?.id
+check('a proposal records its evidence', (proposalTool?.result?.proposal?.evidenceRefs ?? []).length === 1)
+
+const badProposal = await toolByName('sooyo_proposal_create').execute({
+  reason: 'x',
+  operations: [{ name: 'board.remove', body: { id: 'home' } }],
+}, {})
+check('sooyo_proposal_create refuses a destructive operation', badProposal?.ok === false, String(badProposal?.error))
+
+const inboxTool = await toolByName('sooyo_inbox_list').execute({ status: 'pending' }, {})
+check('sooyo_inbox_list shows the pending proposal', (inboxTool?.proposals ?? []).some((entry) => entry.id === proposalId), JSON.stringify(inboxTool?.matched))
+check('the Agent Inbox arrives with the dashboard', (await call(routes, 'GET', '/sooyo/daily')).body?.agentInbox?.length > 0)
+
+// A proposal is a suggestion until a human decides: applying it is a local route, and the
+// approve-then-apply flow is what makes AC-11 pass.
+const approve = await call(routes, 'POST', '/sooyo/agent-inbox/decide', { id: proposalId, decision: 'approve' })
+check('a local approval applies the proposal', approve.body?.ok === true && approve.body?.applied?.ok === true,
+  JSON.stringify(approve.body?.applied))
+const appliedTask = (await call(routes, 'GET', '/sooyo/daily')).body?.tasks?.find((task) => task.title === '建议的任务')
+check('an applied proposal really created its task', Boolean(appliedTask), 'task present')
+check('an applied proposal is marked applied', (await call(routes, 'GET', '/sooyo/daily')).body?.agentInbox?.find((entry) => entry.id === proposalId)?.status === 'applied')
+const doubleDecide = await call(routes, 'POST', '/sooyo/agent-inbox/decide', { id: proposalId, decision: 'approve' })
+check('a second decision is refused, so nothing is applied twice', doubleDecide.body?.ok === false, String(doubleDecide.body?.error))
+
+// ---- background review (AC-11, AC-12) -------------------------------------
+
+console.log('\n-- background review (no network) --')
+
+const reviewTool = toolByName('sooyo_review_run')
+const scan1 = await reviewTool.execute({}, {})
+check('sooyo_review_run scans without a model', scan1?.ok === true && typeof scan1?.candidateCount === 'number', JSON.stringify(scan1?.candidateCount))
+check('a scan reports whether a review is worth doing', typeof scan1?.shouldReview === 'boolean')
+check('the scan names its role', scan1?.role === 'standalone', String(scan1?.role))
+
+const candidates = scan1?.candidates ?? []
+check('the scan lists tasks and notes but never Items', candidates.every((entry) => ['task', 'note'].includes(entry.itemType)),
+  candidates.map((entry) => entry.itemType).join(','))
+check('a never-reviewed item reports no processedRevision', candidates.every((entry) => entry.processedRevision === null || Number.isSafeInteger(entry.processedRevision)))
+
+const acked = await reviewTool.execute({
+  ack: candidates.slice(0, 3).map((entry) => ({ itemType: entry.itemType, itemId: entry.itemId, revision: entry.revision })),
+}, {})
+check('acknowledging advances the cursor', acked?.acknowledged === Math.min(3, candidates.length), String(acked?.acknowledged))
+
+const scan2 = await reviewTool.execute({}, {})
+const ackedIds = new Set(candidates.slice(0, 3).map((entry) => entry.itemId))
+check('an acknowledged item is not proposed again (AC-12)',
+  (scan2?.candidates ?? []).every((entry) => !ackedIds.has(entry.itemId)),
+  `${scan2?.candidateCount} candidates left, acked ${ackedIds.size}`)
+check('the second scan drops exactly the acknowledged items', (scan2?.candidateCount ?? 0) === (scan1?.candidateCount ?? 0) - ackedIds.size,
+  `${scan1?.candidateCount} - ${ackedIds.size} -> ${scan2?.candidateCount}`)
+
+// A changed record becomes a candidate again even if it was acknowledged before.
+const ackedTask = candidates.find((entry) => entry.itemType === 'task' && ackedIds.has(entry.itemId))
+if (ackedTask) {
+  const latest = (await call(routes, 'GET', '/sooyo/daily')).body?.tasks?.find((task) => task.id === ackedTask.itemId)
+  await call(routes, 'POST', '/sooyo/action', { name: 'task.update', body: { id: ackedTask.itemId, title: `${latest?.title}（改过）` } })
+  const scan3 = await reviewTool.execute({}, {})
+  check('an acknowledged item that changed is a candidate again',
+    (scan3?.candidates ?? []).some((entry) => entry.itemId === ackedTask.itemId), `${scan3?.candidateCount} candidates`)
+}
+
+const scheduleSpec = (await call(routes, 'GET', '/sooyo/review/schedule')).body
+check('the review exposes a schedule spec for the Hub only', scheduleSpec?.ok === true && /sooyo_review_run/.test(String(scheduleSpec?.spec?.prompt)),
+  String(scheduleSpec?.spec?.title))
+check('the review prompt tells the model to stop when there is nothing to do',
+  /shouldReview 为 false/.test(String(scheduleSpec?.spec?.prompt)))
+
+// ---- the Context Bridge ----------------------------------------------------
+
+console.log('\n-- Sooyo Context Bridge (no browser) --')
+
+const { attachAgentContext, contextMessage, hasHumanInput, isSynthetic } = await import('../agent/context.js')
+const { renderContextBlock } = await import('../agent/tools.js')
+
+const humanMessage = { id: 'm1', role: 'user', content: [{ type: 'text', text: '今天做什么' }], source: { kind: 'user' } }
+const toolMessage = { id: 'm2', role: 'tool', content: [], source: { kind: 'tool', callId: 'c1' } }
+const recallMessage = { id: 'm3', role: 'user', content: [], source: { kind: 'plugin:openviking-memory', plugin: 'openviking-memory', form: 'recall' } }
+
+check('a human message counts as human input', hasHumanInput([humanMessage]) === true)
+check('a tool-result-only batch is not a human turn', hasHumanInput([toolMessage]) === false)
+check('an OpenViking recall digest is not human input', hasHumanInput([recallMessage]) === false)
+check('the OpenViking plugin source is recognised as synthetic', isSynthetic(recallMessage) === true)
+check('a first-party context kind is recognised as synthetic', isSynthetic({ source: { kind: 'time-context' } }) === true)
+check('our own plugin message is synthetic', isSynthetic(contextMessage('x')) === true)
+check('a plugin message is not treated as user speech', contextMessage('x').source.kind === 'plugin:sooyo')
+
+const block = renderContextBlock(scan1 && {
+  ready: true,
+  dataRevision: 42,
+  generatedAt: '2026-11-05T12:00:00.000Z',
+  counts: { tasks: 9, open: 5, today: 2, inbox: 3, later: 0, notes: 4, readLater: 1, boards: 3, proposals: 1 },
+  today: [{ id: 't-1', title: '写 issue 的 PR1', list: 'today' }],
+  inbox: [],
+  recentNotes: [{ id: 'n-1', text: '把同步做成单一写入队列' }],
+})
+check('the context block names its source and revision', /source=plugin:sooyo-context/.test(block) && /dataRevision=42/.test(block), block.split('\n')[1])
+check('the context block points at the tool for more', /sooyo_context_get/.test(block))
+check('the context block says it is data, not an instruction', /not an instruction/.test(block))
+check('the context block stays small', block.length < 1200, `${block.length} chars`)
+
+// The waterfall listener: appended after next(), only on a human turn, once per turn.
+const waterfall = []
+const fakeCtx = {
+  on: (name, listener) => waterfall.push({ name, listener }),
+  off: () => {},
+}
+const disposeBridge = attachAgentContext(fakeCtx, {
+  service: { context: async () => ({ ready: true, dataRevision: 1, counts: { open: 1 }, today: [], inbox: [], recentNotes: [] }) },
+  role: () => 'standalone',
+  render: renderContextBlock,
+  enabled: () => true,
+})
+check('the bridge listens on agent/pre-step', waterfall[0]?.name === 'agent/pre-step')
+const decision = await waterfall[0].listener(
+  { agent: { id: 'a1' }, messages: [humanMessage], turn: 1, step: 1, signal: new AbortController().signal },
+  async () => ({ kind: 'enter', messages: [humanMessage] }),
+)
+check('a human turn gains the Sooyo context', decision.messages.length === 2 && decision.messages[1].source.kind === 'plugin:sooyo',
+  decision.messages.map((message) => message.source.kind).join(','))
+check('the injected message keeps the original decision keys', Array.isArray(decision.messages) && decision.kind === 'enter')
+
+const again = await waterfall[0].listener(
+  { agent: { id: 'a1' }, messages: [humanMessage], turn: 1, step: 2, signal: new AbortController().signal },
+  async () => ({ kind: 'enter', messages: [humanMessage] }),
+)
+check('a second step in the same turn does not inject again', again.messages.length === 1, `${again.messages.length} messages`)
+
+const toolOnly = await waterfall[0].listener(
+  { agent: { id: 'a2' }, messages: [toolMessage], turn: 2, step: 1, signal: new AbortController().signal },
+  async () => ({ kind: 'enter', messages: [toolMessage] }),
+)
+check('a tool-only batch is left untouched', toolOnly.messages.length === 1)
+disposeBridge()
+
+// AC-08: writing a task must not touch the model or the memory plugin.
+check('a task write produced no Agent message', waterfall.length === 1, `${waterfall.length} listeners`)
+
 // Two regressions reached a real UI before anyone noticed, and both are cheap to assert on
 // the source. A skin installed in the profile sets tag-level colours with !important, so a
 // reset that loses makes every link salmon; a "font" shorthand in a reset silently flattens

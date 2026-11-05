@@ -565,3 +565,53 @@ export const fitsIn = (type, size, cols) => {
   const [w, h] = footprint(type, size, cols)
   return w <= cols && h > 0
 }
+
+// ---- the action registry ---------------------------------------------------
+
+/**
+ * Every mutation the personal half performs, named.
+ *
+ * This table is what `core/commands.js` validates against and journals, so the local
+ * `POST /sooyo/action`, the sync API's `/command` and the Agent tools all reach exactly the
+ * same implementation. A name that is not here cannot be invoked by any of them — the
+ * whitelist in `core/protocol.js` is generated from this table rather than maintained twice.
+ *
+ * `item.state` is deliberately absent: it is Item state (the `read` table), not personal
+ * data, and it lives in `core/commands.js` next to the funnel that writes it.
+ */
+export const ACTIONS = {
+  'board.create': createBoard,
+  'board.rename': renameBoard,
+  'board.remove': removeBoard,
+  'board.active': setActiveBoard,
+  'widget.add': addWidget,
+  'widget.update': updateWidget,
+  'widget.remove': removeWidget,
+  'widget.duplicate': duplicateWidget,
+  'widget.resize': resizeWidget,
+  'layout.set': setLayout,
+  'task.add': addTask,
+  'task.update': updateTask,
+  'task.remove': removeTask,
+  capture,
+  'note.add': addNote,
+  'note.remove': removeNote,
+  'readlater.set': setReadLater,
+  'interests.set': setInterests,
+  'bookmarks.set': setBookmarks,
+  'habit.tick': tickHabit,
+  'focus.set': setFocus,
+  // An Item becomes a Task or a Note while keeping its Origin (source + original link).
+  'item.toTask': (tables, body) => addTask(tables, {
+    title: String(body?.title ?? '').slice(0, 300) || '未命名',
+    list: body?.list ?? 'inbox',
+    origin: body?.origin ?? null,
+  }),
+  'item.toNote': (tables, body) => addNote(tables, {
+    text: String(body?.text ?? body?.title ?? '').slice(0, 800) || '未命名',
+    origin: body?.origin ?? null,
+  }),
+}
+
+/** The names the local route and the sync funnel both accept. */
+export const ACTION_NAMES = Object.keys(ACTIONS)

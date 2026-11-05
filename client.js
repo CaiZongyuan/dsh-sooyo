@@ -93,6 +93,28 @@ window.__ModuleLoader__.load({
     }
     const categoryLabel = (value) => CATEGORY_LABELS[value] ?? null
 
+    /**
+     * How the Agent Inbox names a proposed operation and a decision state.
+     *
+     * A proposal stores a command name (`task.add`); a person reading the card needs the action
+     * in their own words. The maps are exhaustive over what `agent/inbox.js` permits, and an
+     * unknown name falls back to the raw command rather than disappearing.
+     */
+    const OPERATION_LABELS = {
+      'task.add': '新建任务',
+      'task.update': '修改任务',
+      'note.add': '记录笔记',
+      'readlater.set': '稍后读',
+    }
+    const STATUS_LABELS = {
+      pending: '待批准',
+      approved: '已批准',
+      rejected: '已拒绝',
+      applied: '已执行',
+      failed: '执行失败',
+      expired: '已过期',
+    }
+
     /** A Short and an episode share one feed; only the URL distinguishes them. */
     const isShort = (item) => (item?.kind ? item.kind === 'short' : /\/shorts\//.test(item?.url ?? ''))
 
@@ -194,6 +216,7 @@ window.__ModuleLoader__.load({
   --sy-t-bookmarks: #4A9895; --sy-t-project: #66966B; --sy-t-readlater: #CC9632;
   --sy-t-habit: #D27690; --sy-t-focus: #C3654A; --sy-t-calendar: #E05A46;
   --sy-t-weather: #5E9FD3; --sy-t-briefing: #B8963A; --sy-t-embed: #6C7C93;
+  --sy-t-agentInbox: #7C6FD4;
   --sy-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", "Segoe UI", sans-serif;
   --sy-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   --sy-row: 88px; --sy-gap: 14px; --sy-radius: 16px;
@@ -1146,6 +1169,57 @@ window.__ModuleLoader__.load({
       return { sub, html: `<div class="sy-list sy-fit" style="gap:3px">${items.map((item) => `<div class="sy-row" style="gap:12px"><div class="sy-thumb" style="width:68px;height:42px">${thumbHTML(item, item.sourceLabel)}</div>${itemLink(item, 'sy-it-a', `<span class="tt c2">${esc(item.title)}</span><span class="meta">${esc(item.sourceLabel ?? '')} · ${relTime(item.publishedAt)}</span>`)}${acts(item)}</div>`).join('')}</div><div class="meta" style="flex:none">在订阅里点书签图标，文章就会存到这里</div>` }
     }
 
+    /**
+     * The Agent Inbox: proposals from the background review, awaiting a human decision.
+     *
+     * It is a Widget rather than a separate page (issue §6.2), so it lives on a Board with the
+     * rest of the user's cards. The approve/reject buttons post to a **local** route: a proposal
+     * cannot be approved over the sync API, so a model can never approve its own suggestion.
+     */
+    R.agentInbox = (widget, size, context) => {
+      const all = context.agentInbox ?? []
+      const pending = all.filter((entry) => entry.status === 'pending')
+      const decided = all.filter((entry) => entry.status === 'applied' || entry.status === 'rejected')
+      if (all.length === 0) return { sub: '空', html: emptyHtml(widget, size, context) }
+
+      const ops = (proposal) => (proposal.operations ?? [])
+        .map((operation) => `<span class="sy-chip" title="${esc(operation.name)}">${esc(OPERATION_LABELS[operation.name] ?? operation.name)}</span>`)
+        .join('')
+
+      if (size === 'S') {
+        const first = pending[0] ?? decided[0]
+        return {
+          sub: pending.length ? `${pending.length} 条待批` : '已清空',
+          html: `<div class="sy-s-lab">${ic('agentInbox', 16)}待批建议</div><div class="sy-s-main"><div class="sy-s-big">${pending.length}</div><div class="sy-s-sub">${pending.length ? '条等你决定' : '都处理完了'}</div></div>${first ? `<div class="sy-s-narrow"><span class="c1" style="font-size:13px">${esc(first.reason)}</span></div>` : ''}`,
+        }
+      }
+
+      const row = (proposal, { actionable }) => `<div class="sy-row" style="align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid var(--sy-line)">
+        <div class="grow" style="min-width:0;display:flex;flex-direction:column;gap:4px">
+          <span class="c2" style="font-size:13.5px;font-weight:520">${esc(proposal.reason)}</span>
+          <span style="display:flex;gap:5px;flex-wrap:wrap">${ops(proposal)}</span>
+          <span class="meta">${relTime(proposal.createdAt)}${(proposal.evidenceRefs ?? []).length ? ` · ${proposal.evidenceRefs.length} 条证据` : ''}</span>
+        </div>
+        ${actionable
+          ? `<span class="sy-acts" style="flex:none">${proposal.status === 'pending'
+            ? `<button data-act="proposal-approve" data-proposal="${esc(proposal.id)}" title="批准并执行" aria-label="批准并执行">${I.check}</button><button data-act="proposal-reject" data-proposal="${esc(proposal.id)}" title="拒绝" aria-label="拒绝">${I.x}</button>`
+            : `<span class="meta">${esc(STATUS_LABELS[proposal.status] ?? proposal.status)}</span>`}</span>`
+          : ''}
+      </div>`
+
+      const header = `<div class="meta" style="flex:none">${pending.length} 条待批 · ${decided.length} 条已处理</div>`
+      if (size === 'M') {
+        return {
+          sub: pending.length ? `${pending.length} 条待批` : '已清空',
+          html: `<div class="sy-list sy-fit" style="gap:0">${(pending.length ? pending : decided).slice(0, 4).map((proposal) => row(proposal, { actionable: true })).join('')}</div>${header}`,
+        }
+      }
+      return {
+        sub: pending.length ? `${pending.length} 条待批` : '已清空',
+        html: `<div class="sy-list sy-fit" style="gap:0">${(pending.length ? pending : decided).slice(0, 6).map((proposal) => row(proposal, { actionable: true })).join('')}</div>
+          <div class="meta" style="flex:none">审批只在<b>这台设备</b>上发生：Agent 不能自己批准自己的建议。批准后按条执行，失败的会标记为 failed。</div>`,
+      }
+    }
     const dots7 = (habit) => `<div class="sy-dots7">${(habit.week ?? [0, 0, 0, 0, 0, 0, 0]).map((value, index) => index === dayIdx()
       ? `<button class="${value ? 'on' : ''} today" data-act="habit-tick" data-habit="${esc(habit.id)}" aria-label="今天${value ? '已打卡，点击取消' : '打卡'}：${esc(habit.name)}">${value ? I.check : ''}</button>`
       : `<span class="${index > dayIdx() ? 'future' : value ? 'on' : ''}" aria-hidden="true">${'一二三四五六日'[index]}</span>`).join('')}</div>`
@@ -1409,6 +1483,7 @@ window.__ModuleLoader__.load({
         habits: daily?.habits ?? [],
         focus: daily?.focus ?? null,
         sources: daily?.sources ?? [],
+        agentInbox: daily?.agentInbox ?? [],
         types,
         cols,
         layoutSizes,
@@ -1421,6 +1496,38 @@ window.__ModuleLoader__.load({
         () => pack(types, widgets, layout, cols),
         [types, widgets, layout, cols],
       )
+
+      /**
+       * Approve or reject an Agent proposal, then reload.
+       *
+       * It talks to `/agent-inbox/decide` rather than `/action` because approving applies the
+       * operations: the response says whether the apply succeeded, and the toast must report the
+       * weaker of the two outcomes ("已批准，但执行失败") instead of claiming success.
+       */
+      const decide = useCallback(async (proposalId, decision) => {
+        try {
+          const result = await api('/agent-inbox/decide', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: proposalId, decision }),
+          })
+          if (result?.ok === false) {
+            state.setToast({ text: String(result.error ?? '这条建议没有处理成功') })
+          } else if (decision === 'approve') {
+            const applied = result?.applied
+            state.setToast({
+              text: applied?.ok === false
+                ? `已批准，但执行失败：${String(applied.failed?.[0]?.error ?? applied.error ?? '未知原因')}`
+                : '已批准并执行',
+            })
+          } else {
+            state.setToast({ text: '已拒绝这条建议' })
+          }
+        } catch (failure) {
+          state.setToast({ text: String(failure?.message ?? failure) })
+        }
+        await state.reload()
+      }, [state])
 
       // ---- deck navigation ----
 
@@ -1569,6 +1676,10 @@ window.__ModuleLoader__.load({
           }
           case 'modal-close': setModal(null); break
           case 'scrim': if (target === element) setModal(null); break
+          // A proposal decision goes to its own local route, not `/action`: the endpoint is
+          // where approve-then-apply happens, and it is deliberately not reachable over sync.
+          case 'proposal-approve': void decide(ds.proposal, 'approve'); break
+          case 'proposal-reject': void decide(ds.proposal, 'reject'); break
           default: break
         }
       }, [menu, state, widgets, daily, saved, toggleLater, itemToTask, itemToNote, stepDeck, currentDeckItem, setSize, duplicateWidget, removeWidget])

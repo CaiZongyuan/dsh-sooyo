@@ -47,6 +47,12 @@ export const WIDGET_TYPES = {
     sizes: { S: [3, 2], M: [6, 2], L: [6, 4] },
     actions: ['转为 Note', '转为任务', '移出'],
   },
+  agentInbox: {
+    name: 'Agent 收件箱',
+    desc: '后台审阅给出的建议，等你批准或拒绝',
+    sizes: { S: [3, 2], M: [6, 2], L: [6, 4] },
+    actions: ['查看差异', '批准', '拒绝'],
+  },
   habit: {
     name: '习惯',
     desc: '每天打卡，看连续天数',
@@ -155,6 +161,10 @@ export function defaultBoards() {
     widget('w-home-focus', 'focus', 'S'),
     widget('w-home-project', 'project', 'S'),
     widget('w-home-links', 'bookmarks', 'S'),
+    // The Agent Inbox ships on the first Board: a suggestion that no one can find is a
+    // suggestion that never gets approved, and this Widget is the whole user-facing half of
+    // the background review (issue §6.2).
+    widget('w-home-inbox', 'agentInbox', 'S'),
 
     widget('w-work-task', 'task', 'L'),
     widget('w-work-project', 'project', 'L'),
@@ -182,6 +192,7 @@ export function defaultBoards() {
       { id: 'w-home-focus', size: 'S' },
       { id: 'w-home-project', size: 'S' },
       { id: 'w-home-links', size: 'S' },
+      { id: 'w-home-inbox', size: 'S' },
     ] },
     { boardId: 'work', cols: 12, order: [
       { id: 'w-work-task', size: 'L' },

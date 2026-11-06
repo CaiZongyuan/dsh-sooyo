@@ -34,6 +34,7 @@ The plugin runs in one of three roles (`standalone` by default, `hub`, `client`)
 | `agent/review.js` | Deterministic Review scan, revision cursor, schedule prompt |
 | `agent/inbox.js` | Proposals: create, decide, apply, rollback, expire |
 | `dev/selftest.mjs` | Offline self-test: runs real `apply()` against a fake context |
+| `dev/visual-verify.mjs` | Headless Chromium CDP visual & interactive E2E harness (`1440×900` / `820×900` / `390×844`, `ov=0` assertions) |
 
 ## Always-on invariants
 
@@ -54,5 +55,6 @@ The plugin runs in one of three roles (`standalone` by default, `hub`, `client`)
 ```sh
 npm run check         # syntax + no-bare-imports + UTF-8 check
 npm run test:offline  # offline fixtures, personal store, sync protocol, crash recovery, CSS guards (CI)
+npm run test:visual   # headless Chromium CDP visual & interactive verification (1440/820/390, light/dark, ov=0)
 npm run test          # full test including live upstream feed fetches
 ```

@@ -1362,14 +1362,14 @@ window.__ModuleLoader__.load({
         }
       }
 
-      const row = (proposal, { actionable }) => `<div class="sy-row" style="align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid var(--sy-line)">
+      const row = (proposal, { actionable }) => `<div class="sy-row" style="align-items:flex-start;gap:10px;padding:7px 0;margin-inline:0;border-bottom:1px solid var(--sy-line)">
         <div class="grow" style="min-width:0;display:flex;flex-direction:column;gap:4px">
           <span class="c2" style="font-size:13.5px;font-weight:520">${esc(proposal.reason)}</span>
           <span style="display:flex;gap:5px;flex-wrap:wrap">${ops(proposal)}</span>
           <span class="meta">${relTime(proposal.createdAt)}${(proposal.evidenceRefs ?? []).length ? ` · ${proposal.evidenceRefs.length} 条证据` : ''}${(proposal.preview?.diff ?? []).length ? ` · ${proposal.preview.diff.length} 处变更` : ''}</span>
         </div>
         ${actionable
-          ? `<span class="sy-acts" style="flex:none">${proposal.status === 'pending'
+          ? `<span class="sy-acts" style="flex:none;display:flex;position:static;transform:none;align-items:center">${proposal.status === 'pending'
             ? `<button data-act="proposal-approve" data-proposal="${esc(proposal.id)}" title="批准并执行" aria-label="批准并执行">${I.check}</button><button data-act="proposal-reject" data-proposal="${esc(proposal.id)}" title="拒绝" aria-label="拒绝">${I.x}</button>`
             : proposal.status === 'applied'
               ? `<span class="meta">${esc(STATUS_LABELS[proposal.status] ?? proposal.status)}</span><button data-act="proposal-rollback" data-proposal="${esc(proposal.id)}" title="撤销改动" aria-label="撤销改动">${I.reset}</button>`
@@ -1639,7 +1639,7 @@ window.__ModuleLoader__.load({
       useEffect(() => {
         const element = gridRef.current
         if (!element || typeof ResizeObserver === 'undefined') return undefined
-        const apply = () => setCols(columnsFor(element.clientWidth || 1200))
+        const apply = () => setCols(columnsFor(gridRef.current?.clientWidth || element.clientWidth || 1200))
         apply()
         const observer = new ResizeObserver(apply)
         observer.observe(element)
@@ -2215,7 +2215,7 @@ window.__ModuleLoader__.load({
                     gridColumn: `${position.x + 1} / span ${position.w}`,
                     gridRow: `${position.y + 1} / span ${position.h}`,
                   },
-                }, h(WidgetBody, { html, cls }))
+                }, h(WidgetBody, { html, cls, cols }))
               }),
               layout.length === 0
                 ? h('div', { className: 'sy-grid-empty', key: 'empty' }, [
@@ -2256,8 +2256,11 @@ window.__ModuleLoader__.load({
     function WidgetBody(props) {
       const ref = useRef(null)
       useEffect(() => {
-        if (ref.current) fitDom(ref.current)
-      }, [props.html])
+        if (ref.current) {
+          ref.current.innerHTML = props.html
+          fitDom(ref.current)
+        }
+      }, [props.html, props.cols])
       return h('div', { ref, style: { display: 'contents' }, dangerouslySetInnerHTML: { __html: props.html } })
     }
 

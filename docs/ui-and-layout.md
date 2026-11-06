@@ -19,6 +19,8 @@ Reference for `client.js`, `personal.js`, and visual verification of the Sooyo p
 
 ## Icons & Assets
 
+- **Brand identity is separate from Widget Type artwork.** See [brand guidelines](./brand.md) for the bird mark, palette, assets and regeneration command. `icon.svg` is the install icon; `client.js` embeds the app mark and a small `currentColor` sidebar mark from the same artwork source.
+
 - **Icons come from the bundle.** The Client renders `<img src="/sooyo/assets/a/<type>.webp">` and the Host serves that path out of `assets/`, so a new Widget Type needs its icon added there and listed in `package.json` `files`.
 - The route only accepts a flat `<style>/<name>.webp` shape; do not widen it. See [`docs/agents/image-generation.md`](./agents/image-generation.md) for generation rules.
 

@@ -1,8 +1,13 @@
 <p align="center">
-  <img src="./icon.svg" width="96" height="96" alt="dsh-sooyo" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/brand/logo-reversed.svg" />
+    <img src="./assets/brand/logo.svg" width="320" height="114" alt="sooyo" />
+  </picture>
 </p>
 
 <h1 align="center">sooyo daily</h1>
+
+<p align="center"><a href="./docs/brand.md">品牌规范与 Logo 素材</a></p>
 
 <p align="center"><b>一个可组合、本地优先的个人空间：每天打开就看到要做什么、有什么值得读、项目走到哪了。<br/>
 A composable, local-first personal space for <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness</a>.</b></p>

@@ -39,12 +39,7 @@
   "files": [
     "index.js",
     "client.js",
-    "feed.js",
-    "daily.js",
-    "personal.js",
-    "core",
-    "sync",
-    "agent",
+    "src",
     "cordis.patch.yml",
     "dsh.plugin.json",
     "icon.svg",
@@ -67,12 +62,19 @@
     }
   },
   "scripts": {
-    "check": "node --check index.js && node --check client.js && node --check feed.js && node --check daily.js && node --check personal.js && node --check core/protocol.js && node --check core/store.js && node --check core/commands.js && node --check core/service.js && node --check core/migrate.js && node --check sync/remote.js && node --check sync/routes.js && node --check agent/tools.js && node --check agent/context.js && node --check agent/review.js && node --check agent/inbox.js && node dev/check-imports.mjs",
+    "build": "node dev/build.mjs",
+    "typecheck": "tsc -p tsconfig.host.json --noEmit && tsc -p tsconfig.client.json --noEmit",
+    "check": "node --check index.js && node --check client.js && node dev/check-imports.mjs",
     "test": "node dev/selftest.mjs",
     "test:offline": "node dev/selftest.mjs --offline",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "prepack": "pnpm run typecheck && pnpm run build && pnpm run check"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.1"
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
   }
 }

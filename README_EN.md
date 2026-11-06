@@ -1,8 +1,13 @@
 <p align="center">
-  <img src="./icon.svg" width="96" height="96" alt="dsh-sooyo" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/brand/logo-reversed.svg" />
+    <img src="./assets/brand/logo.svg" width="320" height="114" alt="sooyo" />
+  </picture>
 </p>
 
 <h1 align="center">sooyo daily</h1>
+
+<p align="center"><a href="./docs/brand.md">Brand guidelines &amp; logo assets (Chinese)</a></p>
 
 <p align="center"><b>A composable, local-first personal space for <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness</a> —
 the page you open each day to see what to do, what is worth reading, and where your projects stand.</b></p>

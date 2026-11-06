@@ -12,8 +12,7 @@
 import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
 
-import { apply, DOMAIN_TABLES } from '../index.js'
-import { readFeed, decodeEntities, stripTags, extractOgImage, absoluteUrl } from '../feed.js'
+import { apply, DOMAIN_TABLES, readFeed, decodeEntities, stripTags, extractOgImage, absoluteUrl } from '../index.js'
 
 const PATH_SAFE = /^[a-zA-Z0-9_-]+$/
 const OFFLINE = process.argv.includes('--offline')
@@ -302,7 +301,7 @@ check('the plugin exposes one role-agnostic service', Boolean(service) && servic
 // The storage backend accepts only `^[a-z][a-z0-9_]*$` for a table name, and a violation
 // surfaces as "store never becomes ready" rather than as an error near the mistake — which is
 // exactly how `agentInbox`/`agentReviews` shipped broken past 188 green checks. Assert the spec.
-const { TABLES } = await import('../core/store.js')
+const { TABLES } = await import('../index.js')
 const TABLE_NAME_RE = /^[a-z][a-z0-9_]*$/
 check('every domain table name satisfies the storage backend rule',
   Object.values(TABLES).every((name) => TABLE_NAME_RE.test(name)),
@@ -588,9 +587,15 @@ console.log('\n-- sync protocol (hub + client, no network) --')
 const {
   createSyncHandler,
   buildSyncRoutes,
-} = await import('../sync/routes.js')
-const { exportDomain, planImport, applyImport, describePlan } = await import('../core/migrate.js')
-const { PROTOCOL_VERSION, ERRORS, COMMANDS, LOCAL_ONLY } = await import('../core/protocol.js')
+  exportDomain,
+  planImport,
+  applyImport,
+  describePlan,
+  PROTOCOL_VERSION,
+  ERRORS,
+  COMMANDS,
+  LOCAL_ONLY,
+} = await import('../index.js')
 
 const HUB_TOKEN = 'test-hub-token-0123456789'
 const READ_TOKEN = 'test-read-token-0123456789'
@@ -833,7 +838,7 @@ check('sync: an unsupported protocolVersion -> 400', wrongProtocol.status === 40
 
 // ---- the Client role over the same handler --------------------------------
 
-const { RemoteSooyoService, resolveSyncConfig } = await import('../sync/remote.js')
+const { RemoteSooyoService, resolveSyncConfig } = await import('../index.js')
 const originalFetch = globalThis.fetch
 globalThis.fetch = makeSyncFetch()
 const clientService = new RemoteSooyoService({
@@ -1068,8 +1073,7 @@ check('the review prompt tells the model to stop when there is nothing to do',
 
 console.log('\n-- Sooyo Context Bridge (no browser) --')
 
-const { attachAgentContext, contextMessage, hasHumanInput, isSynthetic } = await import('../agent/context.js')
-const { renderContextBlock } = await import('../agent/tools.js')
+const { attachAgentContext, contextMessage, hasHumanInput, isSynthetic, renderContextBlock } = await import('../index.js')
 
 const humanMessage = { id: 'm1', role: 'user', content: [{ type: 'text', text: '今天做什么' }], source: { kind: 'user' } }
 const toolMessage = { id: 'm2', role: 'tool', content: [], source: { kind: 'tool', callId: 'c1' } }
@@ -1233,16 +1237,32 @@ check('the grain layer is a real node with a matching style',
   /\.sy-grain \{/.test(cssBlock) && /className: 'sy-grain'/.test(clientSource),
   'grain breaks up OLED banding on a flat dark fill')
 
+check('client bundle registers all 10 active Widget Types and 4 soon types via WIDGET_REGISTRY',
+  ['taskWidgetDefinition', 'subscriptionWidgetDefinition', 'captureWidgetDefinition', 'noteWidgetDefinition',
+   'bookmarksWidgetDefinition', 'projectWidgetDefinition', 'readLaterWidgetDefinition', 'agentInboxWidgetDefinition',
+   'habitWidgetDefinition', 'focusWidgetDefinition', 'UnknownWidgetFallback', 'SoonWidgetFallback']
+    .every((symbol) => clientSource.includes(symbol)),
+  'every Widget Type has a dedicated TSX WidgetDefinition and safe fallbacks')
+
+check('client bundle resolves React from DSH ModuleLoader without bundling a duplicate copy',
+  clientSource.includes('window.__ModuleLoader__.load(') && /require\(["']react["']\)/.test(clientSource),
+  'require("react") inside window.__ModuleLoader__.load')
+
 // ---- Slices 1-5: Crash-Consistency, Preconditions, Snapshots, Outbox & Evolution ----
 
 console.log('\n-- Slices 1-5: Intent ledger, preconditions, snapshots, outbox & evolution --')
 
-const { CLIENT_CACHE_DOMAIN_SPEC } = await import('../index.js')
-const { deriveEntityId, normalizeWidget } = await import('../personal.js')
-const { execute: executeCommand } = await import('../core/commands.js')
-const { touchItemsUpdated } = await import('../core/store.js')
-const { validateExport } = await import('../core/migrate.js')
-const { CAPABILITIES, DATA_SCHEMA_VERSION, PROTOCOL_RANGE } = await import('../core/protocol.js')
+const {
+  CLIENT_CACHE_DOMAIN_SPEC,
+  deriveEntityId,
+  normalizeWidget,
+  executeCommand,
+  touchItemsUpdated,
+  validateExport,
+  CAPABILITIES,
+  DATA_SCHEMA_VERSION,
+  PROTOCOL_RANGE,
+} = await import('../index.js')
 
 // 1. Slice 1 (#3): Deterministic Entity IDs & Two-Phase Intent Crash Recovery
 const derived1 = deriveEntityId('t', 'op-det-0001', 0)

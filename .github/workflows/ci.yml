@@ -6,19 +6,29 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: pnpm
 
-      # No install step: the package has no dependencies and needs no build.
-      - name: Syntax check
-        run: npm run check
+      - run: pnpm install --frozen-lockfile
 
-      - name: Offline self-test
-        run: npm run test:offline
+      - run: pnpm run check
+
+      - run: pnpm run test:offline

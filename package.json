@@ -26,6 +26,7 @@
     "aihot"
   ],
   "icon": "./icon.svg",
+  "packageManager": "pnpm@11.22.0",
   "engines": {
     "node": ">=20",
     "dsh": ">=0.2.0-rc.1"
@@ -69,6 +70,9 @@
     "check": "node --check index.js && node --check client.js && node --check feed.js && node --check daily.js && node --check personal.js && node --check core/protocol.js && node --check core/store.js && node --check core/commands.js && node --check core/service.js && node --check core/migrate.js && node --check sync/remote.js && node --check sync/routes.js && node --check agent/tools.js && node --check agent/context.js && node --check agent/review.js && node --check agent/inbox.js && node dev/check-imports.mjs",
     "test": "node dev/selftest.mjs",
     "test:offline": "node dev/selftest.mjs --offline",
-    "test:visual": "node dev/visual-verify.mjs"
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
   }
 }

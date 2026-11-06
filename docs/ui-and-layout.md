@@ -33,8 +33,8 @@ Reference for `client.js`, `personal.js`, and visual verification of the Sooyo p
 
 ## Visual & Layout Verification
 
-- `npm run test:visual` (`dev/visual-verify.mjs`) boots a real local HTTP server mounting `index.js` + `client.js` and drives headless Chromium over CDP across `1440×900` (12-col), `820×900` (6-col), and `390×844` (4-col) in both light and dark themes, asserting `ov=0`, interactive Proposal Approve/Rollback, unknown Widget placeholders, and pruned Read Later snapshots.
-- `dev/measure-mobile.mjs` extracts the real CSS from `client.js` and measures layout at 390×844 over CDP. When driving the live UI with `agent-browser`:
+- `pnpm run test:e2e` (`tests/e2e/ui.spec.mjs`, see [`docs/testing.md`](./testing.md)) installs the packaged plugin into a real isolated DSH Web Host and drives Playwright across Desktop (`1440×900`) and Mobile (`390×844`) in light and dark themes, asserting `ov=0`, interactive Proposal Approve/Rollback, unknown Widget placeholders, and pruned Read Later snapshots.
+- `dev/measure-mobile.mjs` extracts the real CSS from `client.js` and measures layout at 390×844 over CDP. When driving the live UI in a browser:
 
 - **Do not use `wait --load networkidle`** — DSH holds a WebSocket open, so the network never goes idle.
 - `eval` runs in one shared global scope; wrap scripts in an IIFE and prefer `eval -b <base64>` over `--stdin` to avoid shell mangling.

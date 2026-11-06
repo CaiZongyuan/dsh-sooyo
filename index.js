@@ -504,7 +504,7 @@ export function apply(ctx, config = {}) {
     let handle = null
     // Only the authority fetches Sources: a Client that fetched would produce Items the Hub
     // never sees, and two Hosts polling one feed is exactly the duplication AC-07 rules out.
-    if (role === 'client') return () => {}
+    if (role === 'client' || config.autoRefresh === false) return () => {}
     const tick = async () => {
       try {
         await refreshDue()

@@ -187,7 +187,7 @@ npm run test:offline  # 离线 fixture、个人数据接口、同步协议与结
 
 `dev/selftest.mjs` 用假 `ctx`（假的 `storageDomain.open` / `webServer.register` / `tools.register` / `effect`）直接跑真的 `apply()`，并用假 `req`/`res` 打自己注册的路由。**宿主的改动要重启才生效，所以先在本地把逻辑跑一遍比反复重启快得多。**
 
-架构与取舍记录在 [`docs/design.md`](./docs/design.md)，术语见 [`GLOSSARY.md`](./GLOSSARY.md)。
+架构与取舍记录在 [`docs/adr/`](./docs/adr/)、[`docs/sync.md`](./docs/sync.md)、[`docs/ui-and-layout.md`](./docs/ui-and-layout.md) 与 [`docs/sources.md`](./docs/sources.md)，术语见 [`GLOSSARY.md`](./GLOSSARY.md)。
 
 ## 数据来源与合规
 

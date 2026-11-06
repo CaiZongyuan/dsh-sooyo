@@ -18,6 +18,7 @@
  */
 
 import { SyncError, ERRORS } from '../core/protocol.js'
+import { PROPOSAL_OPERATIONS } from './inbox.js'
 
 /** Bound what one tool result can cost in context, whatever the model asks for. */
 const MAX_LIST = 50
@@ -301,10 +302,9 @@ export function registerAgentTools(deps) {
       if (!Array.isArray(args.operations) || args.operations.length === 0) {
         return { ok: false, error: 'proposal 至少需要一个操作' }
       }
-      const allowed = new Set(['task.add', 'task.update', 'note.add', 'readlater.set'])
       for (const operation of args.operations) {
-        if (!allowed.has(operation?.name)) {
-          return { ok: false, error: `proposal 里不允许 ${String(operation?.name)}；只接受 ${[...allowed].join(' / ')}` }
+        if (!PROPOSAL_OPERATIONS.has(operation?.name)) {
+          return { ok: false, error: `proposal 里不允许 ${String(operation?.name)}；只接受 ${[...PROPOSAL_OPERATIONS].join(' / ')}` }
         }
       }
       return write('proposal.create', {
@@ -322,12 +322,20 @@ export function registerAgentTools(deps) {
 }
 
 /** The one-line Sooyo Context block an Agent sees at the start of a real conversation. */
-export function renderContextBlock(context, { stale = false, fetchedAt = null } = {}) {
+export function renderContextBlock(context, { stale = false, fetchedAt = null, pendingCount = 0, conflictCount = 0 } = {}) {
   if (!context?.ready) return null
   const counts = context.counts ?? {}
+  const isStale = Boolean(stale || context.stale)
+  const outboxPending = Number(context.pendingCount ?? pendingCount) || 0
+  const conflicts = Number(context.conflictCount ?? conflictCount) || 0
+  const syncFlags = [
+    isStale ? `stale${fetchedAt ? `; last sync ${fetchedAt}` : ''}` : null,
+    outboxPending > 0 ? `outboxPending=${outboxPending}` : null,
+    conflicts > 0 ? `conflicts=${conflicts}` : null,
+  ].filter(Boolean)
   const lines = [
     `[Sooyo Current Context | source=plugin:sooyo-context]`,
-    `Generated at: ${context.generatedAt ?? 'unknown'}${stale ? ` (stale; last sync ${fetchedAt ?? 'unknown'})` : ''} · dataRevision=${context.dataRevision ?? '?'}`,
+    `Generated at: ${context.generatedAt ?? 'unknown'}${syncFlags.length > 0 ? ` (${syncFlags.join(' · ')})` : ''} · dataRevision=${context.dataRevision ?? '?'}`,
     `Today: ${counts.today ?? 0} tasks · Inbox: ${counts.inbox ?? 0} · Later: ${counts.later ?? 0} · open ${counts.open ?? 0}/${counts.tasks ?? 0}`,
   ]
   const first = context.today?.[0] ?? context.inbox?.[0] ?? null

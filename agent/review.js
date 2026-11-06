@@ -247,6 +247,12 @@ export function createReviewer(deps) {
   async function sweep() {
     if (role() === 'client' || !service.ready) return { expired: 0 }
     const ids = expireStale(service.tables)
+    if (ids.length === 0) return { expired: 0 }
+    if (typeof service.expireProposals === 'function') {
+      const outcome = await service.expireProposals(ids)
+      if ((outcome?.expired ?? 0) > 0) log(`sooyo: expired ${outcome.expired} stale proposal(s)`)
+      return { expired: outcome?.expired ?? 0 }
+    }
     for (const id of ids) {
       const existing = service.tables(INBOX_TABLE).get(id)
       if (!existing) continue

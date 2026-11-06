@@ -18,12 +18,22 @@
  * | `POST /command`   | the single write funnel |
  */
 
-import { PROTOCOL_VERSION, ERRORS, LOCAL_ONLY, SYNC_PREFIX, SyncError, STATUS_OF } from '../core/protocol.js'
+import {
+  CAPABILITIES,
+  DATA_SCHEMA_VERSION,
+  ERRORS,
+  LOCAL_ONLY,
+  PROTOCOL_RANGE,
+  PROTOCOL_VERSION,
+  STATUS_OF,
+  SYNC_PREFIX,
+  SyncError,
+} from '../core/protocol.js'
 import { checkPrecondition } from '../core/commands.js'
 import { readRevision } from '../core/store.js'
 
 /** The routes a Client may call. Anything else under the prefix is a 404. */
-const ROUTES = new Set(['/health', '/snapshot', '/items', '/context', '/command'])
+const ROUTES = new Set(['/health', '/snapshot', '/items', '/context', '/command', '/inbox/decide'])
 
 /** A simple token-bucket limiter, one per device, so one broken Client cannot starve others. */
 const RATE_WINDOW_MS = 60_000
@@ -94,11 +104,40 @@ export function createSyncHandler(options) {
   /**
    * The ETag for a snapshot.
    *
-   * It is the revision alone. The revision moves exactly once per committed command and never
-   * for a background write that has not landed, so two requests that name the same revision
-   * necessarily name the same dashboard — which is what makes a 304 safe (issue §4.2).
+   * Derived from both `itemsRevision` (feed / thumbnail updates) and `revision` (`dataRevision`).
+   * Keeping `-${revision}"` at the end preserves suffix compatibility while ensuring feed and
+   * thumbnail updates invalidate conditional `If-None-Match` requests from Clients.
    */
-  const etagOf = (revision) => `"sooyo-${revision}"`
+  const etagOf = (stateOrRev) => {
+    if (typeof stateOrRev === 'object' && stateOrRev !== null) {
+      const rev = stateOrRev.revision ?? 0
+      const itemsRev = stateOrRev.itemsRevision ?? 0
+      return itemsRev > 0 ? `"sooyo-i${itemsRev}-${rev}"` : `"sooyo-${rev}"`
+    }
+    return `"sooyo-${stateOrRev}"`
+  }
+
+  const handleInboxDecide = async (req, actor) => {
+    if (actor.access !== 'write') throw new SyncError(ERRORS.forbidden, '这个凭证只有读权限')
+    const body = await bodyOf(req)
+    const protocolVersion = Number(body?.protocolVersion ?? PROTOCOL_VERSION)
+    if (protocolVersion !== PROTOCOL_VERSION) {
+      throw new SyncError(ERRORS.badRequest, `不支持的 protocolVersion：${protocolVersion}`, { expected: PROTOCOL_VERSION })
+    }
+    const operationId = body?.operationId
+    if (typeof operationId !== 'string') throw new SyncError(ERRORS.badRequest, '缺少 operationId')
+    if (!service.ready) throw new SyncError(ERRORS.notReady, 'Hub 存储域尚未就绪')
+    return service.decideProposal(
+      {
+        operationId,
+        id: body?.id,
+        decision: body?.decision,
+        apply: body?.apply,
+        precondition: body?.precondition,
+      },
+      actor,
+    )
+  }
 
   const handleCommand = async (req, actor) => {
     if (actor.access !== 'write') throw new SyncError(ERRORS.forbidden, '这个凭证只有读权限')
@@ -151,6 +190,10 @@ export function createSyncHandler(options) {
       return {
         ok: true,
         protocolVersion: PROTOCOL_VERSION,
+        protocol: PROTOCOL_RANGE,
+        protocolRange: PROTOCOL_RANGE,
+        dataSchemaVersion: DATA_SCHEMA_VERSION,
+        capabilities: CAPABILITIES,
         role: service.role,
         ready: service.ready,
         dataRevision: state.revision,
@@ -162,7 +205,7 @@ export function createSyncHandler(options) {
       if (!service.ready) throw new SyncError(ERRORS.notReady, 'Hub 存储域尚未就绪')
       await service.settled()
       const state = service.state()
-      const etag = etagOf(state.revision)
+      const etag = etagOf(state)
       if (req.headers?.['if-none-match'] === etag) return { notModified: true, etag }
       const snapshot = service.snapshot()
       return { value: { ...snapshot, etag }, etag }
@@ -191,6 +234,10 @@ export function createSyncHandler(options) {
 
     if (method === 'POST' && route === '/command') {
       return { value: await handleCommand(req, actor) }
+    }
+
+    if (method === 'POST' && route === '/inbox/decide') {
+      return { value: await handleInboxDecide(req, actor) }
     }
 
     throw new SyncError(ERRORS.notFound, `未知的 sync 路由：${method} ${route}`)

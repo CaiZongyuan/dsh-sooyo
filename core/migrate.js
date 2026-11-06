@@ -18,6 +18,7 @@
  * the only thing standing between a user and a re-created dataset.
  */
 
+import { createHash } from 'node:crypto'
 import { SAFE_KEY } from './protocol.js'
 import { TABLES } from './store.js'
 
@@ -27,14 +28,11 @@ const nowIso = () => new Date().toISOString()
 export const EXPORT_VERSION = 1
 
 /**
- * The tables an export carries, and the ones it deliberately does not.
+ * The tables a Portable Export (`mode: 'portable'`) carries.
  *
- * `items`, `sources`, `read` and `journal`/`operations` are excluded:
- * - `items`/`sources` are re-fetched by the Hub from the Sources themselves, and copying them
- *   would ship another site's content into a git repository;
- * - `read` is per-device reading state, not personal data the user authored;
- * - `journal`/`operations` are this process's crash-recovery bookkeeping and are meaningless on
- *   another Host.
+ * `items` is excluded from `tables` so bulk feed items are not shipped into portable bundles;
+ * instead, the subset of `items` referenced by `readlater`, starred `read`, or Task/Note
+ * `origin` is attached under `referencedItems` so saved articles never become dangling IDs.
  */
 export const EXPORTED_TABLES = [
   TABLES.boards,
@@ -44,28 +42,104 @@ export const EXPORTED_TABLES = [
   TABLES.notes,
   TABLES.readlater,
   TABLES.settings,
+  TABLES.read,
   TABLES.agentInbox,
 ]
 
 /**
+ * All authoritative tables included in an Operational Backup (`mode: 'backup'`).
+ */
+export const BACKUP_TABLES = [
+  TABLES.boards,
+  TABLES.widgets,
+  TABLES.layouts,
+  TABLES.tasks,
+  TABLES.notes,
+  TABLES.readlater,
+  TABLES.settings,
+  TABLES.read,
+  TABLES.agentInbox,
+  TABLES.agentReviews,
+  TABLES.items,
+  TABLES.sources,
+  TABLES.operations,
+  TABLES.journal,
+]
+
+export function computeExportChecksum(tablesObj, referencedItems = undefined) {
+  const payload = referencedItems !== undefined
+    ? { tables: tablesObj, referencedItems }
+    : { tables: tablesObj }
+  return `sha256:${createHash('sha256').update(stableStringify(payload)).digest('hex')}`
+}
+
+function collectReferencedItems(tables) {
+  const wanted = new Set()
+  const fallbackSnapshots = new Map()
+  for (const [key, value] of tables(TABLES.readlater).entries()) {
+    const id = String(value?.itemId ?? key ?? '')
+    if (!id) continue
+    wanted.add(id)
+    if (value?.snapshot && typeof value.snapshot === 'object') {
+      fallbackSnapshots.set(id, value.snapshot)
+    }
+  }
+  for (const [key, value] of tables(TABLES.read).entries()) {
+    if (value?.starred && key) {
+      const id = String(key)
+      wanted.add(id)
+      if (value?.snapshot && typeof value.snapshot === 'object' && !fallbackSnapshots.has(id)) {
+        fallbackSnapshots.set(id, value.snapshot)
+      }
+    }
+  }
+  for (const [, value] of tables(TABLES.tasks).entries()) {
+    if (value?.origin?.itemId) wanted.add(String(value.origin.itemId))
+  }
+  for (const [, value] of tables(TABLES.notes).entries()) {
+    if (value?.origin?.itemId) wanted.add(String(value.origin.itemId))
+  }
+  const rows = []
+  const itemsTable = tables(TABLES.items)
+  for (const itemId of wanted) {
+    const item = itemsTable?.get(itemId) ?? fallbackSnapshots.get(itemId)
+    if (item && typeof item === 'object') {
+      rows.push({ key: itemId, value: JSON.parse(JSON.stringify(item)) })
+    }
+  }
+  rows.sort((a, b) => String(a.key).localeCompare(String(b.key)))
+  return rows
+}
+
+/**
  * Build the export document.
  *
- * `tables` is the accessor `daily.js` uses. Every record is copied by value, so the document the
- * caller serialises cannot be mutated by a later write.
+ * Supports two modes:
+ * - `mode: 'portable'` (default): exports `EXPORTED_TABLES` plus `referencedItems` and SHA-256 `checksum`.
+ * - `mode: 'backup'`: exports all `BACKUP_TABLES` for full point-in-time operational restore.
  */
 export function exportDomain(tables, options = {}) {
+  const mode = options.mode === 'backup' ? 'backup' : 'portable'
+  const targetTables = mode === 'backup' ? BACKUP_TABLES : EXPORTED_TABLES
   const tablesOut = {}
   const counts = {}
-  for (const name of EXPORTED_TABLES) {
+  for (const name of targetTables) {
     const rows = []
-    for (const [key, value] of tables(name).entries()) rows.push({ key, value })
+    for (const [key, value] of tables(name).entries()) {
+      rows.push({ key, value: JSON.parse(JSON.stringify(value)) })
+    }
     rows.sort((a, b) => String(a.key).localeCompare(String(b.key)))
     tablesOut[name] = rows
     counts[name] = rows.length
   }
+  const referencedItems = mode === 'portable' ? collectReferencedItems(tables) : undefined
+  const checksum = computeExportChecksum(tablesOut, referencedItems)
+
   return {
     kind: 'sooyo-export',
     exportVersion: EXPORT_VERSION,
+    mode,
+    checksum,
     generatedAt: nowIso(),
     source: {
       device: options.device ?? 'unknown',
@@ -75,10 +149,11 @@ export function exportDomain(tables, options = {}) {
     },
     counts,
     tables: tablesOut,
+    ...(referencedItems !== undefined ? { referencedItems } : {}),
   }
 }
 
-/** Refuse a document that is not ours, or is from a future format we cannot read correctly. */
+/** Refuse a document that is not ours, has a corrupted checksum, or is from a future format. */
 export function validateExport(document) {
   if (document?.kind !== 'sooyo-export') return { ok: false, error: '这不是 sooyo 导出的文件' }
   if (!Number.isSafeInteger(document?.exportVersion)) return { ok: false, error: '缺少 exportVersion' }
@@ -86,6 +161,15 @@ export function validateExport(document) {
     return { ok: false, error: `这个导出文件的版本是 ${document.exportVersion}，当前插件只读到 ${EXPORT_VERSION}` }
   }
   if (!document?.tables || typeof document.tables !== 'object') return { ok: false, error: '导出文件里没有 tables' }
+  if (typeof document.checksum === 'string') {
+    const expected = computeExportChecksum(
+      document.tables,
+      Array.isArray(document.referencedItems) ? document.referencedItems : undefined,
+    )
+    if (document.checksum !== expected) {
+      return { ok: false, error: '导出文件校验和（checksum）不匹配，文件可能已损坏' }
+    }
+  }
   return { ok: true }
 }
 
@@ -114,7 +198,11 @@ export function planImport(tables, document, options = {}) {
   const summary = { create: 0, identical: 0, update: 0, conflict: 0, rejected: 0 }
   const perTable = {}
 
-  for (const name of EXPORTED_TABLES) {
+  const tableNames = document.mode === 'backup'
+    ? BACKUP_TABLES
+    : [...new Set([...EXPORTED_TABLES, ...Object.keys(document.tables).filter((t) => BACKUP_TABLES.includes(t))])]
+
+  for (const name of tableNames) {
     const rows = Array.isArray(document.tables[name]) ? document.tables[name] : []
     perTable[name] = { incoming: rows.length, create: 0, identical: 0, update: 0, conflict: 0, rejected: 0 }
     for (const row of rows) {
@@ -151,6 +239,36 @@ export function planImport(tables, document, options = {}) {
         summary.conflict += 1
         perTable[name].conflict += 1
         rejected.push({ table: name, key, reason: 'differs', current: current, incoming: row.value })
+      }
+    }
+  }
+
+  if (Array.isArray(document.referencedItems) && document.referencedItems.length > 0 && !('items' in document.tables)) {
+    const name = TABLES.items
+    perTable[name] = perTable[name] ?? { incoming: document.referencedItems.length, create: 0, identical: 0, update: 0, conflict: 0, rejected: 0 }
+    for (const row of document.referencedItems) {
+      const key = String(row?.key ?? '')
+      if (!SAFE_KEY.test(key) || !row?.value || typeof row.value !== 'object') {
+        summary.rejected += 1
+        perTable[name].rejected += 1
+        rejected.push({ table: name, key, reason: !SAFE_KEY.test(key) ? 'unsafe-key' : 'not-an-object' })
+        continue
+      }
+      const current = tables(name).get(key)
+      if (current === undefined) {
+        operations.push({ op: 'create', table: name, key, value: row.value })
+        summary.create += 1
+        perTable[name].create += 1
+      } else if (sameJson(current, row.value)) {
+        summary.identical += 1
+        perTable[name].identical += 1
+      } else if (overwrite) {
+        operations.push({ op: 'update', table: name, key, value: row.value })
+        summary.update += 1
+        perTable[name].update += 1
+      } else {
+        summary.identical += 1
+        perTable[name].identical += 1
       }
     }
   }

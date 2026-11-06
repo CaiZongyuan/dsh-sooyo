@@ -20,7 +20,7 @@
  */
 
 import * as daily from '../daily.js'
-import { BREAKPOINTS, TASK_LISTS, WIDGET_TYPES, layoutKey } from '../personal.js'
+import { BREAKPOINTS, TASK_LISTS, WIDGET_TYPES, layoutKey, withOperationIdScope } from '../personal.js'
 import { createProposal, decideProposal, PROPOSAL_OPERATIONS } from '../agent/inbox.js'
 import {
   COMMAND_SET,
@@ -38,6 +38,7 @@ import {
   replayOperation,
   revisionOf,
   runJournaled,
+  stampRecord,
 } from './store.js'
 
 const nowIso = () => new Date().toISOString()
@@ -53,9 +54,15 @@ const nowIso = () => new Date().toISOString()
  * already compact — a command that writes one record three times journals one write.
  */
 export function recorder(tables) {
-  /** @type {Map<string, { op: 'put'|'delete', table: string, key: string, value?: unknown }>} */
+  /** @type {Map<string, { op: 'put'|'delete', table: string, key: string, value?: unknown, before?: unknown }>} */
   const ops = new Map()
   const bufferKey = (table, key) => `${table}\u0000${key}`
+
+  const captureBefore = (name, key) => {
+    const existing = ops.get(bufferKey(name, key))
+    if (existing && 'before' in existing) return existing.before
+    return tables(name).get(key)
+  }
 
   const facade = (name) => ({
     get: (key) => {
@@ -81,15 +88,18 @@ export function recorder(tables) {
       return [...facade(name).entries()].length
     },
     async put(key, value) {
-      ops.set(bufferKey(name, key), { op: 'put', table: name, key, value })
+      const before = captureBefore(name, key)
+      ops.set(bufferKey(name, key), { op: 'put', table: name, key, value, before })
     },
     async delete(key) {
-      ops.set(bufferKey(name, key), { op: 'delete', table: name, key })
+      const before = captureBefore(name, key)
+      ops.set(bufferKey(name, key), { op: 'delete', table: name, key, before })
     },
     async update(key, mutate) {
+      const before = captureBefore(name, key)
       const current = facade(name).get(key)
       const next = mutate(current)
-      ops.set(bufferKey(name, key), { op: 'put', table: name, key, value: next })
+      ops.set(bufferKey(name, key), { op: 'put', table: name, key, value: next, before })
       return next
     },
   })
@@ -102,6 +112,8 @@ const stepsOf = (ops) =>
     table: entry.table,
     key: entry.key,
     op: entry.op,
+    value: entry.value,
+    before: entry.before,
     apply: async (tables) => {
       if (entry.op === 'delete') await tables(entry.table).delete(entry.key)
       else await tables(entry.table).put(entry.key, entry.value)
@@ -267,10 +279,16 @@ const VALIDATORS = {
   }),
   'note.remove': (body) => ({ id: id(body?.id, 'id') }),
 
-  'readlater.set': (body) => ({
-    itemId: id(body?.itemId, 'itemId'),
-    on: bool(body?.on, 'on'),
-  }),
+  'readlater.set': (body) => {
+    const out = {
+      itemId: id(body?.itemId, 'itemId'),
+      on: bool(body?.on, 'on'),
+    }
+    if (body?.snapshot && typeof body.snapshot === 'object' && !Array.isArray(body.snapshot)) {
+      out.snapshot = daily.extractItemSnapshot({ ...body.snapshot, id: out.itemId })
+    }
+    return out
+  },
 
   'interests.set': (body) => {
     if (Array.isArray(body?.interests)) {
@@ -388,21 +406,74 @@ async function applyItemState(tables, body) {
   if (ids.length === 0) return { ok: false, error: 'ids is required' }
   for (const itemId of ids) {
     const current = read.get(itemId) ?? { seen: false, starred: false, hidden: false }
+    const nextStarred = 'starred' in body ? body.starred : current.starred
+    const item = nextStarred ? tables('items')?.get?.(itemId) : null
+    const snapshot = nextStarred ? daily.extractItemSnapshot(item, current.snapshot) : undefined
     await read.put(itemId, {
       ...current,
       ...('seen' in body ? { seen: body.seen } : {}),
       ...('starred' in body ? { starred: body.starred } : {}),
       ...('hidden' in body ? { hidden: body.hidden } : {}),
+      ...(snapshot ? { snapshot } : {}),
       openedAt: body.seen === true ? nowIso() : current.openedAt ?? null,
     })
   }
   return { ok: true, changed: ids.length }
 }
 
+/**
+ * Compute a dry-run `before/after` diff and `basePreconditions` for a Proposal's operations
+ * using the same `recorder` facade as normal command planning.
+ */
+async function createProposalWithPreview(tables, body) {
+  const sim = recorder(tables)
+  const diff = []
+  const basePreconditions = []
+  const seenPreconditions = new Set()
+
+  for (const operation of body?.operations ?? []) {
+    if (!PROPOSAL_OPERATIONS.has(operation?.name)) continue
+    try {
+      const norm = validate(operation.name, operation.body ?? {})
+      await runCommand(sim.tables, operation.name, norm)
+    } catch {
+      // If a proposed operation cannot be dry-run against current state, keep creating the
+      // proposal so the user can inspect or reject it.
+    }
+  }
+
+  for (const entry of sim.ops.values()) {
+    diff.push({
+      table: entry.table,
+      key: entry.key,
+      op: entry.op,
+      before: entry.before ?? null,
+      after: entry.op === 'delete' ? null : (entry.value ?? null),
+    })
+    if (entry.before && typeof entry.before === 'object' && Number.isSafeInteger(entry.before.revision)) {
+      const pKey = `${entry.table}:${entry.key}`
+      if (!seenPreconditions.has(pKey)) {
+        seenPreconditions.add(pKey)
+        basePreconditions.push({
+          table: entry.table,
+          key: entry.key,
+          expectedRevision: entry.before.revision,
+        })
+      }
+    }
+  }
+
+  return createProposal(tables, {
+    ...body,
+    preview: { diff },
+    basePreconditions,
+  })
+}
+
 /** `daily.js` keeps the business semantics; these are the funnels's own commands. */
 const IMPLEMENTATIONS = {
   'item.state': applyItemState,
-  'proposal.create': (tables, body) => createProposal(tables, body),
+  'proposal.create': createProposalWithPreview,
   'proposal.decide': (tables, body) => decideProposal(tables, body),
 }
 
@@ -427,44 +498,30 @@ export async function runCommand(tables, name, body) {
  * The returned `result` is the command's own return value as computed against the overlay,
  * which is what the caller will receive. It is safe to discard the plan: nothing was written.
  */
-export async function plan(tables, name, body) {
+export async function plan(tables, name, body, operationId = null) {
   const dry = recorder(tables)
-  const result = await runCommand(dry.tables, name, body)
+  const result = await withOperationIdScope(operationId, () => runCommand(dry.tables, name, body))
   return { result, steps: stepsOf(dry.ops), writes: dry.ops.size }
 }
 
 /**
- * Apply a validated command: journal it, write it, bump the revision, remember the operation.
- *
- * Order matters and is the whole safety argument:
- * 1. The idempotency log is consulted first, so a retry returns the first attempt's result
- *    and never re-runs a create.
- * 2. The plan is computed before the journal is written, so the journal can name every step.
- * 3. The journal is written, the steps run, the journal is cleared.
- * 4. Only after the last write is durable does the revision move, and only then is the
- *    operation recorded — a crash before step 4 leaves a revision that honestly describes
- *    what a reader can see, and the retry re-applies an already-applied command harmlessly.
- */
-/**
- * Put the *stored* records into a command's result.
+ * Put the *stamped* records into a command's result.
  *
  * A business function builds its result before the write happens, so the record it returns has
- * no `revision` — or, worse, the revision it had when it was read. A caller that then uses that
- * revision as a `precondition` would be told its own write was stale. The end-to-end check found
- * exactly that: `task.add` returned a task without `revision`, so the follow-up `task.update`
- * could never carry a valid precondition.
- *
- * The steps' keys are already known, so the fix is to read them back and swap them in. Walking
- * the result rather than naming its fields keeps this correct for every command: `{ task }`,
- * `{ board }`, `{ widget }`, and the nested shapes some of them return.
+ * no `revision` — or, worse, the revision it had when it was read. Reconciling against the
+ * planned steps (or stored tables) ensures both the `pending` Intent record and the caller's
+ * immediate response carry the exact `reservedRevision`.
  */
-function reconcileResult(result, tables, steps) {
+function reconcileResult(result, tables, steps, reservedRevision = null) {
   if (!result || typeof result !== 'object') return result
   const stored = new Map()
   for (const step of steps) {
     if (step.op !== 'put') continue
-    const record = tables(step.table).get(step.key)
-    if (record && typeof record === 'object' && record.id !== undefined) stored.set(String(record.id), record)
+    const fromTable = tables ? tables(step.table).get(step.key) : undefined
+    const candidate = fromTable ?? (reservedRevision !== null ? stampRecord(step.table, step.key, step.value, reservedRevision) : step.value)
+    if (candidate && typeof candidate === 'object' && candidate.id !== undefined) {
+      stored.set(String(candidate.id), candidate)
+    }
   }
   if (stored.size === 0) return result
 
@@ -475,8 +532,6 @@ function reconcileResult(result, tables, steps) {
     seen.add(value)
     if (Array.isArray(value)) return value.map((entry) => walk(entry, depth + 1))
     const replacement = value.id !== undefined ? stored.get(String(value.id)) : undefined
-    // The stored record is the truth: it has the stamped revision and nothing the UI must not
-    // see. Replacing wholesale (rather than merging) means a deleted field cannot linger.
     if (replacement) return replacement
     const next = {}
     for (const [key, entry] of Object.entries(value)) next[key] = walk(entry, depth + 1)
@@ -485,7 +540,7 @@ function reconcileResult(result, tables, steps) {
   return walk(result, 0)
 }
 
-export async function execute(tables, { operationId, name, body, actor, precondition }) {
+export async function execute(tables, { operationId, name, body, actor, precondition, onKillPoint }) {
   assertOperationId(operationId)
   if (typeof name !== 'string' || !COMMAND_SET.has(name)) {
     throw new SyncError(ERRORS.unsupported, `不支持的命令：${String(name)}`)
@@ -497,7 +552,7 @@ export async function execute(tables, { operationId, name, body, actor, precondi
       ok: true,
       operationId,
       replayed: true,
-      dataRevision: readRevision(tables),
+      dataRevision: replay.revision ?? replay.reservedRevision ?? readRevision(tables),
       result: replay.result,
       appliedAt: replay.appliedAt,
     }
@@ -510,7 +565,7 @@ export async function execute(tables, { operationId, name, body, actor, precondi
   // the write. A mismatch is a 409 that carries the current record, never an overwrite.
   const preconditionRevision = checkPrecondition(tables, precondition)
 
-  const planned = await plan(tables, name, normalised)
+  const planned = await plan(tables, name, normalised, operationId)
   if (planned.result && planned.result.ok === false) {
     // A business refusal ("至少要留一个 Board") is not a protocol error: the caller gets the
     // message the UI shows, with a 200, exactly as the local route always did.
@@ -518,11 +573,25 @@ export async function execute(tables, { operationId, name, body, actor, precondi
   }
 
   const writer = actor?.device ?? actor?.sessionId ?? null
-  const journal = await runJournaled(tables, operationId, name, planned.steps)
-  const revision = await bumpRevision(tables, writer)
+  const reservedRevision = readRevision(tables) + 1
+  const plannedResult = reconcileResult(planned.result, null, planned.steps, reservedRevision)
+
+  const journal = await runJournaled(tables, operationId, name, planned.steps, {
+    reservedRevision,
+    writer,
+    plannedResult,
+    onKillPoint,
+  })
+  const revision = await bumpRevision(tables, writer, reservedRevision)
+  if (typeof onKillPoint === 'function') {
+    await onKillPoint('after-bump-before-commit', { operationId, reservedRevision: revision.revision })
+  }
   // Read the written records back, so the caller's result names the revision it must use next.
-  const result = reconcileResult(planned.result, tables, planned.steps)
-  await recordOperation(tables, operationId, name, result, revision.revision, writer)
+  const result = reconcileResult(planned.result, tables, planned.steps, revision.revision)
+  await recordOperation(tables, operationId, name, result, revision.revision, writer, {
+    reservedRevision: revision.revision,
+    steps: journal.serialSteps,
+  })
 
   return {
     ok: true,
@@ -545,22 +614,29 @@ export async function execute(tables, { operationId, name, body, actor, precondi
  */
 export function checkPrecondition(tables, precondition) {
   if (!precondition) return null
-  const table = ENTITY_TABLE[precondition?.entity]
+  const entity = precondition?.entity ?? precondition?.entityType
+  const table = ENTITY_TABLE[entity]
   if (!table) throw new SyncError(ERRORS.badRequest, `precondition.entity 只能是 ${Object.keys(ENTITY_TABLE).join(' / ')}`)
-  const key = precondition?.id
+  const key = precondition?.id ?? precondition?.entityId
   if (typeof key !== 'string' || !SAFE_KEY.test(key)) {
     throw new SyncError(ERRORS.badRequest, 'precondition.id 必须是路径安全的 id')
   }
-  const expected = precondition?.revision
+  const expected = precondition?.revision ?? precondition?.expectedRevision
   if (!Number.isSafeInteger(expected) || expected < 0) {
     throw new SyncError(ERRORS.badRequest, 'precondition.revision 必须是非负整数')
   }
-  const current = tables(table).get(key)
+  let current = tables(table).get(key)
+  if (!current && entity === 'settings') {
+    current = tables('settings').get('personal')
+  }
+  if (!current && entity === 'layout' && expected === 0) {
+    return 0
+  }
   // A record the caller deleted elsewhere is a conflict too: silently recreating it would
   // resurrect something the user removed.
   if (!current) {
     throw new SyncError(ERRORS.conflict, '这条记录已经被删除，请刷新后重试', {
-      entity: precondition.entity,
+      entity,
       id: key,
       revision: 0,
       missing: true,
@@ -569,7 +645,7 @@ export function checkPrecondition(tables, precondition) {
   const actual = revisionOf(current)
   if (actual !== expected) {
     throw new SyncError(ERRORS.conflict, '这条记录已经被其它设备改过，请刷新后重试', {
-      entity: precondition.entity,
+      entity,
       id: key,
       expected,
       revision: actual,

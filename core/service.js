@@ -13,10 +13,11 @@
  */
 
 import * as daily from '../daily.js'
-import { recover, revisionState } from './store.js'
-import { newOperationId, execute as executeCommand } from './commands.js'
+import { bumpRevision, readRevision, recordOperation, recover, replayOperation, revisionState, TABLES } from './store.js'
+import { checkPrecondition, newOperationId, execute as executeCommand } from './commands.js'
 import { ERRORS, SyncError } from './protocol.js'
-import { readAgentInbox } from '../agent/inbox.js'
+import { applyProposal, readAgentInbox, rollbackProposal, settleProposal } from '../agent/inbox.js'
+import { applyImport } from './migrate.js'
 
 const nowIso = () => new Date().toISOString()
 
@@ -86,6 +87,7 @@ export class LocalSooyoService {
     }
     const snapshot = daily.readDaily(this.tables, this.getSources())
     const state = revisionState(this.tables)
+    const overview = this.readers.meta ? this.readers.meta() : null
     return {
       ready: true,
       ...snapshot,
@@ -94,6 +96,22 @@ export class LocalSooyoService {
       // and the badge count is derived from one source of truth (issue §6.2).
       agentInbox: readAgentInbox(this.tables),
       dataRevision: state.revision,
+      itemsRevision: state.itemsRevision ?? 0,
+      itemsUpdatedAt: state.itemsUpdatedAt ?? null,
+      ...(overview
+        ? {
+            meta: {
+              articleCount: overview.articleCount ?? 0,
+              itemCount: overview.itemCount ?? 0,
+              unreadCount: overview.unreadCount ?? 0,
+              todayCount: overview.todayCount ?? 0,
+              starredCount: overview.starredCount ?? 0,
+              health: overview.health ?? { total: snapshot.sources.length, erroring: 0 },
+              itemsUpdatedAt: state.itemsUpdatedAt ?? null,
+              generatedAt: nowIso(),
+            },
+          }
+        : {}),
       generatedAt: nowIso(),
       role: this.role,
     }
@@ -163,6 +181,27 @@ export class LocalSooyoService {
     return this.readers.meta()
   }
 
+  async _executeUnlocked(command, actor) {
+    if (!this.ready) throw new SyncError(ERRORS.notReady, '存储域尚未就绪')
+    if (actor?.access && actor.access !== 'write') {
+      throw new SyncError(ERRORS.forbidden, '这个凭证只有读权限')
+    }
+    const operationId = command?.operationId ?? newOperationId(actor?.device ?? this.device)
+    this.hooks?.beginWrite?.()
+    try {
+      return await executeCommand(this.tables, {
+        operationId,
+        name: command?.name,
+        body: command?.body,
+        actor,
+        precondition: command?.precondition,
+        onKillPoint: command?.onKillPoint,
+      })
+    } finally {
+      this.hooks?.endWrite?.()
+    }
+  }
+
   /**
    * The single write. The funnel journals it, bumps the revision and records the operation,
    * so every caller — local UI, remote Client, Agent tool — gets the same guarantees.
@@ -172,23 +211,190 @@ export class LocalSooyoService {
     if (actor?.access && actor.access !== 'write') {
       throw new SyncError(ERRORS.forbidden, '这个凭证只有读权限')
     }
-    const operationId = command?.operationId ?? newOperationId(actor?.device ?? this.device)
     // The queue is what makes two concurrent commands from two devices serialize instead of
     // interleaving inside one command's multi-step body (issue §4.3).
+    return this.queue.run(() => this._executeUnlocked(command, actor))
+  }
+
+  /**
+   * Decide and optionally apply an Agent Inbox Proposal atomically inside the write queue.
+   *
+   * Used by both the local `/sooyo/agent-inbox/decide` route and the Hub's authenticated
+   * `POST /sooyo/sync/v1/inbox/decide` endpoint so Client devices can approve/reject Proposals
+   * without exposing `proposal.decide` on the generic `/command` funnel or Agent tools.
+   */
+  async decideProposal(request = {}, actor = localActor({ device: this.device })) {
+    if (!this.ready) throw new SyncError(ERRORS.notReady, '存储域尚未就绪')
+    if (actor?.access && actor.access !== 'write') {
+      throw new SyncError(ERRORS.forbidden, '这个凭证只有读权限')
+    }
+    const operationId = request?.operationId ?? newOperationId(actor?.device ?? this.device)
+    const writer = actor?.device ?? this.device
+
     return this.queue.run(async () => {
-      // Reserve the revision the records this command writes will carry. It is opened and
-      // closed around the whole command so a business function that writes three records
-      // stamps all three identically — and it is cleared in `finally` so a refusal does not
-      // leak a reserved number into the next command.
+      const replay = await replayOperation(this.tables, operationId)
+      if (replay) {
+        return {
+          ...(replay.result ?? { ok: true }),
+          operationId,
+          replayed: true,
+          dataRevision: readRevision(this.tables),
+        }
+      }
+
+      if (request?.precondition) {
+        checkPrecondition(this.tables, request.precondition)
+      }
+
+      if (request?.decision === 'rollback') {
+        this.hooks?.beginWrite?.()
+        let rolled
+        try {
+          rolled = await rollbackProposal(this.tables, request?.id)
+          if (rolled.ok) {
+            await bumpRevision(this.tables, `proposal:rollback:${writer}`)
+          }
+        } finally {
+          this.hooks?.endWrite?.()
+        }
+        const rev = readRevision(this.tables)
+        if (rolled.ok) {
+          await recordOperation(this.tables, operationId, 'inbox.decide', rolled, rev, writer)
+        }
+        return {
+          ...rolled,
+          operationId,
+          dataRevision: rev,
+        }
+      }
+
+      const decideOpId = `${operationId}-d`.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 120)
+      const decidedEnvelope = await this._executeUnlocked(
+        {
+          operationId: decideOpId,
+          name: 'proposal.decide',
+          body: { id: request?.id, decision: request?.decision },
+        },
+        actor,
+      )
+      const decided = decidedEnvelope?.result ?? decidedEnvelope
+      if (!decided?.ok) {
+        return {
+          ...decided,
+          ok: false,
+          operationId,
+          dataRevision: readRevision(this.tables),
+        }
+      }
+
+      let finalOutcome = { ...decided }
+      if (request?.decision === 'approve' && request?.apply !== false) {
+        const proposal = this.tables(TABLES.agentInbox).get(String(request?.id ?? ''))
+        if (proposal) {
+          try {
+            const applied = await applyProposal(this.tables, proposal, (cmd) =>
+              this._executeUnlocked(cmd, {
+                kind: 'proposal',
+                device: proposal.id,
+                access: 'write',
+              }),
+            )
+            const failed = applied.filter((entry) => !entry.ok)
+            this.hooks?.beginWrite?.()
+            let settled
+            try {
+              settled = await settleProposal(
+                this.tables,
+                proposal.id,
+                failed.length === 0 ? 'applied' : 'failed',
+                failed.length === 0 ? null : failed.map((entry) => entry.error).join('; '),
+                applied,
+                applied.inverseSteps,
+              )
+              await bumpRevision(this.tables, `proposal:${writer}`)
+            } finally {
+              this.hooks?.endWrite?.()
+            }
+            finalOutcome = {
+              ok: failed.length === 0,
+              proposal: settled ?? proposal,
+              applied: {
+                ok: failed.length === 0,
+                applied,
+                ...(failed.length > 0 ? { failed } : {}),
+              },
+              ...(failed.length > 0 ? { error: failed.map((entry) => entry.error).join('; ') } : {}),
+            }
+          } catch (error) {
+            this.hooks?.beginWrite?.()
+            let settled
+            try {
+              settled = await settleProposal(this.tables, proposal.id, 'failed', String(error?.message ?? error))
+              await bumpRevision(this.tables, `proposal:${writer}`)
+            } finally {
+              this.hooks?.endWrite?.()
+            }
+            finalOutcome = {
+              ok: false,
+              proposal: settled ?? proposal,
+              error: String(error?.message ?? error),
+            }
+          }
+        }
+      }
+
+      const finalRev = readRevision(this.tables)
+      await recordOperation(this.tables, operationId, 'inbox.decide', finalOutcome, finalRev, writer)
+      return {
+        ...finalOutcome,
+        operationId,
+        dataRevision: finalRev,
+      }
+    })
+  }
+
+  /**
+   * Expire stale pending Proposals inside the write queue with revision stamping.
+   */
+  async expireProposals(ids = []) {
+    if (!this.ready || !Array.isArray(ids) || ids.length === 0) return { expired: 0 }
+    return this.queue.run(async () => {
+      this.hooks?.beginWrite?.()
+      let expired = 0
+      try {
+        for (const id of ids) {
+          const existing = this.tables(TABLES.agentInbox).get(id)
+          if (!existing || existing.status !== 'pending') continue
+          await this.tables(TABLES.agentInbox).put(id, {
+            ...existing,
+            status: 'expired',
+            expiredAt: nowIso(),
+          })
+          expired += 1
+        }
+        if (expired > 0) {
+          await bumpRevision(this.tables, 'review:sweep')
+        }
+      } finally {
+        this.hooks?.endWrite?.()
+      }
+      return { expired, dataRevision: readRevision(this.tables) }
+    })
+  }
+
+  /**
+   * Apply a validated import plan inside the write queue with revision stamping.
+   */
+  async applyImportPlan(plan, options = {}, actor = localActor({ device: this.device })) {
+    if (!this.ready) throw new SyncError(ERRORS.notReady, '存储域尚未就绪')
+    return this.queue.run(async () => {
       this.hooks?.beginWrite?.()
       try {
-        return await executeCommand(this.tables, {
-          operationId,
-          name: command?.name,
-          body: command?.body,
-          actor,
-          precondition: command?.precondition,
-        })
+        const applied = await applyImport(this.tables, plan, options)
+        if ((applied.written?.create ?? 0) + (applied.written?.update ?? 0) > 0) {
+          await bumpRevision(this.tables, `import:${actor?.device ?? this.device}`)
+        }
+        return { ...applied, dataRevision: readRevision(this.tables) }
       } finally {
         this.hooks?.endWrite?.()
       }

@@ -25,6 +25,14 @@ import {
 } from './personal.js'
 
 const SETTINGS_KEY = 'personal'
+export const SETTINGS_KEYS = {
+  legacy: SETTINGS_KEY,
+  active: 'active',
+  interests: 'interests',
+  bookmarks: 'bookmarks',
+  habits: 'habits',
+  focus: 'focus',
+}
 
 const nowIso = () => new Date().toISOString()
 
@@ -45,6 +53,8 @@ const defaultSettings = () => ({
   habits: DEFAULT_HABITS,
   focus: DEFAULT_FOCUS,
 })
+
+const revOf = (record) => (Number.isSafeInteger(record?.revision) ? record.revision : 0)
 
 /**
  * Write the starting Boards the first time the domain is opened.
@@ -67,18 +77,86 @@ export async function ensureSeeded(tables) {
       order: layout.order,
     })
   }
-  await tables('settings').put(SETTINGS_KEY, defaultSettings())
+  const defaults = defaultSettings()
+  const settingsTable = tables('settings')
+  await settingsTable.put(SETTINGS_KEYS.active, { id: SETTINGS_KEYS.active, active: defaults.active })
+  await settingsTable.put(SETTINGS_KEYS.interests, { id: SETTINGS_KEYS.interests, interests: defaults.interests })
+  await settingsTable.put(SETTINGS_KEYS.bookmarks, { id: SETTINGS_KEYS.bookmarks, bookmarks: defaults.bookmarks })
+  await settingsTable.put(SETTINGS_KEYS.habits, { id: SETTINGS_KEYS.habits, habits: defaults.habits })
+  await settingsTable.put(SETTINGS_KEYS.focus, { id: SETTINGS_KEYS.focus, focus: defaults.focus })
   return true
 }
 
-/** Anything missing from a stored settings record falls back to its default. */
+/**
+ * Read settings from granular records (`active`, `interests`, `bookmarks`, `habits`, `focus`),
+ * falling back transparently to legacy `settings/personal` and then to defaults.
+ */
 export function readSettings(tables) {
-  const stored = tables('settings').get(SETTINGS_KEY) ?? {}
-  return { ...defaultSettings(), ...stored, focus: { ...DEFAULT_FOCUS, ...(stored.focus ?? {}) } }
+  const defaults = defaultSettings()
+  const settingsTable = tables('settings')
+  const legacy = settingsTable.get(SETTINGS_KEY) ?? {}
+  const activeRec = settingsTable.get(SETTINGS_KEYS.active)
+  const interestsRec = settingsTable.get(SETTINGS_KEYS.interests)
+  const bookmarksRec = settingsTable.get(SETTINGS_KEYS.bookmarks)
+  const habitsRec = settingsTable.get(SETTINGS_KEYS.habits)
+  const focusRec = settingsTable.get(SETTINGS_KEYS.focus)
+
+  const active = activeRec?.active ?? legacy.active ?? defaults.active
+  const interests = Array.isArray(interestsRec?.interests)
+    ? interestsRec.interests
+    : (Array.isArray(legacy.interests) ? legacy.interests : defaults.interests)
+  const bookmarks = Array.isArray(bookmarksRec?.bookmarks)
+    ? bookmarksRec.bookmarks
+    : (Array.isArray(legacy.bookmarks) ? legacy.bookmarks : defaults.bookmarks)
+  const habits = Array.isArray(habitsRec?.habits)
+    ? habitsRec.habits
+    : (Array.isArray(legacy.habits) ? legacy.habits : defaults.habits)
+  const focusRaw = focusRec?.focus ?? legacy.focus ?? {}
+
+  return {
+    ...defaults,
+    ...legacy,
+    active,
+    interests,
+    bookmarks,
+    habits,
+    focus: { ...DEFAULT_FOCUS, ...focusRaw },
+  }
 }
 
-const writeSettings = (tables, patch) =>
-  tables('settings').put(SETTINGS_KEY, { ...readSettings(tables), ...patch })
+export function readSettingsRevisions(tables) {
+  const settingsTable = tables('settings')
+  const legacy = settingsTable.get(SETTINGS_KEY)
+  return {
+    active: revOf(settingsTable.get(SETTINGS_KEYS.active) ?? legacy),
+    interests: revOf(settingsTable.get(SETTINGS_KEYS.interests) ?? legacy),
+    bookmarks: revOf(settingsTable.get(SETTINGS_KEYS.bookmarks) ?? legacy),
+    habits: revOf(settingsTable.get(SETTINGS_KEYS.habits) ?? legacy),
+    focus: revOf(settingsTable.get(SETTINGS_KEYS.focus) ?? legacy),
+  }
+}
+
+/**
+ * Write only the targeted setting keys so changing active Board never bumps habits/focus/bookmarks.
+ */
+async function writeSettings(tables, patch) {
+  const settingsTable = tables('settings')
+  if ('active' in patch) {
+    await settingsTable.put(SETTINGS_KEYS.active, { id: SETTINGS_KEYS.active, active: patch.active })
+  }
+  if ('interests' in patch) {
+    await settingsTable.put(SETTINGS_KEYS.interests, { id: SETTINGS_KEYS.interests, interests: patch.interests })
+  }
+  if ('bookmarks' in patch) {
+    await settingsTable.put(SETTINGS_KEYS.bookmarks, { id: SETTINGS_KEYS.bookmarks, bookmarks: patch.bookmarks })
+  }
+  if ('habits' in patch) {
+    await settingsTable.put(SETTINGS_KEYS.habits, { id: SETTINGS_KEYS.habits, habits: patch.habits })
+  }
+  if ('focus' in patch) {
+    await settingsTable.put(SETTINGS_KEYS.focus, { id: SETTINGS_KEYS.focus, focus: patch.focus })
+  }
+}
 
 const listBoards = (tables) => {
   const rows = []
@@ -129,6 +207,40 @@ const listReadLater = (tables) => {
   return rows.map((entry) => entry.itemId)
 }
 
+/** Build a self-contained Item metadata snapshot so saved/starred articles never dangle. */
+export function extractItemSnapshot(item, fallback = null) {
+  const src = item ?? fallback
+  if (!src || typeof src !== 'object') return null
+  const id = src.id ?? src.itemId ?? null
+  if (!id) return null
+  return {
+    id: String(id),
+    title: String(src.title ?? '(无标题)').slice(0, 300),
+    url: String(src.url ?? '').slice(0, 2000),
+    sourceId: String(src.sourceId ?? 'saved').slice(0, 100),
+    sourceLabel: String(src.sourceLabel ?? src.origin ?? '已保存').slice(0, 100),
+    publishedAt: src.publishedAt ?? src.discoveredAt ?? null,
+    thumbnail: src.thumbnail ?? null,
+    summary: String(src.summary ?? '').slice(0, 1000),
+    tldr: String(src.tldr ?? '').slice(0, 500),
+    reason: String(src.reason ?? '').slice(0, 500),
+    category: String(src.category ?? 'other').slice(0, 60),
+    origin: String(src.origin ?? src.sourceLabel ?? '已保存').slice(0, 100),
+    score: typeof src.score === 'number' ? src.score : null,
+  }
+}
+
+const listReadLaterEntries = (tables) => {
+  const map = {}
+  for (const [, value] of tables('readlater').entries()) {
+    if (!value?.itemId) continue
+    const live = tables('items')?.get?.(value.itemId)
+    const snap = extractItemSnapshot(live, value.snapshot)
+    if (snap) map[value.itemId] = { ...snap, savedAt: value.savedAt ?? null }
+  }
+  return map
+}
+
 /**
  * Everything the Client half needs, in one response.
  *
@@ -148,9 +260,14 @@ export function readDaily(tables, sources) {
   const boards = listBoards(tables)
   const active = boards.some((board) => board.id === settings.active) ? settings.active : boards[0]?.id ?? null
   const layouts = {}
+  const layoutRevisions = {}
   for (const board of boards) {
     layouts[board.id] = {}
-    for (const cols of BREAKPOINTS) layouts[board.id][cols] = layoutOf(tables, board.id, cols)
+    for (const cols of BREAKPOINTS) {
+      const lKey = layoutKey(board.id, cols)
+      layouts[board.id][cols] = layoutOf(tables, board.id, cols)
+      layoutRevisions[lKey] = revOf(tables('layouts').get(lKey))
+    }
   }
 
   return {
@@ -158,21 +275,33 @@ export function readDaily(tables, sources) {
     active,
     widgets,
     layouts,
+    layoutRevisions,
+    settingsRevisions: readSettingsRevisions(tables),
     tasks: listTasks(tables),
     notes: listNotes(tables),
     readLater: listReadLater(tables),
+    readLaterEntries: listReadLaterEntries(tables),
     interests: settings.interests,
     bookmarks: settings.bookmarks,
     habits: settings.habits,
     focus: settings.focus,
-    sources: sources.map((source) => ({
-      id: source.id,
-      label: source.label,
-      about: source.about ?? '',
-      suggests: source.suggests ?? null,
-      attribution: source.attribution ?? null,
-      cadenceMinutes: source.cadenceMinutes ?? null,
-    })),
+    sources: sources.map((source) => {
+      const storedState = tables('sources')?.get?.(source.id) ?? {}
+      return {
+        id: source.id,
+        label: source.label,
+        about: source.about ?? '',
+        suggests: source.suggests ?? null,
+        attribution: source.attribution ?? null,
+        cadenceMinutes: source.cadenceMinutes ?? null,
+        itemCount: storedState.itemCount ?? source.itemCount ?? 0,
+        lastRunAt: storedState.lastRunAt ?? source.lastRunAt ?? null,
+        lastResult: storedState.lastResult ?? source.lastResult ?? null,
+        lastError: storedState.lastError ?? source.lastError ?? null,
+        failStreak: storedState.failStreak ?? source.failStreak ?? 0,
+        nextDueAt: storedState.nextDueAt ?? source.nextDueAt ?? null,
+      }
+    }),
     types: WIDGET_TYPES,
   }
 }
@@ -184,6 +313,8 @@ export async function createBoard(tables, body) {
   if (!name) return { ok: false, error: '需要一个 Board 名称' }
   const boards = listBoards(tables)
   const id = newId('b')
+  const existing = tables('boards').get(id)
+  if (existing) return { ok: true, board: existing, active: id }
   const record = { id, name: name.slice(0, 40), icon: typeof body?.icon === 'string' ? body.icon : 'board', order: boards.length }
   await tables('boards').put(id, record)
   // A new Board is empty at every breakpoint; writing the rows keeps a later breakpoint
@@ -256,6 +387,8 @@ export async function addWidget(tables, body) {
 
   const size = safeSize(type, body?.size)
   const id = newId('w')
+  const existing = tables('widgets').get(id)
+  if (existing) return { ok: true, widget: existing }
   const record = normalizeWidget({
     id,
     type,
@@ -369,8 +502,11 @@ export async function capture(tables, body) {
   if (!text) return { ok: false, error: '写点什么再回车' }
   const asNote = /^#note\s*/i.test(text)
   if (asNote) {
+    const id = newId('n')
+    const existing = tables('notes').get(id)
+    if (existing) return { ok: true, kind: 'note', note: existing }
     const note = {
-      id: newId('n'),
+      id,
       text: text.replace(/^#note\s*/i, '').slice(0, 2000),
       createdAt: nowIso(),
     }
@@ -384,8 +520,11 @@ export async function addTask(tables, body) {
   const title = String(body?.title ?? '').trim()
   if (!title) return { ok: false, error: '任务需要一个标题' }
   const list = TASK_LISTS.includes(body?.list) ? body.list : 'inbox'
+  const id = newId('t')
+  const existing = tables('tasks').get(id)
+  if (existing) return { ok: true, task: existing }
   const task = {
-    id: newId('t'),
+    id,
     title: title.slice(0, 300),
     list,
     project: typeof body?.project === 'string' && body.project ? body.project : null,
@@ -426,7 +565,10 @@ export async function removeTask(tables, body) {
 export async function addNote(tables, body) {
   const text = String(body?.text ?? '').trim()
   if (!text) return { ok: false, error: 'Note 需要一个标题' }
-  const note = { id: newId('n'), text: text.slice(0, 2000), origin: body?.origin ?? null, createdAt: nowIso() }
+  const id = newId('n')
+  const existing = tables('notes').get(id)
+  if (existing) return { ok: true, note: existing }
+  const note = { id, text: text.slice(0, 2000), origin: body?.origin ?? null, createdAt: nowIso() }
   await tables('notes').put(note.id, note)
   return { ok: true, note }
 }
@@ -447,8 +589,15 @@ export async function setReadLater(tables, body) {
     if (tables('readlater').get(itemId)) await tables('readlater').delete(itemId)
     return { ok: true, itemId, saved: false }
   }
-  await tables('readlater').put(itemId, { itemId, savedAt: nowIso() })
-  return { ok: true, itemId, saved: true }
+  const existing = tables('readlater').get(itemId)
+  const item = tables('items')?.get?.(itemId)
+  const snapshot = extractItemSnapshot(item, body?.snapshot ?? existing?.snapshot)
+  await tables('readlater').put(itemId, {
+    itemId,
+    savedAt: nowIso(),
+    ...(snapshot ? { snapshot } : {}),
+  })
+  return { ok: true, itemId, saved: true, ...(snapshot ? { snapshot } : {}) }
 }
 
 // ---- 关注词 ----------------------------------------------------------------

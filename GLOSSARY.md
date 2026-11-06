@@ -9,11 +9,11 @@ A named container of Widgets with its own layout, such as 总览, 工作, 生活
 _Avoid_: Dashboard, 场景, 页面, 工作台
 
 **Widget Type**:
-A kind of Widget, such as RSS, Todo or Calendar, that declares its sizes, settings and actions.
-_Avoid_: Component, kind
+A kind of Widget, such as 订阅, 任务 or 习惯, that declares its supported Sizes, settings and actions.
+_Avoid_: Component, kind, card type
 
 **Widget**:
-One placed instance of a Widget Type on a Board, with its own settings and size. Two RSS Widgets are two instances of one Widget Type.
+One placed instance of a Widget Type on a Board, with its own settings and Size. Two 订阅 Widgets are two instances of one Widget Type.
 _Avoid_: Card, 卡片, 组件
 
 **Size**:
@@ -51,7 +51,7 @@ A keyword the user cares about; Items that match one are marked and can be ranke
 _Avoid_: 标签, tag, 偏好
 
 **Read Later**:
-The list of Items the user has set aside to read.
+The list of Items the user has set aside to read, retaining each Item's essential summary and link even after it ages out of its Source.
 _Avoid_: 收藏夹, bookmarks, favourites
 
 ## Personal data
@@ -87,3 +87,71 @@ _Avoid_: 来源 (ambiguous with Source), reference
 **Capture**:
 The act of recording a thought in one line; it produces a Task in the Inbox, or a Note when marked as one.
 _Avoid_: 快速笔记, quick add
+
+## Sync and reliability
+
+**Hub**:
+The single authoritative instance that owns the user's personal data, fetches Sources, and runs scheduled Reviews.
+_Avoid_: Master, primary, server, cloud
+
+**Client**:
+A non-authoritative device instance that reads and writes through a Hub, holding only a local Replica and Outbox.
+_Avoid_: Slave, follower, secondary, 浏览器端 (when meaning the sync role)
+
+**Standalone**:
+The default single-device role that owns its own authoritative data locally without exposing remote sync.
+_Avoid_: Local mode, offline mode
+
+**Revision**:
+The monotonic number stamped on the workspace and on each personal record after a confirmed write, used to detect concurrent edits and validate caches.
+_Avoid_: Version, timestamp, ETag
+
+**Operation**:
+One named, idempotent command identified by a stable operation ID that produces the same entities and result when retried.
+_Avoid_: Action (on the sync wire), transaction, event
+
+**Intent**:
+The durable record of a planned Operation written before its changes are applied, so an interrupted write finishes deterministically on recovery.
+_Avoid_: WAL, redo log, transaction log
+
+**Precondition**:
+The expected Revision of an entity attached to an edit so a stale write is refused as a Conflict instead of overwriting newer changes.
+_Avoid_: Lock, CAS, optimistic lock
+
+**Conflict**:
+A refused Operation whose Precondition no longer matches the Hub's current Revision, preserved with both versions until the user resolves it.
+_Avoid_: Merge error, sync failure
+
+**Replica**:
+A Client's local read-only cache of the last confirmed Hub snapshot, explicitly marked stale when the Hub cannot be reached.
+_Avoid_: Local database, local store, secondary authority
+
+**Outbox**:
+A Client's durable queue of pending Operations recorded locally while offline or awaiting Hub acknowledgement.
+_Avoid_: Write buffer, mutation queue
+
+**Operational Backup**:
+A complete point-in-time snapshot of the Hub's authoritative state used to restore an instance after hardware or storage failure.
+_Avoid_: Export, dump
+
+**Portable Export**:
+A versioned, self-contained package of the user's personal data and referenced Items for moving across profiles or leaving the platform.
+_Avoid_: Backup, raw dump
+
+## Agent collaboration
+
+**Proposal**:
+A structured batch of suggested workspace changes with rationale, evidence, and before/after preview, held in the Agent Inbox until a human decides.
+_Avoid_: Suggestion, draft, auto-edit
+
+**Agent Inbox**:
+The queue of pending and decided Proposals where a human reviews diffs, approves or rejects changes, and rolls back applied Proposals.
+_Avoid_: Notification center, Inbox (which is a Task list)
+
+**Review**:
+The scheduled, deterministic scan of Tasks and Notes changed since the last cursor that invokes the Agent to propose improvements only when new changes exist.
+_Avoid_: Cron job, auto-summary, background agent
+
+**Context Bridge**:
+The compact digest of current workspace state injected at the start of a human-initiated Agent turn so the model knows what the user is working on.
+_Avoid_: System prompt injection, memory recall

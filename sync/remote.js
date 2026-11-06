@@ -16,10 +16,13 @@
  */
 
 import {
+  DATA_SCHEMA_VERSION,
   ERRORS,
+  PROTOCOL_VERSION,
   SYNC_PREFIX,
   SyncError,
 } from '../core/protocol.js'
+import { deriveEntityId } from '../personal.js'
 
 /** Bound every Hub call: a hung Hub must not hold a page load open. */
 const DEFAULT_TIMEOUT_MS = 6000
@@ -170,17 +173,90 @@ export class RemoteSooyoService {
     this.role = 'client'
     this.error = sync?.error ?? (this.ready ? null : 'Hub 配置不完整')
     this.cache = { snapshot: null, etag: null, at: 0 }
-    this.health = { ok: false, checkedAt: null, error: this.error, hubRole: null, protocolVersion: null }
+    this.cacheTables = options.cacheTables ?? null
+    this.health = {
+      ok: false,
+      checkedAt: null,
+      error: this.error,
+      hubRole: null,
+      protocolVersion: null,
+      protocol: null,
+      dataSchemaVersion: null,
+      capabilities: [],
+      schemaCompat: 'unknown',
+    }
+    if (this.cacheTables) {
+      this._hydrateFromCacheTables()
+    }
+  }
+
+  /**
+   * Attach the Client's non-authoritative `sooyo_client_cache` tables (`snapshots`, `outbox`,
+   * `conflicts`, `ui_preferences`). Never opens or touches the authoritative `sooyo` domain.
+   */
+  attachCacheTables(cacheTables) {
+    this.cacheTables = cacheTables
+    this._hydrateFromCacheTables()
+  }
+
+  _hydrateFromCacheTables() {
+    if (!this.cacheTables) return
+    try {
+      const latest = this.cacheTables('snapshots')?.get?.('latest')
+      if (latest?.snapshot && !this.cache.snapshot) {
+        this.cache = {
+          snapshot: latest.snapshot,
+          etag: latest.etag ?? null,
+          at: Number(latest.at) || Date.now(),
+        }
+      }
+    } catch {
+      // Ignore cache hydration failures and rely on live Hub fetch.
+    }
+  }
+
+  outboxList() {
+    if (!this.cacheTables) return []
+    const rows = []
+    try {
+      for (const [, entry] of this.cacheTables('outbox').entries()) {
+        if (entry?.operationId && (entry.status === 'local_pending' || entry.status === 'sending')) {
+          rows.push(entry)
+        }
+      }
+    } catch {
+      return []
+    }
+    rows.sort((a, b) => String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? '')))
+    return rows
+  }
+
+  conflictList() {
+    if (!this.cacheTables) return []
+    const rows = []
+    try {
+      for (const [, entry] of this.cacheTables('conflicts').entries()) {
+        if (entry?.operationId) rows.push(entry)
+      }
+    } catch {
+      return []
+    }
+    rows.sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))
+    return rows
   }
 
   /** The freshness of what the panel is looking at, for the "未同步" badge. */
   get status() {
+    const outbox = this.outboxList()
+    const conflicts = this.conflictList()
     return {
       role: 'client',
       endpoint: this.sync?.endpoint ?? null,
       device: this.sync?.device ?? null,
       configured: this.ready,
       error: this.error,
+      pendingCount: outbox.length,
+      conflictCount: conflicts.length,
       cache: {
         have: this.cache.snapshot !== null,
         fetchedAt: this.cache.at ? new Date(this.cache.at).toISOString() : null,
@@ -254,63 +330,202 @@ export class RemoteSooyoService {
   async checkHealth(signal) {
     try {
       const result = await this.request('GET', '/health', { signal })
+      const val = result.value ?? {}
+      const minProto = Number(val?.protocol?.min ?? val?.protocolVersion ?? 1)
+      const hubSchema = Number(val?.dataSchemaVersion ?? 1)
+      let schemaCompat = 'compatible'
+      if (minProto > PROTOCOL_VERSION) schemaCompat = 'incompatible_protocol'
+      else if (hubSchema > DATA_SCHEMA_VERSION) schemaCompat = 'newer_hub_schema'
+
       this.health = {
-        ok: Boolean(result.value?.ok),
+        ok: Boolean(val?.ok),
         checkedAt: nowIso(),
         error: null,
-        hubRole: result.value?.role ?? null,
-        protocolVersion: result.value?.protocolVersion ?? null,
-        revision: result.value?.dataRevision ?? null,
+        hubRole: val?.role ?? null,
+        protocolVersion: val?.protocolVersion ?? null,
+        protocol: val?.protocol ?? { min: val?.protocolVersion ?? 1, max: val?.protocolVersion ?? 1 },
+        dataSchemaVersion: hubSchema,
+        capabilities: Array.isArray(val?.capabilities) ? val.capabilities : [],
+        schemaCompat,
+        revision: val?.dataRevision ?? null,
       }
       if (this.health.hubRole && this.health.hubRole !== 'hub' && this.health.hubRole !== 'standalone') {
         this.health.error = `Hub 报告的角色是 ${this.health.hubRole}`
       }
       return this.health
     } catch (error) {
-      this.health = { ok: false, checkedAt: nowIso(), error: String(error?.message ?? error), hubRole: null, protocolVersion: null }
+      this.health = {
+        ok: false,
+        checkedAt: nowIso(),
+        error: String(error?.message ?? error),
+        hubRole: null,
+        protocolVersion: null,
+        protocol: null,
+        dataSchemaVersion: null,
+        capabilities: [],
+        schemaCompat: 'unknown',
+      }
       return this.health
     }
   }
 
   /**
-   * The dashboard, from the Hub.
+   * Replay any durable Outbox entries in FIFO order against the Hub.
    *
-   * A cache hit inside `cacheMs` is returned with `fromCache: true` — the panel shows it
-   * without a spinner, because it already has exactly this data. Beyond that the request is
-   * conditional: a 304 refreshes the timestamp without touching the cache contents.
-   *
-   * When the Hub cannot be reached, a cached snapshot is returned with `stale: true` and the
-   * failure attached, so the UI can say so instead of pretending (AC-05). With no cache at
-   * all the error propagates: an empty dashboard would be a lie.
+   * A `409 conflict` quarantines that specific entry into `conflicts` and continues flushing
+   * subsequent independent entries so a single stale edit never blocks the entire queue.
+   */
+  async flushOutbox() {
+    if (!this.cacheTables || !this.ready) return { flushed: 0, conflicts: 0, pending: 0 }
+    const outboxTable = this.cacheTables('outbox')
+    const conflictsTable = this.cacheTables('conflicts')
+    const queue = this.outboxList()
+    let flushed = 0
+    let conflicts = 0
+
+    for (const entry of queue) {
+      await outboxTable.put(entry.operationId, { ...entry, status: 'sending', lastAttemptAt: nowIso() })
+      try {
+        const result = await this.request('POST', '/command', {
+          body: {
+            protocolVersion: 1,
+            operationId: entry.operationId,
+            name: entry.name,
+            body: entry.body ?? {},
+            ...(entry.precondition ? { precondition: entry.precondition } : {}),
+          },
+        })
+        const value = result.value ?? {}
+        await outboxTable.delete(entry.operationId)
+        if (value.ok === false) {
+          await conflictsTable.put(entry.operationId, {
+            ...entry,
+            status: 'conflict',
+            error: value.error ?? '命令被 Hub 拒绝',
+            failedAt: nowIso(),
+          })
+          conflicts += 1
+        } else {
+          flushed += 1
+        }
+      } catch (error) {
+        if (error instanceof SyncError && error.code === ERRORS.conflict) {
+          await outboxTable.delete(entry.operationId)
+          await conflictsTable.put(entry.operationId, {
+            ...entry,
+            status: 'conflict',
+            error: error.message,
+            details: error.details ?? null,
+            failedAt: nowIso(),
+          })
+          conflicts += 1
+          continue
+        }
+        await outboxTable.put(entry.operationId, {
+          ...entry,
+          status: 'local_pending',
+          attempts: (entry.attempts ?? 1) + 1,
+          lastError: String(error?.message ?? error),
+        })
+        break
+      }
+    }
+    if (flushed > 0) {
+      this.cache = { ...this.cache, etag: null, at: 0 }
+    }
+    return { flushed, conflicts, pending: this.outboxList().length }
+  }
+
+  /**
+   * Resolve a quarantined conflict in `sooyo_client_cache/conflicts`.
+   * - `action === 'discard'`: delete the conflict record.
+   * - `action === 'retry'`: re-enqueue into `outbox` with updated expected revision and flush.
+   */
+  async resolveConflict(input, actionArg = 'discard') {
+    if (!this.cacheTables) return { ok: false, error: '未启用本地缓存域' }
+    const operationId = typeof input === 'object' && input !== null ? input.operationId : input
+    const action = typeof input === 'object' && input !== null ? (input.action ?? actionArg) : actionArg
+    const conflictsTable = this.cacheTables('conflicts')
+    const entry = conflictsTable.get(String(operationId ?? ''))
+    if (!entry) return { ok: false, error: '没有找到这条冲突记录' }
+    await conflictsTable.delete(entry.operationId)
+    if (action === 'retry') {
+      const updatedPrecondition = entry.precondition && Number.isSafeInteger(entry.details?.revision)
+        ? { ...entry.precondition, revision: entry.details.revision }
+        : entry.precondition
+      await this.cacheTables('outbox').put(entry.operationId, {
+        ...entry,
+        precondition: updatedPrecondition,
+        status: 'local_pending',
+        attempts: (entry.attempts ?? 1) + 1,
+      })
+      const flushResult = await this.flushOutbox()
+      return { ok: true, action: 'retry', ...flushResult }
+    }
+    return { ok: true, action: 'discard', operationId: entry.operationId }
+  }
+
+  _withSyncState(snap, extra = {}) {
+    const pendingCount = this.outboxList().length
+    const conflicts = this.conflictList()
+    return {
+      ...snap,
+      ...extra,
+      pendingCount,
+      conflictCount: conflicts.length,
+      ...(conflicts.length > 0 ? { conflicts } : {}),
+    }
+  }
+
+  /**
+   * The dashboard, from the Hub (with durable Replica & Outbox support when `cacheTables` is attached).
    */
   async snapshot(options = {}) {
     const now = Date.now()
-    if (!options.force && this.cache.snapshot && now - this.cache.at < this.sync.cacheMs) {
-      return { ...this.cache.snapshot, fromCache: true, stale: false, cacheAgeMs: now - this.cache.at }
+    if (!options.force && this.cache.snapshot && now - this.cache.at < this.sync.cacheMs && this.outboxList().length === 0) {
+      return this._withSyncState(this.cache.snapshot, { fromCache: true, stale: false, cacheAgeMs: now - this.cache.at })
     }
     try {
+      if (this.outboxList().length > 0) {
+        await this.flushOutbox()
+      }
       const result = await this.request('GET', '/snapshot', { ifNoneMatch: this.cache.etag, signal: options.signal })
       if (result.notModified && this.cache.snapshot) {
         this.cache.at = now
         if (result.etag) this.cache.etag = result.etag
-        return { ...this.cache.snapshot, fromCache: true, stale: false, cacheAgeMs: 0 }
+        if (this.cacheTables) {
+          await this.cacheTables('snapshots').put('latest', {
+            id: 'latest',
+            snapshot: this.cache.snapshot,
+            etag: this.cache.etag,
+            at: now,
+          })
+        }
+        return this._withSyncState(this.cache.snapshot, { fromCache: true, stale: false, cacheAgeMs: 0 })
       }
       if (!result.value) throw new SyncError(ERRORS.unavailable, 'Hub 返回了空快照')
       const snapshot = { ...result.value, role: 'client', fromCache: false, stale: false, cacheAgeMs: 0 }
       this.cache = { snapshot, etag: result.etag ?? null, at: now }
+      if (this.cacheTables) {
+        await this.cacheTables('snapshots').put('latest', {
+          id: 'latest',
+          snapshot,
+          etag: this.cache.etag,
+          at: now,
+        })
+      }
       this.health = { ...this.health, ok: true, checkedAt: nowIso(), error: null }
-      return snapshot
+      return this._withSyncState(snapshot)
     } catch (error) {
       this.health = { ...this.health, ok: false, checkedAt: nowIso(), error: String(error?.message ?? error) }
       if (this.cache.snapshot) {
-        return {
-          ...this.cache.snapshot,
+        return this._withSyncState(this.cache.snapshot, {
           fromCache: true,
           stale: true,
           cacheAgeMs: now - this.cache.at,
           syncError: String(error?.message ?? error),
           syncErrorCode: error?.code ?? ERRORS.unavailable,
-        }
+        })
       }
       throw error
     }
@@ -352,81 +567,242 @@ export class RemoteSooyoService {
    */
   meta() {
     const sources = this.sources()
-    return {
-      ready: this.ready,
-      role: 'client',
-      ownsData: false,
-      sources: sources.map((source) => ({
+    const cachedSnap = this.cache.snapshot
+    const snapSourcesById = new Map((cachedSnap?.sources ?? []).map((entry) => [entry.id, entry]))
+    const snapMeta = cachedSnap?.meta ?? null
+    const mergedSources = sources.map((source) => {
+      const fromHub = snapSourcesById.get(source.id)
+      return {
         id: source.id,
         label: source.label,
         about: source.about ?? '',
         suggests: source.suggests ?? null,
         attribution: source.attribution ?? null,
         cadenceMinutes: source.cadenceMinutes ?? null,
-        itemCount: 0,
-        lastRunAt: null,
-        lastResult: null,
-        lastError: null,
-        failStreak: 0,
-        nextDueAt: null,
-      })),
-      // A Client holds no Items of its own; the Hub's counts arrive through `snapshot()`, which
-      // carries a `meta` block for exactly this reason.
+        itemCount: fromHub?.itemCount ?? 0,
+        lastRunAt: fromHub?.lastRunAt ?? null,
+        lastResult: fromHub?.lastResult ?? null,
+        lastError: fromHub?.lastError ?? null,
+        failStreak: fromHub?.failStreak ?? 0,
+        nextDueAt: fromHub?.nextDueAt ?? null,
+      }
+    })
+    const erroring = snapMeta?.health?.erroring ?? mergedSources.filter((entry) => Boolean(entry.lastError)).length
+    return {
+      ready: this.ready,
+      role: 'client',
+      ownsData: false,
+      sources: mergedSources,
+      // A Client owns 0 local Items (`AC-10`); Hub item counts travel under `hubMeta` and `snapshot().meta`.
       itemCount: 0,
       articleCount: 0,
       unreadCount: 0,
       todayCount: 0,
       starredCount: 0,
-      health: { total: sources.length, erroring: 0 },
+      ...(snapMeta ? { hubMeta: snapMeta } : {}),
+      health: { total: mergedSources.length, erroring },
       runtime: { role: 'client', running: false, lastTickAt: null, runs: 0 },
       sync: this.status,
       generatedAt: nowIso(),
     }
   }
 
-  /** The Agent digest, from the Hub. No cache: freshness is the point of this call. */
+  /** The Agent digest, from the Hub (falling back to a stale summary if offline with a Replica). */
   async context(query = {}, options = {}) {
     const params = new URLSearchParams()
     if (query.scope) params.set('scope', String(query.scope).slice(0, 40))
     if (query.limit) params.set('limit', String(Math.min(Math.max(Number(query.limit) || 8, 1), 20)))
-    const result = await this.request('GET', `/context?${params.toString()}`, { signal: options.signal })
-    return result.value
+    try {
+      const result = await this.request('GET', `/context?${params.toString()}`, { signal: options.signal })
+      return {
+        ...result.value,
+        stale: false,
+        pendingCount: this.outboxList().length,
+        conflictCount: this.conflictList().length,
+      }
+    } catch (error) {
+      if (this.cache.snapshot) {
+        const snap = this.cache.snapshot
+        const open = (snap.tasks ?? []).filter((t) => !t.done)
+        return {
+          ready: true,
+          stale: true,
+          pendingCount: this.outboxList().length,
+          conflictCount: this.conflictList().length,
+          dataRevision: snap.dataRevision ?? 0,
+          generatedAt: snap.generatedAt ?? nowIso(),
+          role: 'client',
+          counts: {
+            tasks: (snap.tasks ?? []).length,
+            open: open.length,
+            today: open.filter((t) => t.list === 'today').length,
+            inbox: open.filter((t) => t.list === 'inbox').length,
+            later: open.filter((t) => t.list === 'later').length,
+            done: (snap.tasks ?? []).filter((t) => t.done).length,
+            notes: (snap.notes ?? []).length,
+            readLater: (snap.readLater ?? []).length,
+            boards: (snap.boards ?? []).length,
+            proposals: (snap.agentInbox ?? []).filter((p) => p.status === 'pending').length,
+          },
+          today: open.filter((t) => t.list === 'today').slice(0, 8),
+          inbox: open.filter((t) => t.list === 'inbox').slice(0, 8),
+          later: open.filter((t) => t.list === 'later').slice(0, 8),
+          recentNotes: (snap.notes ?? []).slice(0, 5),
+        }
+      }
+      throw error
+    }
+  }
+
+  _applyOptimisticOutboxProjection(name, body, operationId) {
+    if (!this.cache.snapshot) return null
+    const snap = JSON.parse(JSON.stringify(this.cache.snapshot))
+    let optimisticResult = null
+    if (name === 'task.add' || (name === 'capture' && !/^#note\s*/i.test(String(body?.text ?? '')))) {
+      const title = String(body?.title ?? body?.text ?? '').trim()
+      const id = deriveEntityId('t', operationId, 0)
+      const task = {
+        id,
+        title,
+        list: body?.list ?? 'inbox',
+        project: body?.project ?? null,
+        done: false,
+        createdAt: nowIso(),
+        pendingSync: true,
+      }
+      snap.tasks = [...(snap.tasks ?? []).filter((t) => t.id !== id), task]
+      optimisticResult = { ok: true, task }
+    } else if (name === 'note.add' || (name === 'capture' && /^#note\s*/i.test(String(body?.text ?? '')))) {
+      const text = String(body?.text ?? '').replace(/^#note\s*/i, '').trim()
+      const id = deriveEntityId('n', operationId, 0)
+      const note = { id, text, createdAt: nowIso(), pendingSync: true }
+      snap.notes = [note, ...(snap.notes ?? []).filter((n) => n.id !== id)]
+      optimisticResult = { ok: true, note }
+    } else if (name === 'task.update' && body?.id) {
+      snap.tasks = (snap.tasks ?? []).map((t) => (t.id === body.id ? { ...t, ...body, pendingSync: true } : t))
+      const updated = (snap.tasks ?? []).find((t) => t.id === body.id)
+      optimisticResult = { ok: true, task: updated }
+    }
+    this.cache.snapshot = snap
+    if (this.cacheTables) {
+      void this.cacheTables('snapshots').put('latest', {
+        id: 'latest',
+        snapshot: snap,
+        etag: this.cache.etag,
+        at: this.cache.at || Date.now(),
+      })
+    }
+    return optimisticResult
   }
 
   /**
    * The single write path.
    *
-   * A Client never applies a command locally. The `operationId` is minted here and reused
-   * verbatim if the caller retries, so the Hub's idempotency log can answer the second
-   * attempt with the first attempt's result (AC-03).
+   * When `this.cacheTables` is attached (`sooyo_client_cache`) and the Hub is temporarily
+   * unreachable (`ERRORS.unavailable`), the write is persisted in `outbox` with its stable
+   * `operationId` and replayed in FIFO order when connectivity returns.
    */
   async execute(command, actor) {
     if (!this.ready) throw new SyncError(ERRORS.unavailable, this.error ?? 'Hub 未配置')
     const operationId = command?.operationId ?? mintOperationId(this.sync.device ?? 'client')
-    const result = await this.request('POST', '/command', {
+    if (this.cacheTables && this.outboxList().length > 0) {
+      await this.flushOutbox()
+    }
+    try {
+      const result = await this.request('POST', '/command', {
+        body: {
+          protocolVersion: 1,
+          operationId,
+          name: command?.name,
+          body: command?.body ?? {},
+          ...(command?.precondition ? { precondition: command.precondition } : {}),
+        },
+        signal: command?.signal,
+      })
+      const value = result.value ?? {}
+      if (value.ok === false) {
+        return { ...(value.result ?? {}), ok: false, error: value.error, dataRevision: value.dataRevision }
+      }
+      if (this.cacheTables && this.cacheTables('outbox').get(operationId)) {
+        await this.cacheTables('outbox').delete(operationId)
+      }
+      // A successful write invalidates the display cache: the next read must come from the Hub.
+      this.cache = { snapshot: null, etag: null, at: 0 }
+      void actor
+      if (value.result !== undefined) {
+        return { ...value.result, dataRevision: value.dataRevision, operationId: value.operationId, ...(value.replayed ? { replayed: true } : {}) }
+      }
+      return value
+    } catch (error) {
+      if (error instanceof SyncError && error.code === ERRORS.conflict && this.cacheTables) {
+        await this.cacheTables('conflicts').put(operationId, {
+          id: operationId,
+          operationId,
+          name: command?.name,
+          body: command?.body ?? {},
+          precondition: command?.precondition ?? null,
+          status: 'conflict',
+          error: error.message,
+          details: error.details ?? null,
+          createdAt: nowIso(),
+        })
+      }
+      if (
+        error instanceof SyncError &&
+        error.code === ERRORS.unavailable &&
+        this.cacheTables &&
+        command?.queueOffline !== false
+      ) {
+        const entry = {
+          id: operationId,
+          operationId,
+          name: command?.name,
+          body: command?.body ?? {},
+          precondition: command?.precondition ?? null,
+          status: 'local_pending',
+          createdAt: nowIso(),
+          attempts: 1,
+          lastError: error.message,
+        }
+        await this.cacheTables('outbox').put(operationId, entry)
+        const optimistic = this._applyOptimisticOutboxProjection(command?.name, command?.body ?? {}, operationId)
+        return {
+          ok: true,
+          queued: true,
+          status: 'local_pending',
+          operationId,
+          dataRevision: this.cache.snapshot?.dataRevision ?? 0,
+          ...(optimistic ?? {}),
+        }
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Forward a human decision on an Agent Inbox Proposal to the Hub's dedicated `/inbox/decide`
+   * endpoint so Client devices can approve/reject Proposals without exposing `proposal.decide`
+   * on the generic `/command` funnel.
+   */
+  async decideProposal(request = {}, actor) {
+    if (!this.ready) throw new SyncError(ERRORS.unavailable, this.error ?? 'Hub 未配置')
+    const operationId = request?.operationId ?? mintOperationId(this.sync.device ?? 'client')
+    const result = await this.request('POST', '/inbox/decide', {
       body: {
         protocolVersion: 1,
         operationId,
-        name: command?.name,
-        body: command?.body ?? {},
-        ...(command?.precondition ? { precondition: command.precondition } : {}),
+        id: request?.id,
+        decision: request?.decision,
+        apply: request?.apply,
+        ...(request?.precondition ? { precondition: request.precondition } : {}),
       },
-      signal: command?.signal,
+      signal: request?.signal,
     })
     const value = result.value ?? {}
-    if (value.ok === false) {
-      // A business refusal keeps the shape the local route returns, so the Client half did
-      // not need two error paths: an `ok:false` result is a toast, not an exception.
-      return { ...(value.result ?? {}), ok: false, error: value.error, dataRevision: value.dataRevision }
+    if (value.ok !== false) {
+      this.cache = { snapshot: null, etag: null, at: 0 }
     }
-    // A successful write invalidates the display cache: the next read must come from the Hub.
-    this.cache = { snapshot: null, etag: null, at: 0 }
     void actor
-    // Unwrap the envelope for the same reason `index.js` does: the browser expects the
-    // business result (`{ ok, task }`), not `{ ok, operationId, result }`.
-    if (value.result !== undefined) {
-      return { ...value.result, dataRevision: value.dataRevision, operationId: value.operationId, ...(value.replayed ? { replayed: true } : {}) }
-    }
     return value
   }
 

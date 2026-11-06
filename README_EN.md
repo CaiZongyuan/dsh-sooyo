@@ -103,7 +103,7 @@ npm run test:offline  # offline fixtures, the personal-data surface, and structu
 
 `dev/selftest.mjs` runs the real `apply()` against a fake context and drives its own HTTP route with fake `req`/`res`. Because a Host change needs a restart to take effect, testing the logic locally is far faster than restarting repeatedly.
 
-Architecture and the trade-offs behind it: [`docs/design.md`](./docs/design.md); vocabulary: [`GLOSSARY.md`](./GLOSSARY.md).
+Architecture and the trade-offs behind it: [`docs/adr/`](./docs/adr/), [`docs/sync.md`](./docs/sync.md), [`docs/ui-and-layout.md`](./docs/ui-and-layout.md), and [`docs/sources.md`](./docs/sources.md); vocabulary: [`GLOSSARY.md`](./GLOSSARY.md).
 
 ## Data and compliance
 

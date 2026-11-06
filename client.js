@@ -105,12 +105,17 @@ window.__ModuleLoader__.load({
       'task.update': '修改任务',
       'note.add': '记录笔记',
       'readlater.set': '稍后读',
+      'board.create': '新建看板',
+      'widget.add': '添加组件',
+      'widget.update': '调整组件',
+      'layout.set': '调整布局',
     }
     const STATUS_LABELS = {
       pending: '待批准',
       approved: '已批准',
       rejected: '已拒绝',
       applied: '已执行',
+      rolled_back: '已撤销',
       failed: '执行失败',
       expired: '已过期',
     }
@@ -192,12 +197,55 @@ window.__ModuleLoader__.load({
       return parsed
     }
 
-    const action = (name, body) =>
+    const action = (name, body, precondition) =>
       api('/action', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name, body: body ?? {} }),
+        body: JSON.stringify({
+          name,
+          body: body ?? {},
+          ...(precondition ? { precondition } : {}),
+        }),
       })
+
+    function inferPrecondition(daily, name, body) {
+      if (!daily || !body) return undefined
+      if (name === 'task.update' || name === 'task.remove') {
+        const task = (daily.tasks ?? []).find((entry) => entry.id === body.id)
+        if (Number.isSafeInteger(task?.revision)) return { entity: 'task', id: task.id, revision: task.revision }
+      }
+      if (name === 'note.remove') {
+        const note = (daily.notes ?? []).find((entry) => entry.id === body.id)
+        if (Number.isSafeInteger(note?.revision)) return { entity: 'note', id: note.id, revision: note.revision }
+      }
+      if (name === 'board.rename' || name === 'board.remove') {
+        const board = (daily.boards ?? []).find((entry) => entry.id === body.id)
+        if (Number.isSafeInteger(board?.revision)) return { entity: 'board', id: board.id, revision: board.revision }
+      }
+      if (name === 'widget.update' || name === 'widget.remove') {
+        const widget = daily.widgets?.[body.id]
+        if (Number.isSafeInteger(widget?.revision)) return { entity: 'widget', id: widget.id, revision: widget.revision }
+      }
+      if (name === 'layout.set' || name === 'widget.resize') {
+        const boardId = body.boardId ?? daily.active
+        const cols = body.cols ?? 12
+        const lKey = `${boardId}-${cols}`.replace(/[^a-zA-Z0-9_-]/g, '-')
+        const rev = daily.layoutRevisions?.[lKey]
+        if (Number.isSafeInteger(rev)) return { entity: 'layout', id: lKey, revision: rev }
+      }
+      const settingsMap = {
+        'interests.set': 'interests',
+        'bookmarks.set': 'bookmarks',
+        'habit.tick': 'habits',
+        'focus.set': 'focus',
+      }
+      const sKey = settingsMap[name]
+      if (sKey) {
+        const rev = daily.settingsRevisions?.[sKey]
+        if (Number.isSafeInteger(rev) && rev > 0) return { entity: 'settings', id: sKey, revision: rev }
+      }
+      return undefined
+    }
 
     // ---- styles ------------------------------------------------------------
 
@@ -1280,7 +1328,7 @@ window.__ModuleLoader__.load({
     }
 
     R.readlater = (widget, size, context) => {
-      const items = context.readLater.map((id) => context.byId.get(id)).filter(Boolean)
+      const items = context.readLater.map((id) => context.byId.get(id) ?? context.readLaterEntries?.[id]).filter(Boolean)
       if (items.length === 0) return { sub: '空', html: emptyHtml(widget, size, context) }
       const acts = (item) => `<span class="sy-acts"><button data-act="rl-note" data-item="${esc(item.id)}" title="转为 Note" aria-label="转为 Note">${I.note}</button><button data-act="item-task" data-item="${esc(item.id)}" title="转为任务" aria-label="转为任务">${I.toTask}</button><button data-act="item-later" data-item="${esc(item.id)}" data-off="1" title="移出稍后读" aria-label="移出稍后读">${I.x}</button></span>`
       if (size === 'S') return { deco: 'ill-readlater', html: `<div class="sy-s-lab">稍后读</div><div class="sy-s-main"><div class="sy-s-big">${items.length}</div><div class="sy-s-sub">篇等你读</div></div><div class="sy-s-narrow">${itemLink(items[0], 'c1', `<span style="font-size:13px">${esc(items[0].title)}</span>`)}</div>` }
@@ -1299,7 +1347,7 @@ window.__ModuleLoader__.load({
     R.agentInbox = (widget, size, context) => {
       const all = context.agentInbox ?? []
       const pending = all.filter((entry) => entry.status === 'pending')
-      const decided = all.filter((entry) => entry.status === 'applied' || entry.status === 'rejected')
+      const decided = all.filter((entry) => entry.status === 'applied' || entry.status === 'rejected' || entry.status === 'rolled_back')
       if (all.length === 0) return { sub: '空', html: emptyHtml(widget, size, context) }
 
       const ops = (proposal) => (proposal.operations ?? [])
@@ -1318,12 +1366,14 @@ window.__ModuleLoader__.load({
         <div class="grow" style="min-width:0;display:flex;flex-direction:column;gap:4px">
           <span class="c2" style="font-size:13.5px;font-weight:520">${esc(proposal.reason)}</span>
           <span style="display:flex;gap:5px;flex-wrap:wrap">${ops(proposal)}</span>
-          <span class="meta">${relTime(proposal.createdAt)}${(proposal.evidenceRefs ?? []).length ? ` · ${proposal.evidenceRefs.length} 条证据` : ''}</span>
+          <span class="meta">${relTime(proposal.createdAt)}${(proposal.evidenceRefs ?? []).length ? ` · ${proposal.evidenceRefs.length} 条证据` : ''}${(proposal.preview?.diff ?? []).length ? ` · ${proposal.preview.diff.length} 处变更` : ''}</span>
         </div>
         ${actionable
           ? `<span class="sy-acts" style="flex:none">${proposal.status === 'pending'
             ? `<button data-act="proposal-approve" data-proposal="${esc(proposal.id)}" title="批准并执行" aria-label="批准并执行">${I.check}</button><button data-act="proposal-reject" data-proposal="${esc(proposal.id)}" title="拒绝" aria-label="拒绝">${I.x}</button>`
-            : `<span class="meta">${esc(STATUS_LABELS[proposal.status] ?? proposal.status)}</span>`}</span>`
+            : proposal.status === 'applied'
+              ? `<span class="meta">${esc(STATUS_LABELS[proposal.status] ?? proposal.status)}</span><button data-act="proposal-rollback" data-proposal="${esc(proposal.id)}" title="撤销改动" aria-label="撤销改动">${I.reset}</button>`
+              : `<span class="meta">${esc(STATUS_LABELS[proposal.status] ?? proposal.status)}</span>`}</span>`
           : ''}
       </div>`
 
@@ -1377,9 +1427,16 @@ window.__ModuleLoader__.load({
 
     // ---- card shell --------------------------------------------------------
 
+    function renderUnknownWidget(widget) {
+      return {
+        sub: '暂不支持',
+        html: `<div class="sy-empty" style="padding:12px 6px"><div class="meta">暂不支持的组件类型 (${esc(widget.type ?? 'unknown')})，配置已完整保留</div></div>`,
+      }
+    }
+
     function cardInner(widget, size, context, options = {}) {
       const type = widget.type
-      const renderer = R[type] ?? R.subscription
+      const renderer = R[type] ?? renderUnknownWidget
       const result = renderer(widget, size, context)
       const menu = options.preview
         ? ''
@@ -1506,8 +1563,14 @@ window.__ModuleLoader__.load({
 
       const run = useCallback(async (name, body, options = {}) => {
         try {
-          const result = await action(name, body)
+          const precondition = options.precondition !== undefined ? options.precondition : inferPrecondition(daily, name, body)
+          const result = await action(name, body, precondition)
           if (result && result.ok === false) {
+            if (result.code === 'conflict') {
+              await load()
+              setToast({ text: String(result.error ?? '这条记录已被其它设备修改，已刷新到最新状态') })
+              return result
+            }
             setToast({ text: String(result.error ?? '操作没有成功') })
             return result
           }
@@ -1518,7 +1581,7 @@ window.__ModuleLoader__.load({
           setToast({ text: String(failure?.message ?? failure) })
           return null
         }
-      }, [load])
+      }, [load, daily])
 
       const refreshSources = useCallback(async () => {
         setStatus('refreshing')
@@ -1583,7 +1646,14 @@ window.__ModuleLoader__.load({
         return () => observer.disconnect()
       }, [daily])
 
-      const byId = useMemo(() => new Map(state.items.map((item) => [item.id, item])), [state.items])
+      const byId = useMemo(() => {
+        const map = new Map()
+        for (const [id, snap] of Object.entries(daily?.readLaterEntries ?? {})) {
+          if (snap && typeof snap === 'object') map.set(id, snap)
+        }
+        for (const item of state.items) map.set(item.id, item)
+        return map
+      }, [state.items, daily?.readLaterEntries])
       const saved = useMemo(() => new Set(daily?.readLater ?? []), [daily?.readLater])
       const layoutSizes = useMemo(() => {
         const map = {}
@@ -1598,6 +1668,7 @@ window.__ModuleLoader__.load({
         tasks: daily?.tasks ?? [],
         notes: daily?.notes ?? [],
         readLater: daily?.readLater ?? [],
+        readLaterEntries: daily?.readLaterEntries ?? {},
         interests: daily?.interests ?? [],
         bookmarks: daily?.bookmarks ?? [],
         habits: daily?.habits ?? [],
@@ -1626,20 +1697,31 @@ window.__ModuleLoader__.load({
        */
       const decide = useCallback(async (proposalId, decision) => {
         try {
+          const proposal = (daily?.agentInbox ?? []).find((entry) => entry.id === proposalId)
+          const precondition = Number.isSafeInteger(proposal?.revision)
+            ? { entity: 'proposal', id: proposal.id, revision: proposal.revision }
+            : undefined
           const result = await api('/agent-inbox/decide', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ id: proposalId, decision }),
+            body: JSON.stringify({
+              id: proposalId,
+              decision,
+              ...(precondition ? { precondition } : {}),
+            }),
           })
           if (result?.ok === false) {
             state.setToast({ text: String(result.error ?? '这条建议没有处理成功') })
           } else if (decision === 'approve') {
             const applied = result?.applied
+            const failed = Array.isArray(applied) ? applied.filter((entry) => !entry.ok) : (applied?.failed ?? [])
             state.setToast({
-              text: applied?.ok === false
-                ? `已批准，但执行失败：${String(applied.failed?.[0]?.error ?? applied.error ?? '未知原因')}`
+              text: failed.length > 0 || applied?.ok === false
+                ? `已批准，但执行失败：${String(failed[0]?.error ?? applied?.error ?? '未知原因')}`
                 : '已批准并执行',
             })
+          } else if (decision === 'rollback') {
+            state.setToast({ text: '已撤销这条提议的改动' })
           } else {
             state.setToast({ text: '已拒绝这条建议' })
           }
@@ -1647,7 +1729,7 @@ window.__ModuleLoader__.load({
           state.setToast({ text: String(failure?.message ?? failure) })
         }
         await state.reload()
-      }, [state])
+      }, [state, daily?.agentInbox])
 
       // ---- deck navigation ----
 
@@ -1800,6 +1882,7 @@ window.__ModuleLoader__.load({
           // where approve-then-apply happens, and it is deliberately not reachable over sync.
           case 'proposal-approve': void decide(ds.proposal, 'approve'); break
           case 'proposal-reject': void decide(ds.proposal, 'reject'); break
+          case 'proposal-rollback': void decide(ds.proposal, 'rollback'); break
           default: break
         }
       }, [menu, state, widgets, daily, saved, toggleLater, itemToTask, itemToNote, stepDeck, currentDeckItem, setSize, duplicateWidget, removeWidget])

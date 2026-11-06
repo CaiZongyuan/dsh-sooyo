@@ -1233,6 +1233,418 @@ check('the grain layer is a real node with a matching style',
   /\.sy-grain \{/.test(cssBlock) && /className: 'sy-grain'/.test(clientSource),
   'grain breaks up OLED banding on a flat dark fill')
 
+// ---- Slices 1-5: Crash-Consistency, Preconditions, Snapshots, Outbox & Evolution ----
+
+console.log('\n-- Slices 1-5: Intent ledger, preconditions, snapshots, outbox & evolution --')
+
+const { CLIENT_CACHE_DOMAIN_SPEC } = await import('../index.js')
+const { deriveEntityId, normalizeWidget } = await import('../personal.js')
+const { execute: executeCommand } = await import('../core/commands.js')
+const { touchItemsUpdated } = await import('../core/store.js')
+const { validateExport } = await import('../core/migrate.js')
+const { CAPABILITIES, DATA_SCHEMA_VERSION, PROTOCOL_RANGE } = await import('../core/protocol.js')
+
+// 1. Slice 1 (#3): Deterministic Entity IDs & Two-Phase Intent Crash Recovery
+const derived1 = deriveEntityId('t', 'op-det-0001', 0)
+const derived2 = deriveEntityId('t', 'op-det-0001', 0)
+const derivedSeq1 = deriveEntityId('t', 'op-det-0001', 1)
+check('slice1: deriveEntityId is deterministic and path-safe',
+  derived1 === derived2 && derived1 !== derivedSeq1 && PATH_SAFE.test(derived1),
+  `${derived1} vs ${derivedSeq1}`)
+
+// Post-TTL retry idempotency: even if the `operations` record expired, re-running with the same
+// operationId derives the same entity ID and returns the existing entity without duplicating it.
+const ttlOpId = 'op-post-ttl-0001'
+const ttlRun1 = await service.execute({ operationId: ttlOpId, name: 'task.add', body: { title: 'TTL 过期后重试测试' } })
+const ttlTaskId = ttlRun1?.result?.task?.id
+const tasksBeforeTtlRetry = service.tables(TABLES.tasks).size
+await service.tables(TABLES.operations).delete(ttlOpId)
+const ttlRun2 = await service.execute({ operationId: ttlOpId, name: 'task.add', body: { title: 'TTL 过期后重试测试' } })
+check('slice1: post-TTL retry with same operationId returns identical task ID without duplicating',
+  ttlRun2?.result?.task?.id === ttlTaskId && service.tables(TABLES.tasks).size === tasksBeforeTtlRetry,
+  `id=${ttlTaskId}, count=${service.tables(TABLES.tasks).size}`)
+
+// Unified Two-Phase Intent ledger: even a single-step command writes a committed Intent in `operations` (and cleans up `journal`).
+const singleOpId = 'op-single-intent-0001'
+await service.execute({ operationId: singleOpId, name: 'task.add', body: { title: '单步 Intent 测试' } })
+const singleJournalAfterCommit = service.tables(TABLES.journal).get(`j-${singleOpId}`)
+const singleOpRecord = service.tables(TABLES.operations).get(singleOpId)
+check('slice1: single-step command writes a committed two-phase Intent with reservedRevision and steps',
+  singleJournalAfterCommit === undefined
+    && singleOpRecord?.status === 'committed'
+    && Number.isSafeInteger(singleOpRecord?.reservedRevision)
+    && singleOpRecord?.reservedRevision === singleOpRecord?.revision
+    && Array.isArray(singleOpRecord?.steps)
+    && singleOpRecord.steps.length === 1,
+  JSON.stringify({ status: singleOpRecord?.status, reservedRevision: singleOpRecord?.reservedRevision, steps: singleOpRecord?.steps?.length }))
+
+// Fault-injection crash recovery across all 4 kill points (`after-intent-pending`, `mid-step`,
+// `after-steps-before-bump`, `after-bump-before-commit`).
+for (const killPoint of ['after-intent-pending', 'mid-step', 'after-steps-before-bump', 'after-bump-before-commit']) {
+  const crashOpId = `op-crash-${killPoint}`
+  const boardName = `崩溃恢复-${killPoint}`
+  let crashed = false
+  try {
+    await service.queue.run(async () => executeCommand(
+      service.tables,
+      {
+        operationId: crashOpId,
+        name: 'board.create',
+        body: { name: boardName },
+        actor: { device: 'crash-test', access: 'write', local: true },
+        onKillPoint: (point) => {
+          if (point === killPoint) throw new Error(`simulated crash at ${killPoint}`)
+        },
+      },
+    ))
+  } catch {
+    crashed = true
+  }
+  const pendingJournal = service.tables(TABLES.journal).get(`j-${crashOpId}`)
+  const reservedRev = pendingJournal?.reservedRevision
+  const recovered = await service.recover()
+  const committedOp = service.tables(TABLES.operations).get(crashOpId)
+  const replayedAfterCrash = await service.execute({ operationId: crashOpId, name: 'board.create', body: { name: boardName } })
+  const matchingBoards = [...service.tables(TABLES.boards).entries()].filter(([, b]) => b?.name === boardName)
+  check(`slice1: crash at ${killPoint} recovers cleanly and replays idempotently`,
+    crashed
+      && recovered.completed >= 1
+      && committedOp?.status === 'committed'
+      && service.tables(TABLES.journal).get(`j-${crashOpId}`) === undefined
+      && replayedAfterCrash?.replayed === true
+      && replayedAfterCrash?.dataRevision === reservedRev
+      && matchingBoards.length === 1,
+    `completed=${recovered.completed}, rev=${replayedAfterCrash?.dataRevision}/${reservedRev}, boards=${matchingBoards.length}`)
+}
+
+// 2. Slice 2 (#4): Split Settings, Preconditions, Remote Inbox Decide & Write Consistency
+const snapBeforeSettings = await call(routes, 'GET', '/sooyo/daily')
+const habitsRevBefore = snapBeforeSettings.body?.settingsRevisions?.habits ?? 0
+const focusRevBefore = snapBeforeSettings.body?.settingsRevisions?.focus ?? 0
+await call(routes, 'POST', '/sooyo/action', { name: 'board.active', body: { id: 'home' } })
+const snapAfterActive = await call(routes, 'GET', '/sooyo/daily')
+check('slice2: board.active updates settings/active without bumping habits or focus revisions',
+  (snapAfterActive.body?.settingsRevisions?.active ?? 0) > 0
+    && (snapAfterActive.body?.settingsRevisions?.habits ?? 0) === habitsRevBefore
+    && (snapAfterActive.body?.settingsRevisions?.focus ?? 0) === focusRevBefore,
+  JSON.stringify(snapAfterActive.body?.settingsRevisions))
+
+const homeLayoutRev = snapAfterActive.body?.layoutRevisions?.home?.[12] ?? 0
+const staleLayoutWrite = await syncCall('POST', '/command', {
+  token: HUB_TOKEN,
+  body: {
+    protocolVersion: 1,
+    operationId: 'stale-layout-op-01',
+    name: 'layout.set',
+    body: { boardId: 'home', cols: 12, order: snapAfterActive.body?.layouts?.home?.[12] ?? [] },
+    precondition: { entity: 'layout', id: 'home-12', revision: homeLayoutRev + 99 },
+  },
+})
+check('slice2: layout.set with a mismatched precondition -> 409 conflict',
+  staleLayoutWrite.status === 409 && staleLayoutWrite.body?.error?.code === ERRORS.conflict,
+  `${staleLayoutWrite.status} ${staleLayoutWrite.body?.error?.code}`)
+
+const staleSettingsWrite = await syncCall('POST', '/command', {
+  token: HUB_TOKEN,
+  body: {
+    protocolVersion: 1,
+    operationId: 'stale-settings-op-01',
+    name: 'focus.set',
+    body: { action: 'reset' },
+    precondition: { entity: 'settings', id: 'focus', revision: (snapAfterActive.body?.settingsRevisions?.focus ?? 0) + 99 },
+  },
+})
+check('slice2: focus.set with a mismatched settings precondition -> 409 conflict',
+  staleSettingsWrite.status === 409 && staleSettingsWrite.body?.error?.code === ERRORS.conflict,
+  `${staleSettingsWrite.status} ${staleSettingsWrite.body?.error?.code}`)
+
+// Remote Client Inbox Decide via POST /sooyo/sync/v1/inbox/decide
+const remotePropRes = await toolByName('sooyo_proposal_create').execute({
+  reason: '远程 Client 审批测试',
+  operations: [{ name: 'task.add', body: { title: '远程批准创建的任务' } }],
+}, {})
+const remotePropId = remotePropRes?.result?.proposal?.id
+const remotePropRev = remotePropRes?.result?.proposal?.revision
+
+const readOnlyDecide = await syncCall('POST', '/inbox/decide', {
+  token: READ_TOKEN,
+  body: { id: remotePropId, decision: 'approve' },
+})
+check('slice2: read-only token cannot decide proposals on /inbox/decide -> 403',
+  readOnlyDecide.status === 403, String(readOnlyDecide.status))
+
+globalThis.fetch = makeSyncFetch()
+try {
+  const remoteDecideOut = await clientService.decideProposal({
+    id: remotePropId,
+    decision: 'approve',
+    precondition: { entity: 'proposal', id: remotePropId, revision: remotePropRev },
+  })
+  check('slice2: remote Client decideProposal approves and applies atomically on Hub',
+    remoteDecideOut?.ok === true && remoteDecideOut?.proposal?.status === 'applied' && remoteDecideOut?.applied?.ok === true,
+    JSON.stringify({ status: remoteDecideOut?.proposal?.status, rev: remoteDecideOut?.dataRevision }))
+} finally {
+  globalThis.fetch = originalFetch
+}
+
+// Write consistency (R7): itemsUpdatedAt changes ETag even when dataRevision is unchanged,
+// and expireProposals bumps dataRevision through the write queue.
+const snapBeforeItemsTouch = await syncCall('GET', '/snapshot', { token: HUB_TOKEN })
+const etagBeforeItemsTouch = snapBeforeItemsTouch.headers.etag
+await touchItemsUpdated(service.tables)
+const snapAfterItemsTouch = await syncCall('GET', '/snapshot', { token: HUB_TOKEN })
+const etagAfterItemsTouch = snapAfterItemsTouch.headers.etag
+check('slice2: touchItemsUpdated changes the /snapshot composite ETag so Clients see new Items',
+  etagBeforeItemsTouch !== etagAfterItemsTouch && etagAfterItemsTouch.includes(`-${snapAfterItemsTouch.body?.dataRevision}"`),
+  `${etagBeforeItemsTouch} -> ${etagAfterItemsTouch}`)
+
+await service.tables(TABLES.agentInbox).put('p-expired-test', {
+  id: 'p-expired-test',
+  status: 'pending',
+  reason: '即将过期',
+  operations: [{ name: 'task.add', body: { title: 'x' } }],
+  createdAt: '2020-01-01T00:00:00.000Z',
+  expiresAt: '2020-01-02T00:00:00.000Z',
+  revision: 1,
+})
+const revBeforeSweep = service.state().revision
+const sweepOut = await plugin.reviewer.sweep(Date.parse('2026-11-06T00:00:00.000Z'))
+const expiredRecord = service.tables(TABLES.agentInbox).get('p-expired-test')
+check('slice2: reviewer.sweep() routes through write queue, bumps dataRevision and stamps revision',
+  sweepOut.expired >= 1 && service.state().revision > revBeforeSweep && expiredRecord?.status === 'expired' && expiredRecord?.revision === service.state().revision,
+  `expired=${sweepOut.expired}, rev=${revBeforeSweep}->${service.state().revision}`)
+
+// 3. Slice 3 (#5): Self-Contained Read Later/Starred Snapshots, Portable Export & Operational Backup
+const ephemeralItemId = 'aihot-ephemeral-item-001'
+await service.tables(TABLES.items).put(ephemeralItemId, {
+  id: ephemeralItemId,
+  sourceId: 'aihot',
+  sourceLabel: 'AI 今日热榜',
+  title: '即使源条目被清理也必须保留的文章',
+  url: 'https://example.com/ephemeral-001',
+  publishedAt: '2026-11-05T08:00:00.000Z',
+  summary: '自包含快照摘要',
+  origin: 'AIHOT',
+})
+await call(routes, 'POST', '/sooyo/action', { name: 'readlater.set', body: { itemId: ephemeralItemId, on: true } })
+await call(routes, 'POST', '/sooyo/state', { ids: [ephemeralItemId], starred: true, seen: true })
+// Now delete the item from `items` to simulate source pruning or fresh Hub import.
+await service.tables(TABLES.items).delete(ephemeralItemId)
+
+const dailyAfterPrune = (await call(routes, 'GET', '/sooyo/daily')).body
+const preservedSnap = dailyAfterPrune?.readLaterEntries?.[ephemeralItemId]
+check('slice3: Read Later entry retains its inline snapshot after the Item is pruned from items',
+  preservedSnap?.title === '即使源条目被清理也必须保留的文章' && preservedSnap?.url === 'https://example.com/ephemeral-001',
+  JSON.stringify(preservedSnap))
+
+const portableExport = (await call(routes, 'GET', '/sooyo/export?mode=portable')).body
+const portableValid = validateExport(portableExport)
+check('slice3: mode=portable export includes referencedItems, read state, and a valid SHA-256 checksum',
+  portableValid.ok === true
+    && portableExport?.mode === 'portable'
+    && typeof portableExport?.checksum === 'string'
+    && portableExport.checksum.startsWith('sha256:')
+    && Array.isArray(portableExport?.referencedItems)
+    && portableExport.referencedItems.some((row) => row.key === ephemeralItemId && row.value?.id === ephemeralItemId)
+    && Array.isArray(portableExport?.tables?.read),
+  `checksum=${portableExport?.checksum?.slice(0, 20)}..., refs=${portableExport?.referencedItems?.length}`)
+
+const backupExport = (await call(routes, 'GET', '/sooyo/export?mode=backup')).body
+const backupValid = validateExport(backupExport)
+check('slice3: mode=backup export includes all 14 tables and passes SHA-256 checksum validation',
+  backupValid.ok === true
+    && backupExport?.mode === 'backup'
+    && Object.values(TABLES).every((tableName) => Array.isArray(backupExport?.tables?.[tableName])),
+  `${Object.keys(backupExport?.tables ?? {}).length} tables`)
+
+const tamperedBackup = { ...backupExport, tables: { ...backupExport.tables, tasks: [] } }
+const tamperedValid = validateExport(tamperedBackup)
+check('slice3: validateExport rejects a document whose payload does not match its SHA-256 checksum',
+  tamperedValid.ok === false && /checksum/.test(String(tamperedValid.error)),
+  String(tamperedValid.error))
+
+// 4. Slice 4 (#6): Client Host Replica Cache & Durable Outbox
+check('slice4: CLIENT_CACHE_DOMAIN_SPEC uses sooyo_client_cache and never opens authoritative sooyo domain',
+  CLIENT_CACHE_DOMAIN_SPEC.name === 'sooyo_client_cache'
+    && ['snapshots', 'outbox', 'conflicts', 'ui_preferences'].every((t) => t in CLIENT_CACHE_DOMAIN_SPEC.tables))
+
+const clientCacheTables = new Map(Object.keys(CLIENT_CACHE_DOMAIN_SPEC.tables).map((name) => [name, makeTable()]))
+const getClientCacheTable = (name) => clientCacheTables.get(name)
+
+globalThis.fetch = makeSyncFetch()
+try {
+  const cachedClient1 = new RemoteSooyoService({
+    role: 'client',
+    endpoint: 'http://127.0.0.1:1',
+    token: HUB_TOKEN,
+    device: 'client-cached-1',
+    cacheMs: 0,
+    timeoutMs: 2000,
+  }, { sources: () => [], log: () => {} })
+  cachedClient1.attachCacheTables(getClientCacheTable)
+  await cachedClient1.snapshot({ force: true })
+  await cachedClient1.items({ limit: 10 })
+  await cachedClient1.context({ limit: 4 })
+
+  // Simulate Client Host restart while Hub is completely unreachable (`ECONNREFUSED`).
+  globalThis.fetch = async () => { throw new Error('ECONNREFUSED') }
+  const restartedOfflineClient = new RemoteSooyoService({
+    role: 'client',
+    endpoint: 'http://127.0.0.1:1',
+    token: HUB_TOKEN,
+    device: 'client-cached-1',
+    cacheMs: 0,
+    timeoutMs: 500,
+  }, { sources: () => [], log: () => {} })
+  restartedOfflineClient.attachCacheTables(getClientCacheTable)
+
+  const coldStartSnap = await restartedOfflineClient.snapshot()
+  check('slice4: restarted Client with unreachable Hub serves persisted Replica with stale=true',
+    coldStartSnap?.ready === true && coldStartSnap?.stale === true && Array.isArray(coldStartSnap?.boards) && coldStartSnap.boards.length > 0,
+    `stale=${coldStartSnap?.stale}, boards=${coldStartSnap?.boards?.length}`)
+
+  const coldStartContext = await restartedOfflineClient.context({ limit: 4 })
+  check('slice4: offline Client degrades Context Bridge to cached Replica with stale=true',
+    coldStartContext?.ready === true && coldStartContext?.stale === true,
+    JSON.stringify({ ready: coldStartContext?.ready, stale: coldStartContext?.stale }))
+
+  // Enqueue mutations while offline:
+  // 1) valid task.add
+  // 2) conflicting task.update (stale precondition)
+  // 3) second valid task.add (must not be head-of-line blocked by #2!)
+  const q1 = await restartedOfflineClient.execute({
+    operationId: 'outbox-op-1',
+    name: 'task.add',
+    body: { title: '离线队列任务 1' },
+  })
+  const q2Conflict = await restartedOfflineClient.execute({
+    operationId: 'outbox-op-2-conflict',
+    name: 'task.update',
+    body: { id: taskId, title: '离线冲突修改' },
+    precondition: { entity: 'task', id: taskId, revision: 1 },
+  })
+  const q3 = await restartedOfflineClient.execute({
+    operationId: 'outbox-op-3',
+    name: 'task.add',
+    body: { title: '离线队列任务 3 (越过冲突)' },
+  })
+  check('slice4: offline Client queues mutations in durable Outbox and projects optimistic state',
+    q1?.queued === true && q2Conflict?.queued === true && q3?.queued === true
+      && restartedOfflineClient.outboxList().length === 3
+      && (await restartedOfflineClient.snapshot()).tasks.some((t) => t.title === '离线队列任务 1'),
+    `outbox=${restartedOfflineClient.outboxList().length}`)
+
+  // Reconnect Hub and flush Outbox!
+  globalThis.fetch = makeSyncFetch()
+  const flushResult = await restartedOfflineClient.flushOutbox()
+  const hubSnapAfterFlush = (await call(routes, 'GET', '/sooyo/daily')).body
+  check('slice4: flushOutbox replays valid operations in FIFO order and quarantines 409 conflict without HOL blocking',
+    flushResult.flushed === 2
+      && flushResult.conflicts === 1
+      && restartedOfflineClient.outboxList().length === 0
+      && restartedOfflineClient.conflictList().length === 1
+      && restartedOfflineClient.conflictList()[0]?.operationId === 'outbox-op-2-conflict'
+      && (hubSnapAfterFlush?.tasks ?? []).some((t) => t.title === '离线队列任务 1')
+      && (hubSnapAfterFlush?.tasks ?? []).some((t) => t.title === '离线队列任务 3 (越过冲突)'),
+    JSON.stringify(flushResult))
+
+  const discardOut = await restartedOfflineClient.resolveConflict({ operationId: 'outbox-op-2-conflict', action: 'discard' })
+  check('slice4: resolveConflict(discard) clears the quarantined conflict entry',
+    discardOut?.ok === true && restartedOfflineClient.conflictList().length === 0,
+    `conflicts=${restartedOfflineClient.conflictList().length}`)
+} finally {
+  globalThis.fetch = originalFetch
+}
+
+// 5. Slice 5 (#7): Protocol/Schema Handshake, Unknown Widget Preservation & Reversible Proposals
+check('slice5: /health advertises protocolRange, dataSchemaVersion and capabilities',
+  health.body?.dataSchemaVersion === DATA_SCHEMA_VERSION
+    && health.body?.protocolRange?.min === PROTOCOL_RANGE.min
+    && CAPABILITIES.every((cap) => (health.body?.capabilities ?? []).includes(cap)),
+  JSON.stringify({ dataSchemaVersion: health.body?.dataSchemaVersion, capabilities: health.body?.capabilities }))
+
+// Unknown Widget Type round-trip preservation
+const unknownWidgetRaw = {
+  id: 'w-future-01',
+  type: 'timeline2028',
+  size: 'XL',
+  title: '未来时间线组件',
+  settings: { futureMode: 'quantum', zoom: 3 },
+  futureExtraProp: { nested: true },
+}
+const normalizedUnknown = normalizeWidget(unknownWidgetRaw)
+check('slice5: normalizeWidget preserves unknown Widget type, size, settings and extra fields',
+  normalizedUnknown.type === 'timeline2028'
+    && normalizedUnknown.size === 'XL'
+    && normalizedUnknown.settings?.futureMode === 'quantum'
+    && normalizedUnknown.futureExtraProp?.nested === true,
+  JSON.stringify(normalizedUnknown))
+
+await service.tables(TABLES.widgets).put('w-future-01', normalizedUnknown)
+const currentHome12 = (await call(routes, 'GET', '/sooyo/daily')).body?.layouts?.home?.[12] ?? []
+await call(routes, 'POST', '/sooyo/action', {
+  name: 'layout.set',
+  body: { boardId: 'home', cols: 12, order: [...currentHome12, { id: 'w-future-01', size: 'XL' }] },
+})
+await call(routes, 'POST', '/sooyo/action', {
+  name: 'widget.update',
+  body: { id: 'w-future-01', title: '未来时间线组件（已改名）' },
+})
+const dailyWithUnknown = (await call(routes, 'GET', '/sooyo/daily')).body
+const savedUnknownWidget = dailyWithUnknown?.widgets?.['w-future-01']
+const savedUnknownLayout = (dailyWithUnknown?.layouts?.home?.[12] ?? []).find((entry) => entry.id === 'w-future-01')
+check('slice5: layout.set and widget.update preserve unknown Widget type, size and custom properties',
+  savedUnknownWidget?.type === 'timeline2028'
+    && savedUnknownWidget?.size === 'XL'
+    && savedUnknownWidget?.title === '未来时间线组件（已改名）'
+    && savedUnknownWidget?.futureExtraProp?.nested === true
+    && savedUnknownLayout?.size === 'XL',
+  JSON.stringify({ widget: savedUnknownWidget, layout: savedUnknownLayout }))
+
+// Expanded & Reversible Proposals (board.create + task.add -> approve -> rollback)
+const revPropCreate = await toolByName('sooyo_proposal_create').execute({
+  reason: '新建专题看板与初始任务（可回滚测试）',
+  operations: [
+    { name: 'board.create', body: { name: '可回滚看板' } },
+    { name: 'task.add', body: { title: '可回滚任务', list: 'today' } },
+  ],
+}, {})
+const revProp = revPropCreate?.result?.proposal
+check('slice5: expanded proposal generates dry-run preview.diff and basePreconditions',
+  revPropCreate?.ok === true
+    && Array.isArray(revProp?.preview?.diff)
+    && revProp.preview.diff.length >= 2
+    && Array.isArray(revProp?.basePreconditions)
+    && revProp.basePreconditions.length >= 1,
+  JSON.stringify({ diffCount: revProp?.preview?.diff?.length, preconditions: revProp?.basePreconditions?.length }))
+
+const revPropApprove = await call(routes, 'POST', '/sooyo/agent-inbox/decide', {
+  id: revProp.id,
+  decision: 'approve',
+})
+const dailyAfterRevApprove = (await call(routes, 'GET', '/sooyo/daily')).body
+const approvedPropRecord = dailyAfterRevApprove?.agentInbox?.find((p) => p.id === revProp.id)
+check('slice5: approving expanded proposal creates board + task and records inverseSteps',
+  revPropApprove.body?.ok === true
+    && (dailyAfterRevApprove?.boards ?? []).some((b) => b.name === '可回滚看板')
+    && (dailyAfterRevApprove?.tasks ?? []).some((t) => t.title === '可回滚任务')
+    && Array.isArray(approvedPropRecord?.inverseSteps)
+    && approvedPropRecord.inverseSteps.length >= 2,
+  `inverseSteps=${approvedPropRecord?.inverseSteps?.length}`)
+
+const revPropRollback = await call(routes, 'POST', '/sooyo/agent-inbox/decide', {
+  id: revProp.id,
+  decision: 'rollback',
+})
+const dailyAfterRollback = (await call(routes, 'GET', '/sooyo/daily')).body
+const rolledBackPropRecord = dailyAfterRollback?.agentInbox?.find((p) => p.id === revProp.id)
+check('slice5: rolling back an applied proposal restores previous state and marks status rolled_back',
+  revPropRollback.body?.ok === true
+    && rolledBackPropRecord?.status === 'rolled_back'
+    && !(dailyAfterRollback?.boards ?? []).some((b) => b.name === '可回滚看板')
+    && !(dailyAfterRollback?.tasks ?? []).some((t) => t.title === '可回滚任务'),
+  JSON.stringify({ status: rolledBackPropRecord?.status }))
+
 // ---- teardown --------------------------------------------------------------
 
 // The poll effect owns a 30s setTimeout: a live timer would keep node alive forever.

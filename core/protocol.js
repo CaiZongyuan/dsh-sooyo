@@ -13,6 +13,22 @@ import { ACTION_NAMES } from '../daily.js'
 /** Bumped only for a breaking funnel change; the Hub advertises it on `/health`. */
 export const PROTOCOL_VERSION = 1
 
+/** Supported wire protocol range advertised on `/health` for rolling upgrades. */
+export const PROTOCOL_RANGE = { min: 1, max: 1 }
+
+/** Monotonic schema version of the authoritative domain tables. */
+export const DATA_SCHEMA_VERSION = 2
+
+/** Feature capabilities advertised by this Host version. */
+export const CAPABILITIES = [
+  'intent-v2',
+  'settings-split',
+  'inbox-decide',
+  'portable-export-v2',
+  'client-outbox',
+  'proposal-rollback',
+]
+
 /** Sync API root, relative to the plugin's route prefix. */
 export const SYNC_PREFIX = '/sync/v1'
 
@@ -123,6 +139,9 @@ export const ENTITY_TABLE = {
   note: 'notes',
   board: 'boards',
   widget: 'widgets',
+  layout: 'layouts',
+  settings: 'settings',
   item: 'items',
   readlater: 'readlater',
+  proposal: 'agent_inbox',
 }

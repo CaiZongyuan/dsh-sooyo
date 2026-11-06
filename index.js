@@ -1,10 +1,10 @@
 /**
  * Host half of sooyo daily.
  *
- * The registry below is the whole extension point: a source declares how to fetch, how
- * often, and — this is what makes the panel a widget workspace rather than a list — the
- * card it wants in the bento grid (`widget`). The Client half renders whatever the
- * registry declares, so adding a source adds a component. See docs/design.md.
+ * The SOURCES registry below is the source-extension point: each source declares how to
+ * fetch Items, how often, and which default presentation (`suggests.pres`) a newly added
+ * 订阅 Widget should start with. Widgets, Sizes and Board layouts live in `personal.js`
+ * and `daily.js` (see `docs/adr/0001-widget-decoupled-from-source.md` and `docs/sources.md`).
  *
  * DELIBERATE CONSTRAINT — no import from node_modules.
  * `plugin_manager install_bundle` installs a local directory as a pnpm link, and the
@@ -18,7 +18,7 @@ import * as daily from './daily.js'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { LocalSooyoService, localActor } from './core/service.js'
-import { createStampTable, createWriteQueue, makeStamper, bumpRevision, TABLES } from './core/store.js'
+import { createStampTable, createWriteQueue, makeStamper, touchItemsUpdated, TABLES } from './core/store.js'
 import { COMMAND_SET, SyncError } from './core/protocol.js'
 import { applyImport, describePlan, exportDomain, planImport } from './core/migrate.js'
 import { buildSyncRoutes } from './sync/routes.js'
@@ -26,7 +26,6 @@ import { RemoteSooyoService, resolveSyncConfig } from './sync/remote.js'
 import { registerAgentTools, renderContextBlock } from './agent/tools.js'
 import { attachAgentContext } from './agent/context.js'
 import { createReviewer } from './agent/review.js'
-import { applyProposal, settleProposal } from './agent/inbox.js'
 
 export const name = '@local/dsh-sooyo'
 
@@ -86,6 +85,28 @@ const DOMAIN_SPEC = {
  * backend rejects, is a startup failure that otherwise only shows up as "never ready".
  */
 export const DOMAIN_TABLES = DOMAIN_SPEC.tables
+
+/**
+ * The Client Host's local replica & outbox cache domain (`sooyo_client_cache`).
+ *
+ * A Client never opens the authoritative `sooyo` domain (`DOMAIN_SPEC`) so `<DSH_HOME>/storages/sooyo`
+ * is never created on a Client (AC-05). Instead, a Client opens `sooyo_client_cache` to persist
+ * its Replica (`snapshots`), durable Outbox (`outbox`), quarantined conflicts (`conflicts`), and
+ * local preferences (`ui_preferences`) across Host restarts.
+ */
+export const CLIENT_CACHE_DOMAIN_SPEC = {
+  name: 'sooyo_client_cache',
+  version: 1,
+  layout: 'per-record',
+  invalidRecords: 'backup-and-skip',
+  global: { schema: LENIENT_SCHEMA, initial: { schemaVersion: 1 } },
+  tables: {
+    snapshots: { valueSchema: LENIENT_SCHEMA },
+    outbox: { valueSchema: LENIENT_SCHEMA },
+    conflicts: { valueSchema: LENIENT_SCHEMA },
+    ui_preferences: { valueSchema: LENIENT_SCHEMA },
+  },
+}
 
 /** Icons ship with the bundle; this is the directory the `/sooyo/assets/` route reads. */
 const ASSET_ROOT = new URL('./assets/', import.meta.url)
@@ -401,14 +422,54 @@ export function apply(ctx, config = {}) {
   const beginWrite = () => stamper?.open()
   const endWrite = () => stamper?.close()
 
-  let service = null
+  /**
+   * The service this Host serves.
+   *
+   * A `client` gets `RemoteSooyoService` and never touches the authoritative `sooyo` domain;
+   * `standalone` and `hub` get `LocalSooyoService` over `DOMAIN_SPEC`. Everything downstream —
+   * the local route table, the sync API, the Agent tools — holds this one object and cannot tell
+   * the difference, which is what keeps the three roles from growing three implementations.
+   */
+  const service = role === 'client'
+    ? new RemoteSooyoService(sync, {
+      sources: () => active,
+      log: (message) => ctx.logger?.warn?.(message),
+    })
+    : new LocalSooyoService({
+      tables: () => writeTables,
+      sources: () => active,
+      queue,
+      role,
+      device: sync.device ?? 'local',
+      readers: { items: (searchParams) => listItems(searchParams), meta: () => meta() },
+      hooks: { beginWrite, endWrite },
+    })
 
   ctx.effect(() => {
     let disposed = false
     let handle = null
-    // A Client never opens the authoritative domain: a second copy that diverges from the
-    // Hub is worse than no local copy at all (issue §2, AC-05).
-    if (role === 'client') return () => {}
+    if (role === 'client') {
+      // A Client never opens the authoritative `sooyo` domain (AC-05); it opens only its local
+      // cache & outbox domain (`sooyo_client_cache`) to survive restarts while offline.
+      if (!ctx.storageDomain?.open) return () => {}
+      ctx.storageDomain
+        .open(CLIENT_CACHE_DOMAIN_SPEC)
+        .then((opened) => {
+          if (disposed) {
+            void opened.close()
+            return
+          }
+          handle = opened
+          service.attachCacheTables((tableName) => opened.table(tableName))
+        })
+        .catch((error) => {
+          ctx.logger?.warn?.('sooyo: could not open the client cache domain', error)
+        })
+      return () => {
+        disposed = true
+        if (handle) void handle.close()
+      }
+    }
     ctx.storageDomain
       .open(DOMAIN_SPEC)
       .then(async (opened) => {
@@ -437,29 +498,6 @@ export function apply(ctx, config = {}) {
       if (handle) void handle.close()
     }
   }, 'sooyo: domain')
-
-  /**
-   * The service this Host serves.
-   *
-   * A `client` gets `RemoteSooyoService` and never touches a local store; `standalone` and
-   * `hub` get `LocalSooyoService` over the domain above. Everything downstream — the local
-   * route table, the sync API, the Agent tools — holds this one object and cannot tell the
-   * difference, which is what keeps the three roles from growing three implementations.
-   */
-  service = role === 'client'
-    ? new RemoteSooyoService(sync, {
-      sources: () => active,
-      log: (message) => ctx.logger?.warn?.(message),
-    })
-    : new LocalSooyoService({
-      tables: () => writeTables,
-      sources: () => active,
-      queue,
-      role,
-      device: sync.device ?? 'local',
-      readers: { items: (searchParams) => listItems(searchParams), meta: () => meta() },
-      hooks: { beginWrite, endWrite },
-    })
 
   ctx.effect(() => {
     let stopped = false
@@ -597,6 +635,7 @@ export function apply(ctx, config = {}) {
       const added = await upsert(source, result.items ?? [])
       const total = countForSource(sourceId)
       await sources.put(sourceId, { ...next, lastResult: 'ok', lastAdded: added, itemCount: total })
+      await touchItemsUpdated(writeTables)
       return { ok: true, sourceId, added, total, notModified: false }
     } catch (error) {
       const message = describeError(error)
@@ -612,6 +651,7 @@ export function apply(ctx, config = {}) {
         failStreak,
         nextDueAt: startedAt + retryDelay(failStreak, cadenceOf(source)),
       })
+      await touchItemsUpdated(writeTables)
       return { ok: false, sourceId, error: message, reason, failStreak }
     }
   }
@@ -730,6 +770,9 @@ export function apply(ctx, config = {}) {
       runtime.thumbnails.resolved += resolved
       runtime.thumbnails.skipped += skipped
       runtime.thumbnails.failed += failed
+      if (resolved > 0) {
+        await touchItemsUpdated(writeTables)
+      }
       return { ok: true, candidates: candidates.length, checked: batch.length, resolved, skipped, failed }
     })().finally(() => {
       thumbnailPass = null
@@ -1004,7 +1047,7 @@ export function apply(ctx, config = {}) {
       // Marking an Item seen is the same write the reader already performs, so it goes through
       // the funnel like every other mutation — which is what makes it sync to the Hub.
       const body = await readJsonBody(req).catch(() => ({}))
-      send(res, 200, await executeLocal('item.state', body))
+      send(res, 200, await executeLocal('item.state', body, body?.precondition))
       return
     }
     if (method === 'POST' && route === '/action') {
@@ -1014,7 +1057,42 @@ export function apply(ctx, config = {}) {
         send(res, 404, { ok: false, error: `没有这个动作：${name}` })
         return
       }
-      send(res, 200, await executeLocal(name, body?.body ?? {}))
+      send(res, 200, await executeLocal(name, body?.body ?? {}, body?.precondition, body?.operationId))
+      return
+    }
+
+    if (method === 'GET' && route === '/outbox') {
+      send(res, 200, {
+        ok: true,
+        role,
+        outbox: typeof service.outboxList === 'function' ? service.outboxList() : [],
+        conflicts: typeof service.conflictList === 'function' ? service.conflictList() : [],
+      })
+      return
+    }
+    if (method === 'POST' && route === '/outbox/flush') {
+      if (typeof service.flushOutbox !== 'function') {
+        send(res, 200, { ok: true, flushed: 0, remaining: 0 })
+        return
+      }
+      send(res, 200, await service.flushOutbox())
+      return
+    }
+    if (method === 'POST' && route === '/outbox/resolve') {
+      if (typeof service.resolveConflict !== 'function') {
+        send(res, 404, { ok: false, error: '当前角色不支持冲突处理' })
+        return
+      }
+      const body = await readJsonBody(req).catch(() => ({}))
+      try {
+        send(res, 200, await service.resolveConflict(body))
+      } catch (error) {
+        if (error instanceof SyncError) {
+          send(res, 200, { ok: false, error: error.message, code: error.code, ...(error.details ? { details: error.details } : {}) })
+          return
+        }
+        throw error
+      }
       return
     }
 
@@ -1027,19 +1105,16 @@ export function apply(ctx, config = {}) {
     }
     if (method === 'POST' && route === '/agent-inbox/decide') {
       const body = await readJsonBody(req).catch(() => ({}))
-      const decided = await executeLocal('proposal.decide', body)
-      if (!decided?.ok) {
-        send(res, 200, decided)
-        return
+      try {
+        const outcome = await service.decideProposal(body, localActor({ device: sync.device ?? 'local' }))
+        send(res, 200, outcome)
+      } catch (error) {
+        if (error instanceof SyncError) {
+          send(res, 200, { ok: false, error: error.message, code: error.code, ...(error.details ? { details: error.details } : {}) })
+          return
+        }
+        throw error
       }
-      // Approving is a decision; applying is a separate, observable step, so a failure here
-      // leaves the proposal `failed` rather than pretending it landed.
-      if (body?.decision === 'approve' && body?.apply !== false) {
-        const applied = await applyProposalById(body?.id)
-        send(res, 200, { ...decided, applied })
-        return
-      }
-      send(res, 200, decided)
       return
     }
     if (method === 'POST' && route === '/review/scan') {
@@ -1063,11 +1138,16 @@ export function apply(ctx, config = {}) {
         send(res, 503, { ok: false, error: '存储域尚未就绪' })
         return
       }
+      const mode = url.searchParams.get('mode') === 'backup' ? 'backup' : 'portable'
+      if (mode === 'backup' && service.queue) {
+        await service.queue.drain()
+      }
       const state = service.state()
       send(res, 200, exportDomain(service.tables, {
         device: sync.device ?? 'local',
         role,
         dataRevision: state.revision,
+        mode,
       }))
       return
     }
@@ -1089,43 +1169,20 @@ export function apply(ctx, config = {}) {
         send(res, 200, { ...plan, description: describePlan(plan) })
         return
       }
-      const applied = await applyImport(service.tables, plan, {})
-      // An import changes many records outside the command funnel, so the revision is bumped
-      // once at the end: every device refetches exactly one new snapshot.
-      if (applied.written.create + applied.written.update > 0) {
-        await bumpRevision(service.tables, `import:${sync.device ?? 'local'}`)
-      }
-      send(res, 200, { ok: applied.ok, applied: applied.written, failed: applied.failed, description: describePlan(plan) })
+      const applied = typeof service.applyImportPlan === 'function'
+        ? await service.applyImportPlan(plan, {}, localActor({ device: sync.device ?? 'local' }))
+        : await applyImport(service.tables, plan, {})
+      send(res, 200, {
+        ok: applied.ok,
+        applied: applied.written,
+        failed: applied.failed,
+        dataRevision: applied.dataRevision ?? service.state().revision,
+        description: describePlan(plan),
+      })
       return
     }
 
     send(res, 404, { error: 'unknown sooyo route', method, route })
-  }
-
-  /**
-   * Apply an approved proposal's operations.
-   *
-   * The proposal is re-read here rather than trusted from the request body: the caller names an
-   * id, and the stored record is what gets applied. That is what keeps a stale browser tab from
-   * replaying operations the user already saw applied.
-   */
-  async function applyProposalById(proposalId) {
-    if (!service.ready) return { ok: false, error: '存储域尚未就绪' }
-    const proposal = service.tables(TABLES.agentInbox).get(String(proposalId ?? ''))
-    if (!proposal) return { ok: false, error: '没有这条提议' }
-    try {
-      const applied = await applyProposal(service.tables, proposal, (command) => service.execute(command, {
-        kind: 'proposal',
-        device: proposal.id,
-        access: 'write',
-      }))
-      const failed = applied.filter((entry) => !entry.ok)
-      await settleProposal(service.tables, proposal.id, failed.length === 0 ? 'applied' : 'failed', failed.length === 0 ? null : failed.map((entry) => entry.error).join('; '))
-      return { ok: failed.length === 0, applied }
-    } catch (error) {
-      await settleProposal(service.tables, proposal.id, 'failed', String(error?.message ?? error))
-      return { ok: false, error: String(error?.message ?? error) }
-    }
   }
 
   /**
@@ -1141,9 +1198,17 @@ export function apply(ctx, config = {}) {
    * `{ ok, board }`), and the Client half reads those fields directly — so the local route
    * returns `result` and keeps `dataRevision` alongside it for a caller that wants it.
    */
-  async function executeLocal(name, body) {
+  async function executeLocal(name, body, precondition = undefined, operationId = undefined) {
     try {
-      const outcome = await service.execute({ name, body }, localActor({ device: sync.device ?? 'local' }))
+      const outcome = await service.execute(
+        {
+          name,
+          body,
+          ...(precondition ? { precondition } : {}),
+          ...(operationId ? { operationId } : {}),
+        },
+        localActor({ device: sync.device ?? 'local' }),
+      )
       if (outcome?.result !== undefined) {
         return { ...outcome.result, dataRevision: outcome.dataRevision, operationId: outcome.operationId, ...(outcome.replayed ? { replayed: true } : {}) }
       }

@@ -129,8 +129,11 @@ export function footprint(type, size, cols) {
   return [size === 'S' ? 2 : 4, h]
 }
 
-/** A Size the type actually supports, or its smallest. */
+/** A Size the type actually supports, or its smallest (preserving size for unknown types). */
 export function safeSize(type, size) {
+  if (!WIDGET_TYPES[type]) {
+    return typeof size === 'string' && size.trim() ? size.trim() : 'M'
+  }
   const sizes = WIDGET_TYPES[type]?.sizes ?? {}
   if (sizes[size]) return size
   return SIZE_ORDER.find((entry) => sizes[entry]) ?? 'S'
@@ -222,9 +225,54 @@ export function defaultBoards() {
 export const layoutKey = (boardId, cols) =>
   `${boardId}-${cols}`.replace(/[^a-zA-Z0-9_-]/g, '-')
 
+let activeIdContext = null
+
+/**
+ * Deterministically derive a path-safe entity ID from `(prefix, operationId, seq)`.
+ *
+ * Using a pure-JS 64-bit hash (two 32-bit lanes) keeps `personal.js` isomorphic and
+ * dependency-free while guaranteeing that retrying or recovering the same `operationId`
+ * always produces the exact same entity IDs in the exact same order.
+ */
+export function deriveEntityId(prefix, operationId, seq = 0) {
+  const seed = `${String(operationId)}:${String(prefix)}:${Number(seq) || 0}`
+  let h1 = 0xdeadbeef ^ seed.length
+  let h2 = 0x41c6ce57 ^ seed.length
+  for (let i = 0; i < seed.length; i += 1) {
+    const ch = seed.charCodeAt(i)
+    h1 = Math.imul(h1 ^ ch, 2654435761)
+    h2 = Math.imul(h2 ^ ch, 1597334677)
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+  const part1 = (h1 >>> 0).toString(36)
+  const part2 = (h2 >>> 0).toString(36)
+  const safePrefix = String(prefix ?? 'id').replace(/[^a-zA-Z0-9_-]/g, '') || 'id'
+  return `${safePrefix}-${part1}${part2}`
+}
+
+/**
+ * Run `fn` with deterministic `newId()` derivation seeded by `operationId`.
+ */
+export async function withOperationIdScope(operationId, fn) {
+  const previous = activeIdContext
+  activeIdContext = operationId ? { operationId: String(operationId), seq: 0 } : null
+  try {
+    return await fn()
+  } finally {
+    activeIdContext = previous
+  }
+}
+
 /** Ids are generated Host-side so a Client never invents a key the store would reject. */
-export const newId = (prefix) =>
-  `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.replace(/[^a-zA-Z0-9_-]/g, '-')
+export const newId = (prefix) => {
+  if (activeIdContext?.operationId) {
+    const seq = activeIdContext.seq
+    activeIdContext.seq += 1
+    return deriveEntityId(prefix, activeIdContext.operationId, seq)
+  }
+  return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.replace(/[^a-zA-Z0-9_-]/g, '-')
+}
 
 /**
  * A 订阅 Widget's settings, normalised.
@@ -247,13 +295,28 @@ export function normalizeSubscription(settings = {}, suggestsPres) {
   }
 }
 
-/** Strip anything a record must not carry into the store, and fill in its defaults. */
+/**
+ * Strip anything a known record must not carry into the store, and fill in its defaults.
+ *
+ * If `record.type` is an unrecognised Widget Type from a newer plugin version, preserve its
+ * `type`, `size`, and any extra fields round-trip instead of coercing it to `'task'`.
+ */
 export function normalizeWidget(record) {
-  const type = WIDGET_TYPES[record?.type] ? record.type : 'task'
+  const rawType = typeof record?.type === 'string' && record.type.trim() ? record.type.trim() : 'task'
+  const known = Boolean(WIDGET_TYPES[rawType])
+  const extra = {}
+  if (!known && record && typeof record === 'object') {
+    for (const [key, value] of Object.entries(record)) {
+      if (!['id', 'type', 'title', 'settings'].includes(key)) extra[key] = value
+    }
+  } else if (known && record && typeof record === 'object' && Number.isSafeInteger(record.revision)) {
+    extra.revision = record.revision
+  }
   return {
+    ...extra,
     id: String(record.id),
-    type,
+    type: rawType,
     title: typeof record.title === 'string' && record.title.trim() ? record.title.trim() : undefined,
-    settings: type === 'subscription' ? normalizeSubscription(record.settings ?? {}) : { ...(record.settings ?? {}) },
+    settings: rawType === 'subscription' ? normalizeSubscription(record.settings ?? {}) : { ...(record.settings ?? {}) },
   }
 }

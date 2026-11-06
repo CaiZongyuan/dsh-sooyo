@@ -173,3 +173,21 @@ schedule_create({
 | `409 conflict` | 另一台设备先改了。UI 会刷新到最新；Agent 工具会提示重新读取 revision。 |
 | 改了 Host 代码但行为没变 | Host 模块按 specifier 缓存，需要重启 DSH（AGENTS.md 规则 2）。 |
 | Hub 重启后 Client 一直 503 | Hub 存储域还在打开，或 `journal` 里有需要人工确认的记录——看日志里的 `sooyo: journal ...`。 |
+
+## 8. 三进程端到端验证（Three-Instance Check）
+
+`npm run test:offline` 在单进程内用真实 Hub 路由处理器与 `RemoteSooyoService` 验证了鉴权、`ETag`/304、`409`、幂等与降级分支；而跨进程数据一致性、Hub 重启持久性与 Client 零权威库约束需要起三个独立进程验证：
+
+```sh
+powershell -NoProfile -ExecutionPolicy Bypass -File dev/e2e-setup.ps1     # 创建 3 套 profile + DSH_HOME
+# 按输出提示分别带独立 DSH_HOME 启动三个实例后运行：
+powershell -NoProfile -ExecutionPolicy Bypass -File dev/e2e-verify.ps1    # 37 项检查，覆盖 AC-01…AC-13
+powershell -NoProfile -ExecutionPolicy Bypass -File dev/e2e-restart.ps1   # AC-04 重启持久性验证
+powershell -NoProfile -ExecutionPolicy Bypass -File dev/e2e-teardown.ps1  # 清理测试目录
+```
+
+注意事项：
+- **每个实例必须有独立的 `DSH_HOME`**。`storage-json.root` 是 `dshHomePath('storages')`，profile patch 无法覆盖；共用同一个 `DSH_HOME` 会直接读写桌面用户的真实数据库。
+- **不要在多次运行间复用固定 `operationId`**。Hub 会从上一次运行的幂等记录里直接返回旧结果，`e2e-verify.ps1` 每次运行都会生成新的 run id。
+- **PowerShell 5.1 陷阱**：`.ps1` 文件必须带 UTF-8 BOM（由 `dev/add-bom.mjs` 维护）；HTTP 请求体必须通过 `-InFile` 发送以避免 ASCII 重编码；读取非 2xx 响应体需使用 `HttpWebRequest` 而非 `Invoke-WebRequest`。
+

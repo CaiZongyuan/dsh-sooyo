@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased — 上游感知：AIHOT 能力说明与更新检测
+
+插件此前对"上游"一无所知：AIHOT 新增周报、月报、重置监控时，Agent 只会照旧回答"查不到"；
+插件自己有新提交时，也没有任何地方会说。这次把两件事都变成 Agent 的上下文。
+
+### Added
+
+- **`sooyo_aihot`**：读 AIHOT 的 Agent 能力说明（`/api/v1/agent`，Markdown）与更新日志
+  （`/changelog`）。取 `what: 'guide' | 'changelog' | 'both'`，日志按 `days` / `limit` 截断。
+  这是"AIHOT 支持什么"的权威答案，不用再靠猜端点。
+- **`sooyo_update_check`**：把运行中的构建与上游默认分支对比，并给出**这个安装方式**下该跑的命令。
+  只读——真的更新仍由人执行。
+- **Context Bridge 多一行**：AIHOT 最新一条改动 + 有更新时的 `a-b → c-d` 提示。两者都只在
+  有话说时出现（已是最新、或日志没变，就不占 token）。
+- **`__SOOYO_BUILD__`**：`dev/build.mjs` 在构建时内联 `version` / `commit` / `dirty`。
+  装出来的包没有 `.git`，只有构建那一刻同时读得到两者。
+
+### Design notes
+
+- **更新日志不是 Source。** Source 产出的是带封面、评分、已读状态的条目；发布记录会把
+  dashboard 塞满 Release Notes。它属于"Agent 该知道的事"，所以走上下文与工具，不进卡片流。
+- **`commit` 保持裸 40 位十六进制。** 未提交改动单独放在 `dirty`：`-dirty` 后缀会让每个
+  带本地修改的构建都判定为"落后于上游"，这正是更新检测最容易给错答案的地方。
+- **检测不到就说检测不到。** 拿不到本地 commit（tarball 安装）时 `updateAvailable` 是
+  `null` 而不是 `false`——"我没看出来"和"你已是最新"是两回事，绿色徽章挂在错的答案上比没有更糟。
+- **GitHub refs 而不是 REST API。** `info/refs` 是 `git ls-remote` 的请求，没有 60 次/小时的
+  匿名额度；REST 的额度是**按 IP 全机共享**的，几个 GitHub 装的插件就能把它耗尽，
+  然后整份更新列表静默失灵（`dshmarket` 的 #349）。
+- **只有权威角色读。** client 会读到 Hub 的日志和 Hub 的构建，把另一台机器的版本当成自己的，
+  比不报更糟。
+
 ## Unreleased — 手机端布局修复与暗色磨砂
 
 手机浏览器截图暴露了两个真问题，都不是"渲染失败"而是"渲染得很糟"：面板照常显示，只是顶栏占了

@@ -7,10 +7,44 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import * as esbuild from 'esbuild'
 
 const ROOT = resolve(import.meta.dirname, '..')
+
+/**
+ * Identity of this build, inlined by esbuild as `__SOOYO_BUILD__`.
+ *
+ * The build step is the only moment both facts are reliably readable: `package.json` ships with
+ * the package, but `.git` does not, and a `github:` install has neither `git` on the machine nor
+ * a checkout. Baking it here means `sooyo_update_check` can always say which commit is running
+ * instead of guessing from a version string that the branch does not bump per commit.
+ */
+function readBuildInfo() {
+  let version = null
+  try {
+    version = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8')).version ?? null
+  } catch {
+    version = null
+  }
+  let commit = null
+  let dirty = false
+  try {
+    // `execFileSync` rather than a shell: no quoting rules, and a missing `git` is an exception
+    // rather than a stray "command not found" line on stdout.
+    commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null
+    // Reported separately: the revision stays plain 40-hex (it is compared against the upstream
+    // ref), while "there are uncommitted edits" is a different fact about this build.
+    const status = execFileSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+    dirty = Boolean(status.trim())
+  } catch {
+    commit = null
+  }
+  return { version, commit, dirty, builtAt: new Date().toISOString() }
+}
+
+const BUILD = readBuildInfo()
 
 async function buildHost() {
   const result = await esbuild.build({
@@ -24,6 +58,7 @@ async function buildHost() {
     charset: 'utf8',
     legalComments: 'none',
     metafile: true,
+    define: { __SOOYO_BUILD__: JSON.stringify(BUILD) },
   })
   return result
 }
@@ -88,4 +123,4 @@ ${cjsCode}
 
 await buildHost()
 await buildClient()
-console.log('Built index.js and client.js successfully.')
+console.log(`Built index.js and client.js successfully (${BUILD.version ?? 'unknown'}+${BUILD.commit ?? 'nogit'}).`)

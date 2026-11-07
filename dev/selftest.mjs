@@ -12,7 +12,21 @@
 import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
 
-import { apply, DOMAIN_TABLES, readFeed, decodeEntities, stripTags, extractOgImage, absoluteUrl } from '../index.js'
+import {
+  apply,
+  DOMAIN_TABLES,
+  readFeed,
+  decodeEntities,
+  stripTags,
+  extractOgImage,
+  absoluteUrl,
+  parseAihotChangelog,
+  parseRefAdvertisement,
+  readAihotRelease,
+  updatePlan,
+  describeChangelog,
+  describeUpdate,
+} from '../index.js'
 
 const PATH_SAFE = /^[a-zA-Z0-9_-]+$/
 const OFFLINE = process.argv.includes('--offline')
@@ -291,7 +305,8 @@ await new Promise((resolve) => setTimeout(resolve, 60))
 const service = plugin.service
 
 check('route registered', routes.length === 1)
-check('tools registered', tools.length === 11, tools.map((t) => t.name).join(', '))
+// 11 data/feed tools + `sooyo_aihot` (AIHOT guide & changelog) + `sooyo_update_check`.
+check('tools registered', tools.length === 13, tools.map((t) => t.name).join(', '))
 // The fake context has no event surface, so the Context Bridge reports that it disabled
 // itself instead of failing `apply()`. That one message is expected; anything else is not.
 const unexpectedWarnings = warnings.filter((line) => !line.includes('Sooyo Context Bridge disabled'))
@@ -1664,6 +1679,147 @@ check('slice5: rolling back an applied proposal restores previous state and mark
     && !(dailyAfterRollback?.boards ?? []).some((b) => b.name === '可回滚看板')
     && !(dailyAfterRollback?.tasks ?? []).some((t) => t.title === '可回滚任务'),
   JSON.stringify({ status: rolledBackPropRecord?.status }))
+
+// ---- AIHOT changelog + upstream update detection (offline) ------------------
+
+console.log('\n-- AIHOT guide/changelog parsing and update detection (no network) --')
+
+// A trimmed copy of the real page's shape (verified against aihot.news on 2026-11-07):
+// a day section with `id="d-…"`, an `ol/li` per entry, the clock in a `mono` span, the kind
+// in its own span, then an `article` with an `h3` title and a `p` body.
+const CHANGELOG_FIXTURE = `<!DOCTYPE html><html><head>
+<meta name="aihot-release" content="20261107152318-be2bc4c6b0" />
+</head><body>
+<section id="d-2026-11-07" class="card">
+  <h2><time dateTime="2026-11-07">2026 年 11 月 7 日</time><span>周六</span></h2>
+  <ol>
+    <li>
+      <div><span class="mono block text-[12.5px]">18:01</span>
+        <span><span class="size-1.5 rounded-full bg-accent"></span>更新</span></div>
+      <article><h3>Codex 重置升级为重置监控：Antigravity 也能看了</h3>
+        <p>Google Antigravity 的额度重置现在和 Codex 一样盯着。</p></article>
+    </li>
+    <li>
+      <div><span class="mono block text-[12.5px]">17:13</span>
+        <span><span class="size-1.5 rounded-full bg-accent"></span>优化</span></div>
+      <article><h3>Codex 重置：Tibo 和 Andrew 一起盯</h3>
+        <p>两人都还没正式说明，所以现在同时盯着他们俩的帖子 &amp; 日历。</p></article>
+    </li>
+  </ol>
+</section>
+<section id="d-2026-09-01" class="card">
+  <ol>
+    <li>
+      <div><span class="mono block text-[12.5px]">04:40</span><span>优化</span></div>
+      <article><h3>旧的一条</h3><p>很久以前。</p></article>
+    </li>
+  </ol>
+</section>
+</body></html>`
+
+const release = readAihotRelease(CHANGELOG_FIXTURE)
+check('changelog: release stamp extracted from the meta tag', release === '20261107152318-be2bc4c6b0', String(release))
+check('changelog: a page without the stamp yields null', readAihotRelease('<html><head></head></html>') === null)
+
+const parsedChangelog = parseAihotChangelog(CHANGELOG_FIXTURE)
+check('changelog: every entry parsed across sections', parsedChangelog.length === 3, `${parsedChangelog.length} entries`)
+check('changelog: date comes from the section id, not the localized text', parsedChangelog[0]?.date === '2026-11-07', parsedChangelog[0]?.date)
+check('changelog: clock time captured', parsedChangelog[0]?.time === '18:01', parsedChangelog[0]?.time)
+check('changelog: kind captured from the meta column', parsedChangelog[0]?.kind === '更新', parsedChangelog[0]?.kind)
+check('changelog: title is stripped and entity-decoded',
+  parsedChangelog[0]?.title === 'Codex 重置升级为重置监控：Antigravity 也能看了', parsedChangelog[0]?.title)
+check('changelog: body entity-decoded (&amp; -> &)',
+  parsedChangelog[1]?.body === '两人都还没正式说明，所以现在同时盯着他们俩的帖子 & 日历。', parsedChangelog[1]?.body)
+check('changelog: the second entry is the older one, not a duplicate of the first',
+  parsedChangelog[1]?.title === 'Codex 重置：Tibo 和 Andrew 一起盯', parsedChangelog[1]?.title)
+check('changelog: HTML in the body is stripped before it reaches the model',
+  !/[<>]/.test(parsedChangelog.map((entry) => `${entry.title}${entry.body}`).join('')))
+
+const digest = describeChangelog(
+  { fetchedAt: '2026-11-07T15:31:00.000Z', release, entries: parsedChangelog, recentCount: 2, source: 'x' },
+  { limit: 2 },
+)
+check('changelog digest: names the newest entries and points at the tool',
+  typeof digest === 'string' && digest.includes('Antigravity') && digest.includes('sooyo_aihot'), digest ?? 'null')
+check('changelog digest: bounded to the requested number of entries',
+  (digest ?? '').split('|').length <= 2, digest ?? 'null')
+check('changelog digest: empty input yields null rather than an empty line',
+  describeChangelog({ entries: [], recentCount: 0, fetchedAt: '', release: null, source: 'x' }) === null)
+
+// git's own ref advertisement, which is what `git ls-remote` reads. The first ref carries a
+// NUL followed by capabilities; later refs end at a newline.
+const REF_FIXTURE = [
+  '001e# service=git-upload-pack\n0000',
+  '015930e6966b0bd213775b7573aa409f932ce8f3e2be HEAD\0multi_ack thin-pack symref=HEAD:refs/heads/main\n',
+  '003d30e6966b0bd213775b7573aa409f932ce8f3e2be refs/heads/main\n',
+  '003ec429157dc2d209dca60702058d17ea363c701114 refs/tags/v0.2.0\n',
+].join('')
+
+check('refs: default branch sha read from the advertisement',
+  parseRefAdvertisement(REF_FIXTURE) === '30e6966b0bd213775b7573aa409f932ce8f3e2be', String(parseRefAdvertisement(REF_FIXTURE)))
+check('refs: a tag is not mistaken for the branch',
+  parseRefAdvertisement(REF_FIXTURE, 'refs/tags/v0.2.0') === 'c429157dc2d209dca60702058d17ea363c701114',
+  String(parseRefAdvertisement(REF_FIXTURE, 'refs/tags/v0.2.0')))
+check('refs: an absent ref yields null rather than a wrong sha',
+  parseRefAdvertisement(REF_FIXTURE, 'refs/heads/nope') === null)
+check('refs: the branch name is matched literally (no regex injection)',
+  parseRefAdvertisement(REF_FIXTURE, 'refs/heads/(.*)') === null)
+
+check('update plan: a checkout gets a pull + rebuild',
+  updatePlan('checkout').command?.includes('pull --ff-only') === true && updatePlan('checkout').note.includes('重启'))
+check('update plan: a package install gets a pnpm add from the repo',
+  updatePlan('package', 'CaiZongyuan/dsh-sooyo').command === 'pnpm add "github:CaiZongyuan/dsh-sooyo#main"',
+  String(updatePlan('package', 'CaiZongyuan/dsh-sooyo').command))
+check('update plan: an unknown install shape invents no command',
+  updatePlan('unknown').command === null)
+
+check('update line: an update is named with both commits',
+  (describeUpdate({
+    repo: 'r', installedVersion: '0.2.0', installedCommit: 'aaaaaaa1111', builtAt: null,
+    latestCommit: 'bbbbbbb2222', latestRef: 'main', updateAvailable: true,
+    checkedAt: '', plan: updatePlan('checkout'), error: null,
+  }) ?? '').includes('aaaaaaa') && (describeUpdate({
+    repo: 'r', installedVersion: '0.2.0', installedCommit: 'aaaaaaa1111', builtAt: null,
+    latestCommit: 'bbbbbbb2222', latestRef: 'main', updateAvailable: true,
+    checkedAt: '', plan: updatePlan('checkout'), error: null,
+  }) ?? '').includes('bbbbbbb'))
+check('update line: being current says nothing (no noise in the prompt)',
+  describeUpdate({
+    repo: 'r', installedVersion: '0.2.0', installedCommit: 'same', builtAt: null,
+    latestCommit: 'same', latestRef: 'main', updateAvailable: false,
+    checkedAt: '', plan: updatePlan('checkout'), error: null,
+  }) === null)
+check('update line: a failed check is reported, never silently "up to date"',
+  (describeUpdate({
+    repo: 'r', installedVersion: '0.2.0', installedCommit: null, builtAt: null,
+    latestCommit: null, latestRef: 'main', updateAvailable: null,
+    checkedAt: '', plan: updatePlan('unknown'), error: 'HTTP 500',
+  }) ?? '').includes('failed'))
+
+// The two new tools exist on the plugin the fake context built, and the changelog tool is
+// refused as a client (a client would report the Hub's version as its own).
+const aihotTool = tools.find((tool) => tool.name === 'sooyo_aihot')
+const updateTool = tools.find((tool) => tool.name === 'sooyo_update_check')
+check('sooyo_aihot is registered and read-only',
+  Boolean(aihotTool) && !/add|remove|update|create/i.test(JSON.stringify(aihotTool.parameters?.properties ?? {}).replace(/update/g, '')))
+check('sooyo_update_check is registered',
+  Boolean(updateTool) && updateTool.parameters?.properties?.force?.type === 'boolean')
+check('renderContextBlock appends outside-world lines before its footer',
+  (() => {
+    const block = renderContextBlock(
+      { ready: true, generatedAt: 'now', dataRevision: 1, counts: { today: 1, inbox: 0, later: 0, open: 1, tasks: 1 } },
+      { extraLines: ['AIHOT changelog: thing happened'] },
+    )
+    const lines = String(block ?? '').split('\n')
+    const extraAt = lines.findIndex((line) => line.includes('AIHOT changelog'))
+    const footerAt = lines.findIndex((line) => line.includes('For latest/full state'))
+    return extraAt > 0 && footerAt > extraAt
+  })())
+check('renderContextBlock ignores blank extras rather than emitting empty lines',
+  !String(renderContextBlock(
+    { ready: true, generatedAt: 'now', dataRevision: 1, counts: {} },
+    { extraLines: ['', '   '] },
+  ) ?? '').includes('\n\n'))
 
 // ---- teardown --------------------------------------------------------------
 

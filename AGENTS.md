@@ -12,6 +12,7 @@ The plugin runs in one of three roles (`standalone` by default, `hub`, `client`)
 - **Client UI, bento packer (`ov=0`), CSS resets, and container queries:** [`docs/ui-and-layout.md`](./docs/ui-and-layout.md)
 - **Testing & CI policy, real DSH Playwright E2E, and pre-release smoke:** [`docs/testing.md`](./docs/testing.md)
 - **Adding a Source, `feed-parser.ts` fixtures, and `og:image` thumbnail rules:** [`docs/sources.md`](./docs/sources.md)
+- **AIHOT changelog/guide readers, plugin update detection, and `__SOOYO_BUILD__`:** [`docs/upstream.md`](./docs/upstream.md)
 - **Generating Widget Type icons (`.webp` in `assets/a/`):** [`docs/agents/image-generation.md`](./docs/agents/image-generation.md)
 
 ## File map

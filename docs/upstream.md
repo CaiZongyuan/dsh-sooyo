@@ -75,6 +75,34 @@ Verified against the live page; re-check before trusting the parser if entries s
   and stops. Applying an update mutates a profile (`pnpm add`, or pull + rebuild + DSH restart)
   and does not belong inside a chat turn.
 
+## The one-commit lag (known, by design)
+
+A bundle can only record the HEAD that existed **when it was built**, and a commit is by
+definition created *after* the files it contains. So the artifact committed in revision `N`
+usually names revision `N-1`:
+
+```
+commit A  (code + rebuilt index.js naming A)     <- artifact names its parent
+commit B  (the artifact commit itself)           <- upstream head is now B
+```
+
+The tool reports that honestly as `updateAvailable: true` with the two revisions named. It does
+**not** claim to be current, and it does not invent a verdict it cannot support.
+
+This is a false *alarm*, never a false *all-clear*, which is the safe direction: an unnecessary
+`git pull --ff-only` is a no-op, while a missed update is invisible. Do not "fix" it by committing
+the rebuilt artifact again — the new commit recreates the same gap one revision later (that loop
+was tried and reverted). Two real options if the noise matters:
+
+- **Build in CI on a clean tag**, so the published artifact always names a revision at or before
+  the tag, and compare against that tag rather than the branch head.
+- **Read `behindReason`** once it exists: comparing commit *timestamps* distinguishes "built
+  before its own commit" from "genuinely behind", at the cost of one more GitHub call.
+
+What is genuinely fixed is the dangerous direction: `dev/build.mjs` refuses a dirty tree, so a
+shipped `commit` always names a revision that **contains** the code it runs. Before that guard, a
+build made mid-edit could name a revision that never contained the change at all.
+
 ## `__SOOYO_BUILD__`
 
 `dev/build.mjs` inlines `{ version, commit, dirty, builtAt }` via esbuild `define`, because the

@@ -68,7 +68,7 @@
     "test": "node dev/selftest.mjs",
     "test:offline": "node dev/selftest.mjs --offline",
     "test:e2e": "playwright test",
-    "prepack": "pnpm run typecheck && pnpm run build && pnpm run check"
+    "prepack": "pnpm run typecheck && node dev/build.mjs --allow-dirty && pnpm run check"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

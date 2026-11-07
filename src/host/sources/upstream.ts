@@ -346,6 +346,17 @@ export function createUpdateChecker(options: UpdateCheckerOptions = {}) {
         const latest = parseRefAdvertisement(body, `refs/heads/${ref}`)
         if (!latest) throw new Error('ref advertisement did not name the default branch')
         const same = Boolean(base.installedCommit) && base.installedCommit === latest
+        /**
+         * A build records the commit that was HEAD *when it ran*, and a working tree is often
+         * built *before* the change is committed — so the artifact can legitimately name its own
+         * parent. Comparing only for inequality then reports "one commit behind" on every build
+         * of a just-committed change.
+         *
+         * The fix is in `dev/build.mjs`, not here: a build refuses a dirty tree (see
+         * `--allow-dirty`), so a shipped `commit` always names the revision that contains it and
+         * inequality means what it says. `installedDirty` stays in the payload because a
+         * hand-built artifact can still carry it.
+         */
         const value: UpdateCheck = {
           ...base,
           latestCommit: latest,

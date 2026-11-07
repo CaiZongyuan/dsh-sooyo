@@ -1,5 +1,5 @@
 // <define:__SOOYO_BUILD__>
-var define_SOOYO_BUILD_default = { version: "0.2.0", commit: "30e6966b0bd213775b7573aa409f932ce8f3e2be", dirty: true, builtAt: "2026-11-07T16:59:27.134Z" };
+var define_SOOYO_BUILD_default = { version: "0.2.0", commit: "c1af5698ffd78875f379545d57734952f5f0061d", dirty: true, builtAt: "2026-11-07T17:03:50.689Z" };
 
 // src/host/index.ts
 import { readFile } from "node:fs/promises";

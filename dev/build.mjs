@@ -20,8 +20,15 @@ const ROOT = resolve(import.meta.dirname, '..')
  * the package, but `.git` does not, and a `github:` install has neither `git` on the machine nor
  * a checkout. Baking it here means `sooyo_update_check` can always say which commit is running
  * instead of guessing from a version string that the branch does not bump per commit.
+ *
+ * **A dirty tree is refused by default** (`--allow-dirty` overrides). The reason is not tidiness:
+ * `commit` is compared for equality against the upstream ref, so an artifact built *before* its
+ * own change was committed names its parent and reports "one commit behind" forever — the exact
+ * false alarm the update check exists to avoid. Refusing the build makes `commit` mean "this
+ * revision contains the code you are running". When overridden, `dirty` stays in the payload so
+ * the reader is told the difference.
  */
-function readBuildInfo() {
+function readBuildInfo({ allowDirty }) {
   let version = null
   try {
     version = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8')).version ?? null
@@ -34,17 +41,26 @@ function readBuildInfo() {
     // `execFileSync` rather than a shell: no quoting rules, and a missing `git` is an exception
     // rather than a stray "command not found" line on stdout.
     commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null
-    // Reported separately: the revision stays plain 40-hex (it is compared against the upstream
-    // ref), while "there are uncommitted edits" is a different fact about this build.
     const status = execFileSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
     dirty = Boolean(status.trim())
-  } catch {
+    if (dirty && !allowDirty) {
+      const files = status.trim().split('\n').slice(0, 8).join('\n  ')
+      throw new Error(
+        `working tree is dirty; refusing to build a bundle whose commit would not name its own code.\n`
+        + `  Commit first, or pass --allow-dirty (the build then reports commit+dirty).\n  ${files}`,
+      )
+    }
+  } catch (error) {
+    if (String(error?.message ?? '').startsWith('working tree is dirty')) throw error
+    // No git (a tarball or a CI checkout without history): leave commit unknown rather than
+    // inventing one; `updateAvailable` becomes null and says "could not tell".
     commit = null
+    dirty = false
   }
   return { version, commit, dirty, builtAt: new Date().toISOString() }
 }
 
-const BUILD = readBuildInfo()
+const BUILD = readBuildInfo({ allowDirty: process.argv.includes('--allow-dirty') })
 
 async function buildHost() {
   const result = await esbuild.build({

@@ -4,6 +4,8 @@ Sooyo uses three focused testing tiers managed via `pnpm` and a single browser a
 
 Native update tests require a DSH with `pluginManager.updateBundle` (tested API: `0.2.2-rc.1`);
 set `DSH_E2E_BIN` to its `lib/bin.js` when the global CLI is older.
+Native update fixtures set both PluginManager and pnpm to their local registry and disable public
+fallbacks, so published real packages cannot replace the intentionally broken restoration fixture.
 
 ## 1. The Three Testing Tiers
 

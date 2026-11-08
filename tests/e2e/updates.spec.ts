@@ -111,9 +111,10 @@ test('native restoration failure remains visible after Sooyo itself disappears',
     registry.publish('0.3.1')
     await checkAndOpen(page, '0.3.1')
     await page.getByRole('button', { name: '升级到 0.3.1', exact: true }).click()
+    await expect.poll(() => page.evaluate(() => Reflect.get(window, '__sooyoUpdateSession').snapshot().receipt?.outcome), { timeout: 90_000 }).toBe('failed')
+    await expect.poll(() => runtime(dsh!)).toBeNull()
     await expect(page.getByRole('alert').filter({ hasText: '旧插件恢复也失败' })).toBeVisible({ timeout: 90_000 })
     await page.screenshot({ path: resolve(shots, 'updates-recovery-failed.png') })
-    expect(await runtime(dsh)).toBeNull()
   } finally {
     await dsh?.stop()
     await registry.close()

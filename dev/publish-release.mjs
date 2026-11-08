@@ -42,9 +42,19 @@ if (lookup.status === 0) {
     { cwd: root, stdio: 'inherit' })
   if (publish.error) throw publish.error
   if (publish.status !== 0) process.exit(publish.status ?? 1)
-  const verify = spawnSync(process.execPath, [npmCli, 'view', `${pkg.name}@${pkg.version}`, 'dist.integrity', '--json',
-    `--registry=${registry}`, '--fetch-retries=0', '--fetch-timeout=15000'], { cwd: root, encoding: 'utf8', timeout: 25_000 })
-  if (verify.error) throw verify.error
+  let verify
+  for (let attempt = 0; attempt < 30; attempt++) {
+    verify = spawnSync(process.execPath, [npmCli, 'view', `${pkg.name}@${pkg.version}`, 'dist.integrity', '--json',
+      `--registry=${registry}`, '--fetch-retries=0', '--fetch-timeout=15000'], { cwd: root, encoding: 'utf8', timeout: 25_000 })
+    if (verify.error) throw verify.error
+    if (verify.status === 0) break
+    const pending = JSON.parse(verify.stdout)
+    assert.equal(pending?.error?.code, 'E404', `Published version lookup failed: ${verify.stderr}`)
+    if (attempt < 29) {
+      console.log(`npm is still processing ${pkg.name}@${pkg.version}; retrying visibility check (${attempt + 1}/30).`)
+      await new Promise((resolve) => setTimeout(resolve, 5000))
+    }
+  }
   assert.equal(verify.status, 0, `Published version could not be verified: ${verify.stderr}`)
   assert.equal(JSON.parse(verify.stdout), integrity, 'Published tarball integrity differs from the verified release')
   console.log(`Published and verified ${pkg.name}@${pkg.version}.`)

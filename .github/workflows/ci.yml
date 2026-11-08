@@ -64,6 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sooyo-release
+          overwrite: true
           path: |
             artifacts/*.tgz
             test-results/screenshots/

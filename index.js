@@ -1,5 +1,5 @@
 // <define:__SOOYO_BUILD__>
-var define_SOOYO_BUILD_default = { version: "0.2.0", commit: "5c25318b3526b70a491aa69968251bec8983ab13", dirty: true, builtAt: "2026-11-07T17:04:32.862Z" };
+var define_SOOYO_BUILD_default = { version: "0.2.0", commit: "1d415b14c50da8caa4c2a5671a21c0af6348f2d6", dirty: false, builtAt: "2026-11-08T05:47:56.068Z" };
 
 // src/host/index.ts
 import { readFile } from "node:fs/promises";
@@ -588,7 +588,8 @@ var SETTINGS_KEYS = {
   interests: "interests",
   bookmarks: "bookmarks",
   habits: "habits",
-  focus: "focus"
+  focus: "focus",
+  retros: "retros"
 };
 var nowIso = () => (/* @__PURE__ */ new Date()).toISOString();
 var DEFAULT_HABITS = [
@@ -609,7 +610,8 @@ var defaultSettings = () => ({
   interests: [],
   bookmarks: BOOKMARKS_DEFAULT.map(([name2, url2]) => ({ name: name2, url: url2 })),
   habits: DEFAULT_HABITS.map((h) => ({ ...h, week: [...h.week] })),
-  focus: { ...DEFAULT_FOCUS }
+  focus: { ...DEFAULT_FOCUS },
+  retros: {}
 });
 var revOf = (record) => Number.isSafeInteger(record?.revision) ? Number(record.revision) : 0;
 async function ensureSeeded(tables) {
@@ -643,11 +645,13 @@ function readSettings(tables) {
   const bookmarksRec = settingsTable.get(SETTINGS_KEYS.bookmarks);
   const habitsRec = settingsTable.get(SETTINGS_KEYS.habits);
   const focusRec = settingsTable.get(SETTINGS_KEYS.focus);
+  const retrosRec = settingsTable.get(SETTINGS_KEYS.retros);
   const active = activeRec?.active ?? legacy.active ?? defaults.active;
   const interests = Array.isArray(interestsRec?.interests) ? interestsRec.interests : Array.isArray(legacy.interests) ? legacy.interests : defaults.interests;
   const bookmarks = Array.isArray(bookmarksRec?.bookmarks) ? bookmarksRec.bookmarks : Array.isArray(legacy.bookmarks) ? legacy.bookmarks : defaults.bookmarks;
   const habits = Array.isArray(habitsRec?.habits) ? habitsRec.habits : Array.isArray(legacy.habits) ? legacy.habits : defaults.habits;
   const focusRaw = focusRec?.focus ?? legacy.focus ?? {};
+  const retros = retrosRec?.retros && typeof retrosRec.retros === "object" ? retrosRec.retros : legacy.retros && typeof legacy.retros === "object" ? legacy.retros : defaults.retros;
   return {
     ...defaults,
     ...legacy,
@@ -655,7 +659,8 @@ function readSettings(tables) {
     interests,
     bookmarks,
     habits,
-    focus: { ...DEFAULT_FOCUS, ...focusRaw }
+    focus: { ...DEFAULT_FOCUS, ...focusRaw },
+    retros
   };
 }
 function readSettingsRevisions(tables) {
@@ -666,7 +671,8 @@ function readSettingsRevisions(tables) {
     interests: revOf(settingsTable.get(SETTINGS_KEYS.interests) ?? legacy),
     bookmarks: revOf(settingsTable.get(SETTINGS_KEYS.bookmarks) ?? legacy),
     habits: revOf(settingsTable.get(SETTINGS_KEYS.habits) ?? legacy),
-    focus: revOf(settingsTable.get(SETTINGS_KEYS.focus) ?? legacy)
+    focus: revOf(settingsTable.get(SETTINGS_KEYS.focus) ?? legacy),
+    retros: revOf(settingsTable.get(SETTINGS_KEYS.retros) ?? legacy)
   };
 }
 async function writeSettings(tables, patch) {
@@ -685,6 +691,9 @@ async function writeSettings(tables, patch) {
   }
   if ("focus" in patch) {
     await settingsTable.put(SETTINGS_KEYS.focus, { id: SETTINGS_KEYS.focus, focus: patch.focus });
+  }
+  if ("retros" in patch) {
+    await settingsTable.put(SETTINGS_KEYS.retros, { id: SETTINGS_KEYS.retros, retros: patch.retros });
   }
 }
 var listBoards = (tables) => {
@@ -723,25 +732,59 @@ var listReadLater = (tables) => {
   rows.sort((a, b) => String(b.savedAt ?? "").localeCompare(String(a.savedAt ?? "")));
   return rows.map((entry) => String(entry.itemId));
 };
+var COLLECTION_KINDS = ["github", "x", "web", "image", "music", "video", "article"];
+var CONTENT_STATUSES = ["inbox", "curated", "archived"];
+var TASK_PRIORITIES = ["low", "medium", "high"];
+function inferCollectionKind(url2, explicit) {
+  if (explicit && COLLECTION_KINDS.includes(explicit)) return explicit;
+  const u = String(url2 ?? "").trim();
+  if (!u) return "web";
+  if (/github\.com\//i.test(u)) return "github";
+  if (/(^|\/\/|\.)(x\.com|twitter\.com)\//i.test(u)) return "x";
+  if (/\.(png|jpe?g|webp|gif|avif|svg)(\?|$)/i.test(u)) return "image";
+  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) || /(youtube\.com|youtu\.be|bilibili\.com|b23\.tv|vimeo\.com)/i.test(u)) return "video";
+  if (/\.(mp3|flac|wav|ogg|m4a)(\?|$)/i.test(u) || /(music\.163\.com|y\.qq\.com|spotify\.com|music\.apple\.com|soundcloud\.com)/i.test(u)) return "music";
+  return "web";
+}
+var KIND_LABELS = {
+  github: "GitHub",
+  x: "X 收藏",
+  web: "网站",
+  image: "图片",
+  music: "音乐",
+  video: "视频",
+  article: "文章"
+};
 function extractItemSnapshot(item, fallback = null) {
   const src = item ?? fallback;
   if (!src || typeof src !== "object") return null;
   const id2 = src.id ?? src.itemId ?? null;
   if (!id2) return null;
+  const url2 = String(src.url ?? fallback?.url ?? "").slice(0, 2e3);
+  const kind = inferCollectionKind(url2, src.kind ?? fallback?.kind);
+  const status = CONTENT_STATUSES.includes(String(src.status ?? fallback?.status ?? "")) ? String(src.status ?? fallback?.status) : "inbox";
+  const rawTags = Array.isArray(src.tags) ? src.tags : Array.isArray(fallback?.tags) ? fallback.tags : [];
+  const tags = rawTags.map((t) => String(t ?? "").trim()).filter(Boolean).slice(0, 12);
+  const rawMeta = src.meta && typeof src.meta === "object" ? src.meta : fallback?.meta && typeof fallback.meta === "object" ? fallback.meta : null;
   return {
     id: String(id2),
-    title: String(src.title ?? "(无标题)").slice(0, 300),
-    url: String(src.url ?? "").slice(0, 2e3),
-    sourceId: String(src.sourceId ?? "saved").slice(0, 100),
-    sourceLabel: String(src.sourceLabel ?? src.origin ?? "已保存").slice(0, 100),
-    publishedAt: src.publishedAt ?? src.discoveredAt ?? null,
-    thumbnail: src.thumbnail ?? null,
-    summary: String(src.summary ?? "").slice(0, 1e3),
-    tldr: String(src.tldr ?? "").slice(0, 500),
-    reason: String(src.reason ?? "").slice(0, 500),
-    category: String(src.category ?? "other").slice(0, 60),
-    origin: String(src.origin ?? src.sourceLabel ?? "已保存").slice(0, 100),
-    score: typeof src.score === "number" ? src.score : null
+    title: String(src.title ?? fallback?.title ?? "(无标题)").slice(0, 300),
+    url: url2,
+    sourceId: String(src.sourceId ?? fallback?.sourceId ?? kind ?? "saved").slice(0, 100),
+    sourceLabel: String(src.sourceLabel ?? fallback?.sourceLabel ?? src.origin ?? KIND_LABELS[kind] ?? "已保存").slice(0, 100),
+    publishedAt: src.publishedAt ?? src.discoveredAt ?? fallback?.publishedAt ?? null,
+    thumbnail: src.thumbnail ?? src.cover ?? fallback?.thumbnail ?? null,
+    summary: String(src.summary ?? src.description ?? fallback?.summary ?? "").slice(0, 1e3),
+    tldr: String(src.tldr ?? fallback?.tldr ?? "").slice(0, 500),
+    reason: String(src.reason ?? fallback?.reason ?? "").slice(0, 500),
+    category: String(src.category ?? fallback?.category ?? kind ?? "other").slice(0, 60),
+    kind,
+    status,
+    tags,
+    externalUrl: src.externalUrl ? String(src.externalUrl).slice(0, 2e3) : fallback?.externalUrl ? String(fallback.externalUrl).slice(0, 2e3) : null,
+    meta: rawMeta,
+    origin: String(src.origin ?? src.sourceLabel ?? fallback?.origin ?? KIND_LABELS[kind] ?? "已保存").slice(0, 100),
+    score: typeof src.score === "number" ? src.score : typeof fallback?.score === "number" ? fallback.score : null
   };
 }
 var listReadLaterEntries = (tables) => {
@@ -793,6 +836,7 @@ function readDaily(tables, sources = []) {
     bookmarks: settings.bookmarks,
     habits: settings.habits,
     focus: settings.focus,
+    retros: settings.retros ?? {},
     sources: sources.map((source) => {
       const storedState = tables("sources")?.get?.(String(source.id)) ?? {};
       return {
@@ -981,6 +1025,7 @@ async function resizeWidget(tables, body) {
   await tables("layouts").put(key, { boardId, cols, order });
   return { ok: true, id: id2, size };
 }
+var todayDayKey = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
 async function nextTaskOrder(tables, list) {
   const rows = listTasks(tables).filter((task) => task.list === list);
   return rows.reduce((max, task) => Math.max(max, task.order ?? 0), 0) + 1;
@@ -988,25 +1033,48 @@ async function nextTaskOrder(tables, list) {
 async function capture(tables, body) {
   const text = String(body?.text ?? "").trim();
   if (!text) return { ok: false, error: "写点什么再回车" };
-  const asNote = /^#note\s*/i.test(text);
+  const mode = String(body?.mode ?? "");
+  const asNote = mode === "note" || /^#note\s*/i.test(text);
   if (asNote) {
-    const id2 = newId("n");
-    const existing = tables("notes").get(id2);
-    if (existing) return { ok: true, kind: "note", note: existing };
-    const note = {
-      id: id2,
+    return addNote(tables, {
       text: text.replace(/^#note\s*/i, "").slice(0, 2e3),
-      createdAt: nowIso()
-    };
-    await tables("notes").put(note.id, note);
-    return { ok: true, kind: "note", note };
+      title: body?.title,
+      tags: body?.tags,
+      externalUrl: body?.externalUrl,
+      origin: body?.origin ?? null
+    });
   }
-  return addTask(tables, { title: text, list: "inbox" });
+  const isBareUrl = mode === "collection" || mode !== "task" && /^https?:\/\/\S+$/i.test(text);
+  if (isBareUrl) {
+    return saveCollection(tables, {
+      url: text,
+      title: body?.title || text.replace(/^https?:\/\/(www\.)?/i, "").slice(0, 120),
+      kind: body?.kind,
+      summary: body?.summary,
+      thumbnail: body?.thumbnail,
+      tags: body?.tags
+    });
+  }
+  return addTask(tables, {
+    title: text,
+    list: body?.list ?? "inbox",
+    due: body?.due ?? null,
+    priority: body?.priority ?? null,
+    project: body?.project ?? null
+  });
 }
 async function addTask(tables, body) {
   const title = String(body?.title ?? "").trim();
   if (!title) return { ok: false, error: "任务需要一个标题" };
-  const list = TASK_LISTS.includes(String(body?.list ?? "")) ? String(body.list) : "inbox";
+  const due = typeof body?.due === "string" && body.due.trim() ? body.due.trim().slice(0, 10) : null;
+  const explicitList = TASK_LISTS.includes(String(body?.list ?? "")) ? String(body.list) : null;
+  const list = explicitList ?? (due ? due <= todayDayKey() ? "today" : "later" : "inbox");
+  const priority = TASK_PRIORITIES.includes(String(body?.priority ?? "")) ? String(body.priority) : null;
+  const subtasks = Array.isArray(body?.subtasks) ? body.subtasks.slice(0, 30).map((s, idx) => ({
+    id: String(s?.id || `sub-${idx + 1}`).replace(/[^a-zA-Z0-9_-]/g, "-"),
+    title: String(s?.title ?? "").trim().slice(0, 200),
+    done: Boolean(s?.done)
+  })).filter((s) => s.title) : [];
   const id2 = newId("t");
   const existing = tables("tasks").get(id2);
   if (existing) return { ok: true, task: existing };
@@ -1014,8 +1082,13 @@ async function addTask(tables, body) {
     id: id2,
     title: title.slice(0, 300),
     list,
+    due: list === "today" && !due && explicitList === "today" ? due : due,
+    priority,
+    note: typeof body?.note === "string" && body.note.trim() ? body.note.trim().slice(0, 2e3) : null,
+    subtasks,
     project: typeof body?.project === "string" && body.project ? body.project : null,
     done: false,
+    completedAt: null,
     origin: body?.origin ?? null,
     createdAt: nowIso(),
     order: await nextTaskOrder(tables, list)
@@ -1028,8 +1101,36 @@ async function updateTask(tables, body) {
   const existing = tables("tasks").get(id2);
   if (!existing) return { ok: false, error: "没有这个任务" };
   const patch = {};
-  if (typeof body?.done === "boolean") patch.done = body.done;
-  if (TASK_LISTS.includes(String(body?.list ?? ""))) patch.list = body.list;
+  if (typeof body?.done === "boolean") {
+    patch.done = body.done;
+    patch.completedAt = body.done ? nowIso() : null;
+  }
+  if (body?.due !== void 0) {
+    const nextDue = typeof body.due === "string" && body.due.trim() ? body.due.trim().slice(0, 10) : null;
+    patch.due = nextDue;
+    if (!TASK_LISTS.includes(String(body?.list ?? ""))) {
+      patch.list = nextDue === null ? "inbox" : nextDue <= todayDayKey() ? "today" : "later";
+    }
+  }
+  if (TASK_LISTS.includes(String(body?.list ?? ""))) {
+    patch.list = body.list;
+    if (body.list === "inbox" && body?.due === void 0 && existing.due) {
+      patch.due = null;
+    }
+  }
+  if (body?.priority !== void 0) {
+    patch.priority = TASK_PRIORITIES.includes(String(body.priority ?? "")) ? String(body.priority) : null;
+  }
+  if (body?.note !== void 0) {
+    patch.note = typeof body.note === "string" && body.note.trim() ? body.note.trim().slice(0, 2e3) : null;
+  }
+  if (Array.isArray(body?.subtasks)) {
+    patch.subtasks = body.subtasks.slice(0, 30).map((s, idx) => ({
+      id: String(s?.id || `sub-${idx + 1}`).replace(/[^a-zA-Z0-9_-]/g, "-"),
+      title: String(s?.title ?? "").trim().slice(0, 200),
+      done: Boolean(s?.done)
+    })).filter((s) => s.title);
+  }
   if (body?.project !== void 0) patch.project = body.project || null;
   if (typeof body?.title === "string" && body.title.trim()) patch.title = body.title.trim().slice(0, 300);
   if (Object.keys(patch).length === 0) return { ok: false, error: "没有要改的字段" };
@@ -1049,10 +1150,44 @@ async function addNote(tables, body) {
   if (!text) return { ok: false, error: "Note 需要一个标题" };
   const id2 = newId("n");
   const existing = tables("notes").get(id2);
-  if (existing) return { ok: true, note: existing };
-  const note = { id: id2, text: text.slice(0, 2e3), origin: body?.origin ?? null, createdAt: nowIso() };
+  if (existing) return { ok: true, kind: "note", note: existing };
+  const tags = Array.isArray(body?.tags) ? body.tags.map((t) => String(t ?? "").trim()).filter(Boolean).slice(0, 12) : [];
+  const status = CONTENT_STATUSES.includes(String(body?.status ?? "")) ? String(body.status) : "inbox";
+  const note = {
+    id: id2,
+    title: typeof body?.title === "string" && body.title.trim() ? body.title.trim().slice(0, 160) : null,
+    text: text.slice(0, 2e3),
+    tags,
+    status,
+    pinned: Boolean(body?.pinned),
+    externalUrl: typeof body?.externalUrl === "string" && /^https?:\/\//i.test(body.externalUrl.trim()) ? body.externalUrl.trim().slice(0, 2e3) : null,
+    origin: body?.origin ?? null,
+    createdAt: nowIso()
+  };
   await tables("notes").put(note.id, note);
-  return { ok: true, note };
+  return { ok: true, kind: "note", note };
+}
+async function updateNote(tables, body) {
+  const id2 = String(body?.id ?? "");
+  const existing = tables("notes").get(id2);
+  if (!existing) return { ok: false, error: "没有这条 Note" };
+  const patch = {};
+  if (typeof body?.text === "string" && body.text.trim()) patch.text = body.text.trim().slice(0, 2e3);
+  if (body?.title !== void 0) patch.title = typeof body.title === "string" && body.title.trim() ? body.title.trim().slice(0, 160) : null;
+  if (Array.isArray(body?.tags)) {
+    patch.tags = body.tags.map((t) => String(t ?? "").trim()).filter(Boolean).slice(0, 12);
+  }
+  if (body?.status !== void 0 && CONTENT_STATUSES.includes(String(body.status))) {
+    patch.status = String(body.status);
+  }
+  if (typeof body?.pinned === "boolean") patch.pinned = body.pinned;
+  if (body?.externalUrl !== void 0) {
+    patch.externalUrl = typeof body.externalUrl === "string" && /^https?:\/\//i.test(body.externalUrl.trim()) ? body.externalUrl.trim().slice(0, 2e3) : null;
+  }
+  if (Object.keys(patch).length === 0) return { ok: false, error: "没有要改的字段" };
+  const next = { ...existing, ...patch, updatedAt: nowIso() };
+  await tables("notes").put(id2, next);
+  return { ok: true, note: next };
 }
 async function removeNote(tables, body) {
   const id2 = String(body?.id ?? "");
@@ -1072,10 +1207,61 @@ async function setReadLater(tables, body) {
   const snapshot = extractItemSnapshot(item, body?.snapshot ?? existing?.snapshot);
   await tables("readlater").put(itemId, {
     itemId,
-    savedAt: nowIso(),
+    savedAt: existing?.savedAt ?? nowIso(),
     ...snapshot ? { snapshot } : {}
   });
   return { ok: true, itemId, saved: true, ...snapshot ? { snapshot } : {} };
+}
+async function saveCollection(tables, body) {
+  const rawItems = Array.isArray(body?.items) ? body.items : [body];
+  if (rawItems.length === 0) return { ok: false, error: "缺少要保存的收藏条目" };
+  const saved = [];
+  for (const entry of rawItems.slice(0, 50)) {
+    const rawId = typeof entry?.id === "string" && /^[a-zA-Z0-9_-]+$/.test(entry.id) ? entry.id : typeof entry?.itemId === "string" && /^[a-zA-Z0-9_-]+$/.test(entry.itemId) ? entry.itemId : newId("col");
+    const existing = tables("readlater").get(rawId);
+    const live = tables("items")?.get?.(rawId);
+    const mergedInput = {
+      ...existing?.snapshot ?? {},
+      ...live ?? {},
+      ...entry,
+      id: rawId
+    };
+    const snapshot = extractItemSnapshot(mergedInput, existing?.snapshot);
+    if (!snapshot) continue;
+    await tables("readlater").put(rawId, {
+      itemId: rawId,
+      savedAt: existing?.savedAt ?? nowIso(),
+      updatedAt: nowIso(),
+      snapshot
+    });
+    saved.push(snapshot);
+  }
+  if (saved.length === 0) return { ok: false, error: "未能生成有效的收藏元信息" };
+  return { ok: true, kind: "collection", count: saved.length, item: saved[0], items: saved };
+}
+async function removeCollection(tables, body) {
+  const itemId = String(body?.id ?? body?.itemId ?? "");
+  if (!itemId) return { ok: false, error: "缺少收藏 id" };
+  if (tables("readlater").get(itemId)) await tables("readlater").delete(itemId);
+  return { ok: true, removed: itemId };
+}
+async function saveRetro(tables, body) {
+  const key = String(body?.key ?? "").trim();
+  if (!key || !/^[a-zA-Z0-9_-]+$/.test(key)) return { ok: false, error: "缺少有效的复盘周期 key" };
+  const period = ["day", "week", "month"].includes(String(body?.period ?? "")) ? String(body.period) : "week";
+  const settings = readSettings(tables);
+  const current = { ...settings.retros ?? {} };
+  const record = {
+    key,
+    period,
+    highlights: String(body?.highlights ?? "").trim().slice(0, 2e3),
+    blockers: String(body?.blockers ?? "").trim().slice(0, 2e3),
+    nextFocus: String(body?.nextFocus ?? "").trim().slice(0, 2e3),
+    updatedAt: nowIso()
+  };
+  current[key] = record;
+  await writeSettings(tables, { retros: current });
+  return { ok: true, retro: record, retros: current };
 }
 async function setInterests(tables, body) {
   const raw = Array.isArray(body?.interests) ? body.interests : String(body?.text ?? "").split(/[,，、\s]+/);
@@ -1181,8 +1367,12 @@ var ACTIONS = {
   "task.remove": removeTask,
   capture,
   "note.add": addNote,
+  "note.update": updateNote,
   "note.remove": removeNote,
   "readlater.set": setReadLater,
+  "collection.save": saveCollection,
+  "collection.remove": removeCollection,
+  "retro.save": saveRetro,
   "interests.set": setInterests,
   "bookmarks.set": setBookmarks,
   "habit.tick": tickHabit,
@@ -1216,8 +1406,12 @@ var ACTION_NAMES_LIST = [
   "task.remove",
   "capture",
   "note.add",
+  "note.update",
   "note.remove",
   "readlater.set",
+  "collection.save",
+  "collection.remove",
+  "retro.save",
   "interests.set",
   "bookmarks.set",
   "habit.tick",
@@ -1638,7 +1832,10 @@ var PROPOSAL_OPERATIONS = /* @__PURE__ */ new Set([
   "task.add",
   "task.update",
   "note.add",
+  "note.update",
   "readlater.set",
+  "collection.save",
+  "retro.save",
   "board.create",
   "widget.add",
   "widget.update",
@@ -2024,6 +2221,14 @@ var VALIDATORS = {
   "task.add": (body) => ({
     title: str(body?.title, "title", { max: 300, required: true }),
     list: oneOf(body?.list, "list", TASK_LISTS),
+    due: body?.due === void 0 || body?.due === null || body?.due === "" ? null : str(body.due, "due", { max: 40 }),
+    priority: body?.priority === void 0 || body?.priority === null || body?.priority === "" ? null : oneOf(body.priority, "priority", TASK_PRIORITIES),
+    note: body?.note === void 0 || body?.note === null ? void 0 : str(body.note, "note", { max: 2e3 }),
+    subtasks: Array.isArray(body?.subtasks) ? body.subtasks.slice(0, 30).map((s, idx) => ({
+      id: str(s?.id, `subtasks[${idx}].id`, { max: 80 }) ?? `sub-${idx + 1}`,
+      title: str(s?.title, `subtasks[${idx}].title`, { max: 200, required: true }),
+      done: Boolean(s?.done)
+    })) : void 0,
     project: body?.project === void 0 || body?.project === null ? void 0 : str(body.project, "project", { max: 60 }),
     origin: origin(body?.origin)
   }),
@@ -2032,20 +2237,60 @@ var VALIDATORS = {
       id: id(body?.id, "id"),
       done: bool(body?.done, "done"),
       list: oneOf(body?.list, "list", TASK_LISTS),
+      due: body?.due === void 0 ? void 0 : body.due === null || body.due === "" ? null : str(body.due, "due", { max: 40 }),
+      priority: body?.priority === void 0 ? void 0 : body.priority === null || body.priority === "" ? null : oneOf(body.priority, "priority", TASK_PRIORITIES),
+      note: body?.note === void 0 ? void 0 : body.note === null || body.note === "" ? "" : str(body.note, "note", { max: 2e3 }),
+      subtasks: body?.subtasks === void 0 ? void 0 : Array.isArray(body.subtasks) ? body.subtasks.slice(0, 30).map((s, idx) => ({
+        id: str(s?.id, `subtasks[${idx}].id`, { max: 80 }) ?? `sub-${idx + 1}`,
+        title: str(s?.title, `subtasks[${idx}].title`, { max: 200, required: true }),
+        done: Boolean(s?.done)
+      })) : fail("subtasks 必须是数组"),
       title: body?.title === void 0 ? void 0 : str(body.title, "title", { max: 300 }),
       project: body?.project === void 0 ? void 0 : body.project === null || body.project === "" ? "" : str(body.project, "project", { max: 60 })
     };
-    if (patch.done === void 0 && patch.list === void 0 && patch.title === void 0 && patch.project === void 0) {
+    if (patch.done === void 0 && patch.list === void 0 && patch.due === void 0 && patch.priority === void 0 && patch.note === void 0 && patch.subtasks === void 0 && patch.title === void 0 && patch.project === void 0) {
       fail("没有要改的字段");
     }
     return patch;
   },
   "task.remove": (body) => ({ id: id(body?.id, "id") }),
-  "capture": (body) => ({ text: str(body?.text, "text", { max: 2e3, required: true }) }),
-  "note.add": (body) => ({
+  "capture": (body) => ({
     text: str(body?.text, "text", { max: 2e3, required: true }),
+    mode: oneOf(body?.mode, "mode", ["task", "note", "collection"]),
+    kind: oneOf(body?.kind, "kind", COLLECTION_KINDS),
+    title: str(body?.title, "title", { max: 300 }),
+    summary: str(body?.summary, "summary", { max: 1e3 }),
+    thumbnail: url(body?.thumbnail, "thumbnail"),
+    externalUrl: url(body?.externalUrl, "externalUrl"),
+    due: body?.due === void 0 || body?.due === null || body?.due === "" ? void 0 : str(body.due, "due", { max: 40 }),
+    priority: body?.priority === void 0 || body?.priority === null || body?.priority === "" ? void 0 : oneOf(body.priority, "priority", TASK_PRIORITIES),
+    project: body?.project === void 0 || body?.project === null ? void 0 : str(body.project, "project", { max: 60 }),
+    tags: Array.isArray(body?.tags) ? body.tags.slice(0, 12).map((t, i) => str(t, `tags[${i}]`, { max: 40 })).filter(Boolean) : void 0
+  }),
+  "note.add": (body) => ({
+    title: str(body?.title, "title", { max: 160 }),
+    text: str(body?.text, "text", { max: 2e3, required: true }),
+    tags: Array.isArray(body?.tags) ? body.tags.slice(0, 12).map((t, i) => str(t, `tags[${i}]`, { max: 40 })).filter(Boolean) : void 0,
+    status: oneOf(body?.status, "status", CONTENT_STATUSES),
+    pinned: bool(body?.pinned, "pinned"),
+    externalUrl: body?.externalUrl === void 0 || body?.externalUrl === null || body?.externalUrl === "" ? null : url(body.externalUrl, "externalUrl"),
     origin: origin(body?.origin)
   }),
+  "note.update": (body) => {
+    const patch = {
+      id: id(body?.id, "id"),
+      title: body?.title === void 0 ? void 0 : body.title === null || body.title === "" ? "" : str(body.title, "title", { max: 160 }),
+      text: body?.text === void 0 ? void 0 : str(body.text, "text", { max: 2e3 }),
+      tags: body?.tags === void 0 ? void 0 : Array.isArray(body.tags) ? body.tags.slice(0, 12).map((t, i) => str(t, `tags[${i}]`, { max: 40 })).filter(Boolean) : fail("tags 必须是数组"),
+      status: oneOf(body?.status, "status", CONTENT_STATUSES),
+      pinned: bool(body?.pinned, "pinned"),
+      externalUrl: body?.externalUrl === void 0 ? void 0 : body.externalUrl === null || body.externalUrl === "" ? "" : url(body.externalUrl, "externalUrl")
+    };
+    if (patch.title === void 0 && patch.text === void 0 && patch.tags === void 0 && patch.status === void 0 && patch.pinned === void 0 && patch.externalUrl === void 0) {
+      fail("没有要改的字段");
+    }
+    return patch;
+  },
   "note.remove": (body) => ({ id: id(body?.id, "id") }),
   "readlater.set": (body) => {
     const out = {
@@ -2057,6 +2302,41 @@ var VALIDATORS = {
     }
     return out;
   },
+  "collection.save": (body) => {
+    const normOne = (entry, prefix = "") => {
+      if (!entry || typeof entry !== "object") fail(`${prefix || "entry"} 必须是对象`);
+      const rawId = entry.id ?? entry.itemId;
+      return {
+        id: rawId === void 0 || rawId === null || rawId === "" ? void 0 : id(rawId, `${prefix}id`, { required: false }),
+        title: str(entry.title, `${prefix}title`, { max: 300, required: true }),
+        url: entry.url ? url(entry.url, `${prefix}url`) : "",
+        kind: oneOf(entry.kind, `${prefix}kind`, COLLECTION_KINDS),
+        status: oneOf(entry.status, `${prefix}status`, CONTENT_STATUSES),
+        thumbnail: entry.thumbnail ? url(entry.thumbnail, `${prefix}thumbnail`) : null,
+        summary: str(entry.summary ?? entry.description, `${prefix}summary`, { max: 1e3 }) ?? "",
+        sourceLabel: str(entry.sourceLabel ?? entry.origin, `${prefix}sourceLabel`, { max: 100 }),
+        externalUrl: entry.externalUrl ? url(entry.externalUrl, `${prefix}externalUrl`) : null,
+        tags: Array.isArray(entry.tags) ? entry.tags.slice(0, 12).map((t, i) => str(t, `${prefix}tags[${i}]`, { max: 40 })).filter(Boolean) : [],
+        meta: entry.meta && typeof entry.meta === "object" && !Array.isArray(entry.meta) ? settingsObject(entry.meta) : null
+      };
+    };
+    if (Array.isArray(body?.items)) {
+      if (body.items.length === 0) fail("items 不能为空");
+      if (body.items.length > 50) fail("单次最多保存 50 条收藏");
+      return { items: body.items.map((entry, i) => normOne(entry, `items[${i}].`)) };
+    }
+    return normOne(body);
+  },
+  "collection.remove": (body) => ({
+    id: id(body?.id ?? body?.itemId, "id")
+  }),
+  "retro.save": (body) => ({
+    key: id(body?.key, "key"),
+    period: oneOf(body?.period, "period", ["day", "week", "month"]) ?? "week",
+    highlights: str(body?.highlights ?? "", "highlights", { max: 2e3 }) ?? "",
+    blockers: str(body?.blockers ?? "", "blockers", { max: 2e3 }) ?? "",
+    nextFocus: str(body?.nextFocus ?? "", "nextFocus", { max: 2e3 }) ?? ""
+  }),
   "interests.set": (body) => {
     if (Array.isArray(body?.interests)) {
       if (body.interests.length > 40) fail("关注词超过 40 个");
@@ -2553,7 +2833,11 @@ function planImport(tables, document, options = {}) {
         continue;
       }
       const current = tables(name2).get(key);
-      if (current === void 0) {
+      const fallbackCurrent = current === void 0 ? tables(TABLES.readlater)?.get?.(key)?.snapshot : void 0;
+      if (current === void 0 && fallbackCurrent !== void 0 && sameJson(fallbackCurrent, row.value)) {
+        summary.identical += 1;
+        tableStats.identical += 1;
+      } else if (current === void 0) {
         operations.push({ op: "create", table: name2, key, value: row.value });
         summary.create += 1;
         tableStats.create += 1;
@@ -2610,8 +2894,8 @@ function sameJson(a, b) {
 }
 function stableStringify(value) {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
-  const keys = Object.keys(value).sort();
+  if (Array.isArray(value)) return `[${value.map((item) => item === void 0 ? "null" : stableStringify(item)).join(",")}]`;
+  const keys = Object.keys(value).filter((key) => value[key] !== void 0).sort();
   return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
 }
 function describePlan(plan2) {
@@ -4050,7 +4334,10 @@ function registerAgentTools(deps) {
       type: "object",
       properties: {
         title: { type: "string", description: "任务标题，最多 300 字。" },
-        list: { type: "string", description: "inbox / today / later，默认 inbox。" },
+        list: { type: "string", description: "inbox / today / later，默认 inbox（若指定 due 日期则自动推导）。" },
+        due: { type: "string", description: "可选的排期日期（YYYY-MM-DD）。" },
+        priority: { type: "string", description: "可选优先级：low / medium / high。" },
+        note: { type: "string", description: "可选任务备注说明。" },
         project: { type: "string", description: "可选的 Project 名称。" },
         originTitle: { type: "string", description: "这条任务来自哪个条目时，写下它的标题。" },
         originUrl: { type: "string", description: "来源条目的原始链接（http/https）。" }
@@ -4069,6 +4356,9 @@ function registerAgentTools(deps) {
         {
           title: args.title,
           list: args.list,
+          due: args.due,
+          priority: args.priority,
+          note: args.note,
           project: args.project,
           ...origin2 ? { origin: origin2 } : {}
         },
@@ -4078,7 +4368,7 @@ function registerAgentTools(deps) {
   });
   register({
     name: "sooyo_task_update",
-    description: "修改一个任务（完成、移动列表、改标题、换项目）。必须带上你读到的 revision：如果别的设备已经改过这条任务，会返回 conflict，这时应先重新读取再决定。",
+    description: "修改一个任务（完成、改排期 due、优先级、移动列表、改标题、换项目）。必须带上你读到的 revision：如果别的设备已经改过这条任务，会返回 conflict，这时应先重新读取再决定。",
     parameters: {
       type: "object",
       properties: {
@@ -4086,6 +4376,9 @@ function registerAgentTools(deps) {
         revision: { type: "number", description: "你读到的这条任务的 revision。" },
         done: { type: "boolean", description: "是否完成。" },
         list: { type: "string", description: "inbox / today / later。" },
+        due: { type: "string", description: "排期日期（YYYY-MM-DD），传空字符串表示取消排期。" },
+        priority: { type: "string", description: "优先级：low / medium / high，传空字符串表示清除。" },
+        note: { type: "string", description: "任务备注。" },
         title: { type: "string", description: "新的标题。" },
         project: { type: "string", description: "新的 Project；传空字符串表示移除。" }
       },
@@ -4099,6 +4392,9 @@ function registerAgentTools(deps) {
       const body = {};
       if (typeof args.done === "boolean") body.done = args.done;
       if (typeof args.list === "string") body.list = args.list;
+      if (typeof args.due === "string") body.due = args.due || null;
+      if (typeof args.priority === "string") body.priority = args.priority || null;
+      if (typeof args.note === "string") body.note = args.note;
       if (typeof args.title === "string") body.title = args.title;
       if (typeof args.project === "string") body.project = args.project;
       if (Object.keys(body).length === 0) return { ok: false, error: "没有要改的字段" };
@@ -4118,11 +4414,14 @@ function registerAgentTools(deps) {
   });
   register({
     name: "sooyo_note_capture",
-    description: "记录一条 sooyo 笔记。写入：只在用户明确要求记下内容时调用。来源会标记为 agent，并保留可选的 Origin 链接。",
+    description: "记录一条 sooyo 速记/备忘/灵感（短内容，长文请记录外部飞书等链接 externalUrl）。写入：只在用户明确要求记下内容时调用。",
     parameters: {
       type: "object",
       properties: {
-        text: { type: "string", description: "笔记正文，最多 2000 字。" },
+        text: { type: "string", description: "速记/灵感正文，最多 2000 字。" },
+        title: { type: "string", description: "可选短标题。" },
+        tags: { type: "array", items: { type: "string" }, description: "可选标签列表。" },
+        externalUrl: { type: "string", description: "可选关联的飞书等外部长文链接（http/https）。" },
         originTitle: { type: "string", description: "来源条目标题。" },
         originUrl: { type: "string", description: "来源条目原始链接（http/https）。" }
       },
@@ -4133,7 +4432,67 @@ function registerAgentTools(deps) {
     execute: async (args = {}, exec) => {
       if (typeof args.text !== "string" || args.text.trim().length === 0) return { ok: false, error: "写点什么再存" };
       const origin2 = args.originUrl || args.originTitle ? { title: args.originTitle ?? null, url: args.originUrl ?? null, sourceId: "agent" } : void 0;
-      return write("note.add", { text: args.text, ...origin2 ? { origin: origin2 } : {} }, exec);
+      return write(
+        "note.add",
+        {
+          text: args.text,
+          ...args.title ? { title: args.title } : {},
+          ...Array.isArray(args.tags) ? { tags: args.tags } : {},
+          ...args.externalUrl ? { externalUrl: args.externalUrl } : {},
+          ...origin2 ? { origin: origin2 } : {}
+        },
+        exec
+      );
+    }
+  });
+  register({
+    name: "sooyo_collection_save",
+    description: "保存单条或批量保存用户的偏好收藏元信息（GitHub Stars、X 收藏、网站、图片、音乐、视频等）。只存轻量元信息（title, url, thumbnail, summary, kind, tags, meta），不存大体积媒体文件。",
+    parameters: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          description: "要保存的收藏元信息列表，单次最多 50 条。",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string", description: "可选的稳定路径安全 id（a-zA-Z0-9_-）。" },
+              kind: { type: "string", description: "github / x / web / image / music / video / article。" },
+              title: { type: "string", description: "标题，必填。" },
+              url: { type: "string", description: "原始链接（http/https）。" },
+              thumbnail: { type: "string", description: "缩略图/封面图 URL（http/https）。" },
+              summary: { type: "string", description: "简短说明、备注或简介。" },
+              externalUrl: { type: "string", description: "关联的飞书等文档链接。" },
+              tags: { type: "array", items: { type: "string" }, description: "标签数组。" },
+              meta: { type: "object", description: "扩展元信息，如 { stars, language, author, duration, artist }。" }
+            },
+            required: ["title"]
+          }
+        }
+      },
+      required: [],
+      additionalProperties: true
+    },
+    output: { schema: { type: "object" }, render: textRenderer },
+    execute: async (args = {}, exec) => {
+      const list = Array.isArray(args.items) ? args.items : typeof args.title === "string" && args.title.trim() ? [
+        {
+          ...args,
+          meta: {
+            ...args.meta && typeof args.meta === "object" ? args.meta : {},
+            ...args.stars !== void 0 ? { stars: args.stars } : {},
+            ...args.language ? { language: args.language } : {},
+            ...args.author ? { author: args.author } : {},
+            ...args.artist ? { artist: args.artist } : {},
+            ...args.duration ? { duration: args.duration } : {}
+          }
+        }
+      ] : [];
+      if (list.length === 0) {
+        return { ok: false, error: "需要至少一条收藏元信息" };
+      }
+      return write("collection.save", { items: list.slice(0, 50) }, exec);
     }
   });
   register({

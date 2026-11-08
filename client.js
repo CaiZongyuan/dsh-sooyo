@@ -591,6 +591,314 @@ window.__ModuleLoader__.load({
 }
 
 /* ============================================================================
+   App Navigation, Hero Capture, Stamps, Content Library, Schedule, and Retro
+   ============================================================================ */
+.sy-seg button[aria-selected="true"] { background: var(--sy-card); color: var(--sy-ink); box-shadow: 0 1px 2px rgba(16,18,24,.08), 0 0 0 1px var(--sy-line); }
+.sy-app-nav button { display: inline-flex; align-items: center; gap: 5px; }
+.sy-app-nav button small { font: 500 10.5px/1 var(--sy-mono); padding: 2px 5px; border-radius: 99px; background: var(--sy-accent-soft); color: var(--sy-accent-ink); }
+.sy-hero { align-items: stretch; gap: 20px; }
+.sy-hero-main { flex: 1 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.sy-hero-top-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sy-hero-top-row .sy-tag { margin-bottom: 0; }
+.sy-hero-top-row .sy-status { padding-bottom: 0; }
+.sy-hero-aside { flex: 0 1 420px; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+.sy-hero-capture { background: var(--sy-card); border: 1px solid var(--sy-line2); border-radius: 16px; padding: 10px 12px; box-shadow: var(--sy-shadow); display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+.sy-hero-capture-modes { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sy-hero-mode-pill { font-size: 12px; font-weight: 500; padding: 3px 9px; border-radius: 99px; color: var(--sy-ink2); border: 1px solid transparent; }
+.sy-hero-mode-pill:hover { color: var(--sy-ink); background: var(--sy-well); }
+.sy-hero-mode-pill[aria-pressed="true"] { background: var(--sy-accent-soft); color: var(--sy-accent-ink); border-color: color-mix(in srgb, var(--sy-accent) 35%, transparent); }
+.sy-hero-capture-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sy-hero-capture-row input { flex: 1; min-width: 0; height: 34px; border-radius: 10px; border: 1px solid var(--sy-line); background: var(--sy-well); padding: 0 12px; outline: 0; }
+.sy-hero-capture-row input:focus { border-color: color-mix(in srgb, var(--sy-accent) 50%, transparent); background: var(--sy-card); }
+.sy-hero-related { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-top: 2px; }
+.sy-hero-related-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 220px; padding: 3px 8px; border-radius: 8px; background: var(--sy-well); border: 1px solid var(--sy-line); font-size: 12px; color: var(--sy-ink2); }
+.sy-hero-related-chip:hover { color: var(--sy-ink); border-color: var(--sy-line2); }
+
+/* MiniStamps & Daily Stamp */
+.sy-ministamps { background: var(--sy-card); border: 1px solid var(--sy-line); border-radius: 16px; padding: 12px 14px; box-shadow: var(--sy-shadow); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.sy-ministamps-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sy-ministamps-title { font-size: 12px; font-weight: 600; color: var(--sy-ink2); }
+.sy-ministamps-streak { font: 500 11px/1 var(--sy-mono); padding: 4px 8px; border-radius: 99px; background: var(--sy-accent-soft); color: var(--sy-accent-ink); }
+.sy-ministamps-strip { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; align-items: end; }
+.sy-ministamp-slot { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 2px; border-radius: 10px; min-width: 0; }
+.sy-ministamp-slot:hover { background: var(--sy-well); }
+.sy-ministamp-slot.today { background: var(--sy-accent-soft); }
+.sy-ministamp-day { font: 500 10px/1 var(--sy-mono); color: var(--sy-ink3); }
+.sy-stamp { display: inline-block; filter: drop-shadow(0 3px 6px rgba(16,18,24,.14)); transition: transform .2s ease; }
+.sy-ministamp-slot:hover .sy-stamp { transform: translateY(-2px) scale(1.06); }
+.sy-stamp-empty { display: grid; place-items: center; }
+.sy-stamp-empty i { width: 6px; height: 6px; border-radius: 50%; background: var(--sy-line2); display: block; }
+
+/* Home Dockbar & Multimedia Wall */
+.sy-home-dock { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; padding: 8px 12px; background: var(--sy-card); border: 1px solid var(--sy-line); border-radius: 14px; box-shadow: var(--sy-shadow); }
+.sy-home-dock-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.sy-home-dock-filters { display: flex; align-items: center; gap: 6px; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+.sy-home-dock-filters::-webkit-scrollbar { display: none; }
+.sy-home-wall-section { margin-bottom: 20px; }
+.sy-wall-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 14px; }
+
+/* Media Collection Card */
+.sy-mcard { background: var(--sy-card); border: 1px solid var(--sy-line); border-radius: 16px; box-shadow: var(--sy-shadow); overflow: hidden; display: flex; flex-direction: column; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; min-width: 0; }
+.sy-mcard:hover { transform: translateY(-2px); box-shadow: var(--sy-shadow-hover); border-color: var(--sy-line2); }
+.sy-mcard-thumb { position: relative; aspect-ratio: 16 / 9; background: var(--sy-well); overflow: hidden; flex: none; }
+.sy-mcard-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sy-mcard-badge { position: absolute; top: 8px; left: 8px; padding: 3px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; color: #FFFFFF; backdrop-filter: blur(8px); }
+.sy-mcard-dur { position: absolute; right: 8px; bottom: 8px; padding: 2px 6px; border-radius: 6px; background: rgba(15,17,22,.78); color: #FFFFFF; font: 500 11px/1.2 var(--sy-mono); }
+.sy-mcard-body { padding: 13px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.sy-mcard-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11.5px; color: var(--sy-ink3); }
+.sy-mcard-kind { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.sy-mcard-ext, .sy-mcard-pin { padding: 2px 6px; border-radius: 6px; background: var(--sy-accent-soft); color: var(--sy-accent-ink); font-size: 11px; font-weight: 500; }
+.sy-mcard-title { font-size: 14.5px; font-weight: 600; line-height: 1.38; color: var(--sy-ink); margin: 0; }
+.sy-mcard-sum { font-size: 12.5px; line-height: 1.5; color: var(--sy-ink2); margin: 0; }
+.sy-mcard-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.sy-mcard-tag { font: 500 11px/1.2 var(--sy-mono); padding: 3px 7px; border-radius: 6px; background: var(--sy-well); color: var(--sy-ink2); }
+.sy-mcard-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--sy-line); }
+.sy-mcard-acts { display: flex; align-items: center; gap: 4px; }
+.sy-mcard-acts button, .sy-mcard-acts a { font-size: 11.5px; padding: 3px 7px; border-radius: 7px; color: var(--sy-ink2); background: var(--sy-well); }
+.sy-mcard-acts button:hover, .sy-mcard-acts a:hover { color: var(--sy-ink); background: var(--sy-line2); }
+
+/* Shared Full-View Toolbar */
+.sy-view-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 0 12px; }
+.sy-view-toolbar-left, .sy-view-toolbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.sy-view-search { height: 34px; border-radius: 10px; border: 1px solid var(--sy-line2); background: var(--sy-card); padding: 0 12px; min-width: 210px; outline: 0; }
+.sy-view-search:focus { border-color: color-mix(in srgb, var(--sy-accent) 50%, transparent); }
+.sy-view-empty { background: var(--sy-card); border: 1.5px dashed var(--sy-line2); border-radius: 18px; padding: 36px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--sy-ink2); }
+
+/* Content View: Kanban & Table */
+.sy-kanban-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; align-items: start; margin-top: 10px; }
+.sy-kanban-board.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sy-kanban-col { background: var(--sy-well); border: 1px solid var(--sy-line); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-height: 360px; min-width: 0; }
+.sy-kanban-col-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 4px 6px; border-bottom: 1px solid var(--sy-line); }
+.sy-kanban-col-h b { font-size: 13.5px; font-weight: 600; }
+.sy-kanban-cards { display: flex; flex-direction: column; gap: 10px; min-height: 160px; }
+.sy-kanban-empty { padding: 28px 12px; text-align: center; color: var(--sy-ink3); font-size: 12.5px; border: 1px dashed var(--sy-line2); border-radius: 12px; }
+.sy-table-wrap { background: var(--sy-card); border: 1px solid var(--sy-line); border-radius: 16px; box-shadow: var(--sy-shadow); overflow-x: auto; margin-top: 10px; }
+.sy-data-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+.sy-data-table th { padding: 11px 14px; font-size: 12px; font-weight: 600; color: var(--sy-ink2); border-bottom: 1px solid var(--sy-line2); background: var(--sy-well); white-space: nowrap; }
+.sy-data-table td { padding: 10px 14px; border-bottom: 1px solid var(--sy-line); vertical-align: middle; }
+.sy-data-table tr:last-child td { border-bottom: 0; }
+.sy-data-table tr:hover td { background: var(--sy-well); cursor: pointer; }
+.sy-table-title { display: flex; align-items: center; gap: 10px; min-width: 200px; max-width: 420px; }
+.sy-table-thumb { width: 42px; height: 28px; object-fit: cover; border-radius: 6px; flex: none; }
+.sy-table-acts { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.sy-table-acts button, .sy-table-acts a { padding: 4px 8px; border-radius: 7px; background: var(--sy-well); border: 1px solid var(--sy-line2); font-size: 12px; }
+.sy-status-select { height: 28px; border-radius: 8px; border: 1px solid var(--sy-line2); background: var(--sy-card); color: var(--sy-ink); padding: 0 8px; font-size: 12px; }
+
+/* Schedule View: Calendar & Focus/Inbox Rail */
+.sy-schedule-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; margin-top: 6px; }
+.sy-cal-tile { background: var(--sy-card); border: 1px solid var(--sy-line); border-radius: 18px; box-shadow: var(--sy-shadow); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.sy-cal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sy-cal-title-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sy-cal-title { font-size: 18px; font-weight: 600; margin: 0; }
+.sy-cal-nav { display: flex; align-items: center; gap: 4px; }
+.sy-cal-dow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; text-align: center; font: 500 11.5px/1 var(--sy-mono); color: var(--sy-ink3); padding: 4px 0; }
+.sy-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.sy-cal-cell { min-height: 104px; background: var(--sy-well); border: 1px solid var(--sy-line); border-radius: 12px; padding: 7px 8px; display: flex; flex-direction: column; gap: 5px; cursor: pointer; min-width: 0; transition: border-color .15s ease, background .15s ease; }
+.sy-cal-grid.week .sy-cal-cell { min-height: 220px; }
+.sy-cal-cell.outside { opacity: .45; }
+.sy-cal-cell.today { border-color: color-mix(in srgb, var(--sy-accent) 55%, transparent); background: color-mix(in srgb, var(--sy-accent) 5%, var(--sy-card)); }
+.sy-cal-cell.selected { outline: 2px solid var(--sy-accent); outline-offset: -1px; background: var(--sy-card); }
+.sy-cal-cell.drop-hover { background: var(--sy-accent-soft); border-color: var(--sy-accent); }
+.sy-cal-cell-top { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 24px; }
+.sy-cal-num { font: 600 12px/1 var(--sy-mono); color: var(--sy-ink2); }
+.sy-cal-cell.today .sy-cal-num { color: var(--sy-accent-ink); }
+.sy-cal-tasks { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.sy-cal-chip { display: flex; align-items: center; gap: 5px; padding: 3px 6px; border-radius: 7px; background: var(--sy-card); border: 1px solid var(--sy-line2); font-size: 11.5px; cursor: grab; min-width: 0; }
+.sy-cal-chip.done { opacity: .55; text-decoration: line-through; }
+.sy-cal-chip.prio-high { border-left: 3px solid var(--sy-bad); }
+.sy-cal-chip.prio-medium { border-left: 3px solid var(--sy-accent); }
+.sy-cal-chip-chk { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--sy-line2); display: grid; place-items: center; font-size: 10px; flex: none; }
+.sy-cal-chip-t { flex: 1; min-width: 0; }
+.sy-cal-more { font: 500 10.5px/1 var(--sy-mono); color: var(--sy-ink3); padding-left: 4px; }
+.sy-cal-add { display: flex; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--sy-line); }
+.sy-cal-add input { flex: 1; min-width: 0; height: 34px; border-radius: 10px; border: 1px solid var(--sy-line2); background: var(--sy-well); padding: 0 12px; outline: 0; }
+
+.sy-schedule-rail { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.sy-next-card, .sy-inbox-tray { background: var(--sy-card); border: 1px solid var(--sy-line); border-radius: 18px; box-shadow: var(--sy-shadow); padding: 15px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.sy-inbox-tray.drop-hover { border-color: var(--sy-accent); background: var(--sy-accent-soft); }
+.sy-next-head, .sy-inbox-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sy-next-eyebrow { font: 600 11px/1 var(--sy-mono); letter-spacing: .04em; color: var(--sy-accent-ink); }
+.sy-next-title { font-size: 16px; font-weight: 600; margin: 0; line-height: 1.35; }
+.sy-next-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sy-next-note { font-size: 12.5px; color: var(--sy-ink2); margin: 0; }
+.sy-next-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sy-next-empty { font-size: 13px; color: var(--sy-ink3); margin: 4px 0; }
+.sy-next-list { display: flex; flex-direction: column; gap: 5px; padding-top: 8px; border-top: 1px solid var(--sy-line); }
+.sy-next-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; cursor: pointer; font-size: 12.5px; }
+.sy-next-row:hover { background: var(--sy-well); }
+.sy-next-row.done { opacity: .5; text-decoration: line-through; }
+
+.sy-inbox-form { display: flex; gap: 6px; }
+.sy-inbox-form input { flex: 1; min-width: 0; height: 32px; border-radius: 9px; border: 1px solid var(--sy-line2); background: var(--sy-well); padding: 0 10px; outline: 0; font-size: 12.5px; }
+.sy-inbox-list { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow-y: auto; }
+.sy-inbox-empty { font-size: 12.5px; color: var(--sy-ink3); text-align: center; padding: 18px 8px; }
+.sy-inbox-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--sy-well); border: 1px solid var(--sy-line); cursor: grab; }
+.sy-inbox-item:hover { border-color: var(--sy-line2); }
+.sy-inbox-item-main { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; font-size: 13px; }
+.sy-inbox-grip { color: var(--sy-ink3); font-family: var(--sy-mono); cursor: grab; }
+.sy-inbox-acts { display: flex; align-items: center; gap: 4px; flex: none; }
+.sy-inbox-acts button { font-size: 11px; padding: 3px 7px; border-radius: 6px; background: var(--sy-card); border: 1px solid var(--sy-line2); color: var(--sy-ink2); }
+.sy-inbox-acts button:hover { color: var(--sy-ink); }
+.sy-prio-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--sy-ink3); }
+.sy-prio-dot.prio-high { background: var(--sy-bad); }
+.sy-prio-dot.prio-medium { background: var(--sy-accent); }
+.sy-prio-dot.prio-low { background: var(--sy-ok); }
+.sy-subtask-list { display: flex; flex-direction: column; gap: 6px; }
+.sy-subtask-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: var(--sy-well); font-size: 13px; }
+
+/* Retrospective View (5-Tile Bento) */
+.sy-retro-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; margin-top: 6px; }
+.sy-retro-tile { background: var(--sy-card); border: 1px solid var(--sy-line); border-radius: 18px; box-shadow: var(--sy-shadow); padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.sy-retro-hero { grid-column: span 8; justify-content: space-between; background: linear-gradient(145deg, color-mix(in srgb, var(--sy-accent) 7%, var(--sy-card)), var(--sy-card)); }
+.sy-retro-trend { grid-column: span 4; }
+.sy-retro-dist { grid-column: span 4; }
+.sy-retro-reflect { grid-column: span 4; }
+.sy-retro-advice { grid-column: span 4; }
+.sy-retro-eyebrow { font: 600 11px/1 var(--sy-mono); letter-spacing: .06em; color: var(--sy-accent-ink); margin-bottom: 10px; }
+.sy-retro-title { font-size: clamp(18px, 2cqi, 24px); font-weight: 500; line-height: 1.45; color: var(--sy-ink2); margin: 0; }
+.sy-retro-title em { font-style: normal; color: var(--sy-accent-ink); font-weight: 600; }
+.sy-retro-title b { color: var(--sy-ink); font-weight: 600; }
+.sy-retro-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding-top: 14px; border-top: 1px solid var(--sy-line); }
+.sy-retro-metric { display: flex; flex-direction: column; gap: 4px; }
+.sy-retro-metric .num { font-size: 26px; font-weight: 600; line-height: 1.1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.sy-retro-metric .lbl { font-size: 12px; color: var(--sy-ink3); }
+.sy-retro-tile-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.sy-retro-tile-h h3 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+.sy-chart-wrap { display: flex; flex-direction: column; gap: 6px; flex: 1; justify-content: flex-end; }
+.sy-chart-stat { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--sy-ink2); }
+.sy-chart { width: 100%; height: auto; overflow: visible; }
+.sy-retro-mini-table { display: flex; flex-direction: column; gap: 6px; }
+.sy-retro-mini-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: 8px; background: var(--sy-well); font-size: 12.5px; }
+.sy-dist-list { display: flex; flex-direction: column; gap: 8px; }
+.sy-dist-subhead { font: 600 11px/1 var(--sy-mono); color: var(--sy-ink3); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+.sy-dist-row { display: flex; flex-direction: column; gap: 4px; }
+.sy-dist-label { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; }
+.sy-dist-bar { height: 6px; border-radius: 99px; background: var(--sy-well); overflow: hidden; }
+.sy-dist-bar i { display: block; height: 100%; border-radius: 99px; background: var(--sy-accent); }
+.sy-retro-form { display: flex; flex-direction: column; gap: 10px; }
+.sy-retro-form-foot { display: flex; justify-content: flex-end; gap: 8px; }
+.sy-retro-recent { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--sy-line); }
+.sy-retro-recent-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: var(--sy-well); font-size: 12.5px; text-align: left; }
+.sy-retro-recent-item .badge { font: 500 10.5px/1 var(--sy-mono); padding: 3px 6px; border-radius: 5px; background: var(--sy-accent-soft); color: var(--sy-accent-ink); flex: none; }
+.sy-advice-list { display: flex; flex-direction: column; gap: 10px; }
+.sy-advice-card { padding: 12px; border-radius: 12px; background: var(--sy-well); border: 1px solid var(--sy-line); display: flex; flex-direction: column; gap: 8px; }
+.sy-advice-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13.5px; }
+.sy-advice-card p { margin: 0; font-size: 12.5px; color: var(--sy-ink2); line-height: 1.45; }
+.sy-advice-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Modals for Capture & Detail */
+.sy-capture-modal, .sy-detail-modal { width: min(640px, 100%); }
+.sy-fld-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.sy-detail-thumb, .sy-detail-preview { border-radius: 12px; overflow: hidden; max-height: 220px; background: var(--sy-well); }
+.sy-detail-thumb img, .sy-detail-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Unified classes for Stamps, Cards, Content, Schedule, and Modals */
+.sy-ministamps { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; }
+.sy-ministamps-row { display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.sy-ministamps-row::-webkit-scrollbar { display: none; }
+.sy-ministamps-more { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 10px; background: var(--sy-accent-soft); color: var(--sy-accent-ink); font: 600 11.5px/1 var(--sy-mono); white-space: nowrap; flex: none; }
+.sy-stamp { position: relative; width: 32px; height: 38px; border-radius: 7px; border: 1.5px dashed var(--sy-line2); background: var(--sy-card); display: grid; place-items: center; font: 600 12px/1 var(--sy-font); color: var(--sy-ink); overflow: hidden; flex: none; padding: 0; }
+.sy-stamp.is-blank { background: var(--sy-well); color: var(--sy-ink3); box-shadow: none; filter: none; }
+.sy-stamp.is-today { border-style: solid; border-color: var(--sy-accent); }
+.sy-stamp.has-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sy-stamp.is-type.tone-0 { background: color-mix(in srgb, var(--sy-t-task) 16%, var(--sy-card)); color: var(--sy-t-task); }
+.sy-stamp.is-type.tone-1 { background: color-mix(in srgb, var(--sy-t-subscription) 16%, var(--sy-card)); color: var(--sy-t-subscription); }
+.sy-stamp.is-type.tone-2 { background: color-mix(in srgb, var(--sy-t-bookmarks) 16%, var(--sy-card)); color: var(--sy-t-bookmarks); }
+.sy-stamp.is-type.tone-3 { background: color-mix(in srgb, var(--sy-t-project) 16%, var(--sy-card)); color: var(--sy-t-project); }
+.sy-stamp.is-type.tone-4 { background: color-mix(in srgb, var(--sy-t-habit) 16%, var(--sy-card)); color: var(--sy-t-habit); }
+.sy-stamp.is-type.tone-5 { background: color-mix(in srgb, var(--sy-t-focus) 16%, var(--sy-card)); color: var(--sy-t-focus); }
+.sy-stamp i { position: absolute; right: 2px; bottom: 2px; font: 600 9px/1 var(--sy-mono); padding: 1px 3px; border-radius: 4px; background: rgba(16,18,24,.75); color: #FFFFFF; }
+
+.sy-mcard-media, .sy-mcard-fallback { position: relative; aspect-ratio: 16 / 9; background: var(--sy-well); overflow: hidden; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--sy-ink2); }
+.sy-mcard-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sy-mcard-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sy-mcard-pill, .sy-status-pill { font: 600 11px/1.2 var(--sy-font); padding: 3px 8px; border-radius: 99px; background: var(--sy-accent-soft); color: var(--sy-accent-ink); white-space: nowrap; }
+.sy-mcard-meta-tag { font: 500 11px/1.2 var(--sy-mono); padding: 2px 6px; border-radius: 6px; background: var(--sy-well); color: var(--sy-ink2); }
+.sy-mcard-feishu { font-size: 11px; font-weight: 500; padding: 2px 6px; border-radius: 6px; background: color-mix(in srgb, var(--sy-t-bookmarks) 15%, transparent); color: var(--sy-t-bookmarks); }
+.sy-mcard-desc { font-size: 12.5px; line-height: 1.5; color: var(--sy-ink2); margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.sy-mcard-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sy-accent); flex: none; }
+.sy-mcard-dot.status-curated { background: var(--sy-ok); }
+.sy-mcard-dot.status-archived { background: var(--sy-ink3); }
+.sy-mcard-source { font-size: 11.5px; color: var(--sy-ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sy-mcard-time { font: 11px var(--sy-mono); color: var(--sy-ink3); margin-left: auto; }
+.sy-mini-act { font-size: 11.5px; padding: 3px 8px; border-radius: 7px; background: var(--sy-well); border: 1px solid var(--sy-line2); color: var(--sy-ink2); white-space: nowrap; }
+.sy-mini-act:hover { color: var(--sy-ink); border-color: var(--sy-ink3); }
+
+.sy-app-page { display: flex; flex-direction: column; gap: 14px; padding-top: 12px; }
+.sy-view-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.sy-view-title { font-size: 24px; font-weight: 600; letter-spacing: -.02em; margin: 0 0 4px; }
+.sy-view-sub { font-size: 13px; color: var(--sy-ink2); margin: 0; }
+.sy-view-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sy-search-pill { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 10px; background: var(--sy-card); border: 1px solid var(--sy-line2); color: var(--sy-ink3); }
+.sy-search-pill input { border: 0; outline: 0; background: transparent; color: var(--sy-ink); min-width: 180px; }
+.sy-filter-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sy-chip { height: 28px; padding: 0 11px; border-radius: 99px; border: 1px solid var(--sy-line2); background: var(--sy-card); font-size: 12.5px; color: var(--sy-ink2); }
+.sy-chip.is-on { background: var(--sy-ink); color: var(--sy-bg); border-color: var(--sy-ink); }
+.sy-empty-box { background: var(--sy-card); border: 1.5px dashed var(--sy-line2); border-radius: 18px; padding: 36px 20px; text-align: center; color: var(--sy-ink2); }
+.sy-kanban-board[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sy-kanban-col.is-over { border-color: var(--sy-accent); background: var(--sy-accent-soft); }
+.sy-kanban-head { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--sy-line); }
+.sy-kanban-head h3 { font-size: 13.5px; font-weight: 600; margin: 0; flex: 1; }
+.sy-kanban-list { display: flex; flex-direction: column; gap: 10px; min-height: 160px; }
+.sy-td-main { display: flex; align-items: center; gap: 10px; }
+.sy-td-Main div, .sy-td-main div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sy-td-main small { font-size: 12px; color: var(--sy-ink2); }
+.sy-td-thumb { width: 36px; height: 36px; border-radius: 8px; background: var(--sy-well); display: grid; place-items: center; overflow: hidden; flex: none; font-weight: 600; }
+.sy-td-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.sy-cal-month { display: flex; flex-direction: column; line-height: 1.15; }
+.sy-cal-month span { font: 500 11px/1 var(--sy-mono); color: var(--sy-ink3); }
+.sy-cal-month em { font-style: normal; font-size: 17px; font-weight: 600; }
+.sy-cal-stats { display: flex; align-items: center; gap: 16px; margin: 0 0 0 12px; }
+.sy-cal-stats div { display: flex; flex-direction: column; gap: 2px; }
+.sy-cal-stats dt { font-size: 11px; color: var(--sy-ink3); }
+.sy-cal-stats dd { margin: 0; font: 600 15px/1 var(--sy-mono); }
+.sy-cal-stats dd small { font-size: 11px; font-weight: 400; margin-left: 2px; color: var(--sy-ink2); }
+.sy-cal-weeks { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; text-align: center; font: 500 11.5px/1 var(--sy-mono); color: var(--sy-ink3); padding: 4px 0; }
+.sy-cal-grid.is-week .sy-cal-cell { min-height: 220px; }
+.sy-cal-cell.is-outside { opacity: .45; }
+.sy-cal-cell.is-today { border-color: color-mix(in srgb, var(--sy-accent) 55%, transparent); background: color-mix(in srgb, var(--sy-accent) 5%, var(--sy-card)); }
+.sy-cal-cell.is-selected { outline: 2px solid var(--sy-accent); outline-offset: -1px; background: var(--sy-card); }
+.sy-cal-cell.is-over { background: var(--sy-accent-soft); border-color: var(--sy-accent); }
+.sy-cal-date { font: 600 12px/1 var(--sy-mono); color: var(--sy-ink2); display: inline-flex; align-items: center; gap: 4px; }
+.sy-cal-date small { font-size: 10px; padding: 1px 4px; border-radius: 4px; background: var(--sy-accent-soft); color: var(--sy-accent-ink); }
+.sy-cal-chip.is-done { opacity: .55; text-decoration: line-through; }
+.sy-cal-chip-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sy-cal-chip-sub { font: 500 10px/1 var(--sy-mono); color: var(--sy-ink3); }
+.sy-day-agenda { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--sy-line); }
+.sy-day-agenda-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.sy-day-add-form, .sy-tray-add { display: flex; align-items: center; gap: 8px; }
+.sy-day-add-form input, .sy-tray-add input { flex: 1; min-width: 0; height: 34px; border-radius: 10px; border: 1px solid var(--sy-line2); background: var(--sy-well); padding: 0 12px; outline: 0; }
+.sy-day-agenda-list, .sy-tray-scroll { display: flex; flex-direction: column; gap: 6px; }
+.sy-agenda-item, .sy-tray-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--sy-well); border: 1px solid var(--sy-line); cursor: pointer; }
+.sy-agenda-item.is-done { opacity: .55; text-decoration: line-through; }
+.sy-agenda-main, .sy-tray-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sy-agenda-main p, .sy-tray-item-body small { margin: 0; font-size: 11.5px; color: var(--sy-ink3); }
+.sy-prio-badge { font: 500 10.5px/1 var(--sy-mono); padding: 3px 6px; border-radius: 5px; background: var(--sy-accent-soft); color: var(--sy-accent-ink); }
+.sy-prio-badge.prio-high { background: color-mix(in srgb, var(--sy-bad) 15%, transparent); color: var(--sy-bad); }
+.sy-next-top, .sy-next-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--sy-ink2); }
+.sy-tray-head h2 { font-size: 14.5px; font-weight: 600; margin: 0 0 2px; }
+.sy-drag-grip { font-family: var(--sy-mono); color: var(--sy-ink3); cursor: grab; }
+
+.sy-modal { width: min(640px, 100%); max-height: min(760px, 92vh); background: var(--sy-card); border: 1px solid var(--sy-line); border-radius: 22px; box-shadow: var(--sy-shadow-lift); display: flex; flex-direction: column; overflow: hidden; }
+.sy-modal-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px 12px; border-bottom: 1px solid var(--sy-line); }
+.sy-modal-b { padding: 16px 18px; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+.sy-modal-f { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--sy-line); }
+.sy-form-stack { display: flex; flex-direction: column; gap: 12px; }
+.sy-form-row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.sy-form-row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.sy-field { display: flex; flex-direction: column; gap: 6px; }
+.sy-field > span { font-size: 12px; font-weight: 600; color: var(--sy-ink2); }
+.sy-field input, .sy-field select, .sy-field textarea { min-height: 36px; border-radius: 10px; border: 1px solid var(--sy-line2); background: var(--sy-well); color: var(--sy-ink); padding: 6px 12px; outline: 0; }
+.sy-field textarea { resize: vertical; line-height: 1.5; }
+
+@container sy (max-width: 980px) {
+  .sy-kanban-board, .sy-kanban-board.cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sy-schedule-layout { grid-template-columns: 1fr; }
+  .sy-retro-hero, .sy-retro-trend, .sy-retro-dist, .sy-retro-reflect, .sy-retro-advice { grid-column: span 12; }
+}
+
+/* ============================================================================
    Phone overrides — LAST, on purpose.
    ============================================================================
    A container query adds no specificity, so it only wins on source order. Written above its base
@@ -616,16 +924,21 @@ window.__ModuleLoader__.load({
   }
   .sy-seg { padding: 2px; }
   .sy-seg button { padding: 6px 10px; font-size: 13px; }
-  .sy-btn-add .lbl, .sy-switch .lbl { display: none; }
-  .sy-btn-add { width: 34px; padding: 0; }
+  .sy-btn-add .lbl, .sy-btn-capture .lbl, .sy-switch .lbl { display: none; }
+  .sy-btn-add, .sy-btn-capture { width: 34px; padding: 0; }
   .sy-cmd-box kbd { display: none; }
   .sy-actions { gap: 6px; }
   .sy-cmd { flex: 1 1 100%; }
   /* A headline is a lead paragraph on a phone, not a billboard: 24px pushes the first card off
      screen and wraps to four lines. */
   .sy-headline { font-size: 20px; max-width: none; text-wrap: pretty; }
-  .sy-hero { flex-direction: column; align-items: flex-start; gap: 10px; padding-block: 14px 12px; }
+  .sy-hero { flex-direction: column; align-items: stretch; gap: 10px; padding-block: 14px 12px; }
+  .sy-hero-main, .sy-hero-aside { flex: 1 1 auto; width: 100%; }
+  .sy-hero-capture-row { flex-wrap: wrap; }
   .sy-status { font-size: 11px; padding-bottom: 0; }
+  .sy-kanban-board, .sy-kanban-board.cols-3 { grid-template-columns: 1fr; }
+  .sy-retro-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sy-fld-row { grid-template-columns: 1fr; }
 }
 /* .sy-page is the PARENT of the sy container, so a container query can never reach it — the
    first version put its padding here and nothing happened. Media queries are the right tool for
@@ -676,10 +989,10 @@ __export(index_exports, {
   default: () => index_default
 });
 module.exports = __toCommonJS(index_exports);
-var React20 = __toESM(require("react"), 1);
+var React25 = __toESM(require("react"), 1);
 
 // src/client/SooyoPanel.tsx
-var React19 = __toESM(require("react"), 1);
+var React24 = __toESM(require("react"), 1);
 
 // src/client/api/client.ts
 var API = "/sooyo";
@@ -2608,14 +2921,1921 @@ function ModalLayer({
   return null;
 }
 
+// src/client/views/Cards.tsx
+var React20 = __toESM(require("react"), 1);
+
+// src/client/views/Stamps.tsx
+var React19 = __toESM(require("react"), 1);
+var { useMemo } = React19;
+function toDayKey(input) {
+  if (!input) return "";
+  if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}/.test(input)) {
+    return input.slice(0, 10);
+  }
+  const d = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function hashCode(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+function buildDayFootprintMap(notes, tasks, readLaterEntries, retros) {
+  const map = /* @__PURE__ */ new Map();
+  const push = (day, entry) => {
+    if (!day) return;
+    const list = map.get(day) ?? [];
+    list.push(entry);
+    map.set(day, list);
+  };
+  for (const note of notes) {
+    const day = toDayKey(note.createdAt);
+    push(day, {
+      id: note.id,
+      kind: "note",
+      title: note.title || note.text.slice(0, 40),
+      thumbnail: null,
+      createdAt: note.createdAt
+    });
+  }
+  for (const [id, snap] of Object.entries(readLaterEntries ?? {})) {
+    if (!snap) continue;
+    const day = toDayKey(snap.savedAt || snap.publishedAt);
+    push(day, {
+      id,
+      kind: "collection",
+      title: snap.title,
+      thumbnail: snap.thumbnail ?? snap.cover ?? null,
+      createdAt: snap.savedAt || snap.publishedAt || ""
+    });
+  }
+  for (const task of tasks) {
+    if (task.done && (task.completedAt || task.updatedAt || task.createdAt)) {
+      const day = toDayKey(task.completedAt || task.updatedAt || task.createdAt);
+      push(day, {
+        id: task.id,
+        kind: "task",
+        title: task.title,
+        thumbnail: null,
+        createdAt: task.completedAt || task.updatedAt || task.createdAt
+      });
+    }
+  }
+  for (const retro of Object.values(retros ?? {})) {
+    if (!retro?.updatedAt) continue;
+    const day = toDayKey(retro.updatedAt);
+    push(day, {
+      id: retro.key,
+      kind: "retro",
+      title: retro.highlights || retro.nextFocus || "个人复盘",
+      thumbnail: null,
+      createdAt: retro.updatedAt
+    });
+  }
+  return map;
+}
+function computeActiveStreak(dayMap) {
+  let streak = 0;
+  const cursor = /* @__PURE__ */ new Date();
+  for (let i = 0; i < 365; i += 1) {
+    const key = toDayKey(cursor);
+    const hasActivity = (dayMap.get(key)?.length ?? 0) > 0;
+    if (hasActivity) {
+      streak += 1;
+    } else if (i > 0) {
+      break;
+    }
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+function useDayFootprintMap(notes, tasks, readLaterEntries, retros) {
+  return useMemo(
+    () => buildDayFootprintMap(notes, tasks, readLaterEntries, retros),
+    [notes, tasks, readLaterEntries, retros]
+  );
+}
+function Stamp({
+  list,
+  today,
+  label,
+  onOpen,
+  onCaptureToday
+}) {
+  if (!list || list.length === 0) {
+    return /* @__PURE__ */ React19.createElement(
+      "button",
+      {
+        type: "button",
+        className: `sy-stamp is-blank${today ? " is-today" : ""}`,
+        "aria-label": today ? "今天还没有记录，记一条" : `${label} 没有记录`,
+        title: today ? "今天还没有记录，点击记一条" : `${label} 无记录`,
+        onClick: today ? onCaptureToday : void 0,
+        disabled: !today
+      },
+      today ? /* @__PURE__ */ React19.createElement("span", null, "+") : null
+    );
+  }
+  const cover = list.find((item) => Boolean(item.thumbnail)) ?? list[0];
+  const tone = hashCode(cover.id) % 6;
+  const glyph = (cover.title || "记").replace(/^[#*\s]+/, "").slice(0, 1) || "记";
+  return /* @__PURE__ */ React19.createElement(
+    "button",
+    {
+      type: "button",
+      className: `sy-stamp ${cover.thumbnail ? "has-img" : `is-type tone-${tone}`}${today ? " is-today" : ""}`,
+      "aria-label": `${label}：${cover.title}，共 ${list.length} 条`,
+      title: `${label}：${cover.title}（共 ${list.length} 条记录）`,
+      onClick: onOpen
+    },
+    cover.thumbnail ? /* @__PURE__ */ React19.createElement("img", { src: cover.thumbnail, alt: "", loading: "lazy", draggable: false, referrerPolicy: "no-referrer" }) : /* @__PURE__ */ React19.createElement("span", null, glyph),
+    list.length > 1 ? /* @__PURE__ */ React19.createElement("i", null, list.length) : null
+  );
+}
+function MiniStamps({
+  dayMap,
+  onOpenSchedule,
+  onCaptureToday
+}) {
+  const streak = useMemo(() => computeActiveStreak(dayMap), [dayMap]);
+  const todayKey = toDayKey(/* @__PURE__ */ new Date());
+  const cells = useMemo(() => {
+    const out = [];
+    const now = /* @__PURE__ */ new Date();
+    for (let i = 9; i >= 0; i -= 1) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      out.push(d);
+    }
+    return out;
+  }, []);
+  return /* @__PURE__ */ React19.createElement("div", { className: "sy-ministamps", "aria-label": `最近 10 天活动邮票，已连续记录 ${streak} 天` }, /* @__PURE__ */ React19.createElement("div", { className: "sy-ministamps-row" }, cells.map((d) => {
+    const key = toDayKey(d);
+    const list = dayMap.get(key);
+    const label = `${d.getMonth() + 1}月${d.getDate()}日`;
+    return /* @__PURE__ */ React19.createElement(
+      Stamp,
+      {
+        key,
+        list,
+        today: key === todayKey,
+        label,
+        onCaptureToday,
+        onOpen: () => onOpenSchedule(key)
+      }
+    );
+  })), /* @__PURE__ */ React19.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-ministamps-more",
+      onClick: () => onOpenSchedule(todayKey),
+      title: `打开排期日历（已连续记录 ${streak} 天）`,
+      "aria-label": `打开排期日历，已连续记录 ${streak} 天`
+    },
+    /* @__PURE__ */ React19.createElement("span", null, streak, "天"),
+    /* @__PURE__ */ React19.createElement("span", { "aria-hidden": "true" }, "↗")
+  ));
+}
+
+// src/client/views/Cards.tsx
+var { useState: useState4, useEffect: useEffect2 } = React20;
+var KIND_FILTER_OPTIONS = [
+  { value: "all", label: "全部" },
+  { value: "note", label: "速记备忘" },
+  { value: "github", label: "GitHub" },
+  { value: "x", label: "X 收藏" },
+  { value: "web", label: "网站" },
+  { value: "image", label: "图片" },
+  { value: "music", label: "音乐" },
+  { value: "video", label: "视频" }
+];
+var KIND_BADGE_LABELS = {
+  note: "速记备忘",
+  github: "GitHub",
+  x: "X 收藏",
+  web: "网站",
+  image: "图片",
+  music: "音乐",
+  video: "视频",
+  article: "精选资讯"
+};
+var STATUS_OPTIONS = [
+  { value: "inbox", label: "待看 / 未整理" },
+  { value: "curated", label: "精选常看" },
+  { value: "archived", label: "已归档" }
+];
+function detectKindFromUrl(url, fallback = "web") {
+  const u = String(url ?? "").trim();
+  if (!u) return fallback;
+  if (/github\.com\//i.test(u)) return "github";
+  if (/(^|\/\/|\.)(x\.com|twitter\.com)\//i.test(u)) return "x";
+  if (/\.(png|jpe?g|webp|gif|avif|svg)(\?|$)/i.test(u)) return "image";
+  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(u) || /(youtube\.com|youtu\.be|bilibili\.com|b23\.tv|vimeo\.com)/i.test(u)) return "video";
+  if (/\.(mp3|flac|wav|ogg|m4a)(\?|$)/i.test(u) || /(music\.163\.com|y\.qq\.com|spotify\.com|music\.apple\.com|soundcloud\.com)/i.test(u)) return "music";
+  return fallback;
+}
+function hostOfUrl(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+function relativeTimeShort(iso) {
+  if (!iso) return "";
+  const ts = Date.parse(iso);
+  if (Number.isNaN(ts)) return "";
+  const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1e3));
+  if (diffSec < 60) return "刚刚";
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}分钟前`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}小时前`;
+  const days = Math.floor(diffSec / 86400);
+  if (days < 30) return `${days}天前`;
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+function buildUnifiedEntries(notes, readLaterEntries, bookmarks, feedItems, includeFeed = true) {
+  const list = [];
+  const seenUrls = /* @__PURE__ */ new Set();
+  for (const note of notes) {
+    const firstLine = (note.title || note.text.split(/[。！？\n]/)[0] || note.text).slice(0, 64);
+    const restBody = note.title ? note.text : note.text.length > firstLine.length ? note.text : "";
+    list.push({
+      id: `note:${note.id}`,
+      entryType: "note",
+      kind: "note",
+      status: note.status || "inbox",
+      title: firstLine || "速记",
+      body: restBody,
+      url: note.origin?.url ?? "",
+      externalUrl: note.externalUrl ?? null,
+      thumbnail: null,
+      sourceLabel: note.origin?.source ?? note.origin?.title ?? "灵感速记",
+      tags: Array.isArray(note.tags) ? note.tags : [],
+      meta: null,
+      createdAt: note.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
+      rawNote: note
+    });
+  }
+  for (const [id, snap] of Object.entries(readLaterEntries ?? {})) {
+    if (!snap || typeof snap !== "object") continue;
+    const k = snap.kind || detectKindFromUrl(snap.url || "", "article");
+    if (snap.url) seenUrls.add(snap.url);
+    list.push({
+      id: `col:${id}`,
+      entryType: "collection",
+      kind: k,
+      status: snap.status || "inbox",
+      title: snap.title || "(未命名收藏)",
+      body: snap.summary || snap.tldr || snap.reason || "",
+      url: snap.url || "",
+      externalUrl: snap.externalUrl ?? null,
+      thumbnail: snap.thumbnail ?? snap.cover ?? null,
+      sourceLabel: snap.sourceLabel || snap.origin || hostOfUrl(snap.url || "") || KIND_BADGE_LABELS[k] || "收藏",
+      tags: Array.isArray(snap.tags) ? snap.tags : [],
+      meta: snap.meta ?? snap.metrics ?? null,
+      createdAt: snap.savedAt || snap.publishedAt || (/* @__PURE__ */ new Date()).toISOString(),
+      rawCollection: { ...snap, id }
+    });
+  }
+  for (let i = 0; i < bookmarks.length; i += 1) {
+    const bm = bookmarks[i];
+    if (!bm?.url || seenUrls.has(bm.url)) continue;
+    seenUrls.add(bm.url);
+    const k = detectKindFromUrl(bm.url, "web");
+    list.push({
+      id: `bm:${i}-${bm.name}`,
+      entryType: "collection",
+      kind: k,
+      status: "curated",
+      title: bm.name,
+      body: hostOfUrl(bm.url),
+      url: bm.url,
+      externalUrl: null,
+      thumbnail: null,
+      sourceLabel: hostOfUrl(bm.url) || "常用网站",
+      tags: ["常用书签"],
+      meta: null,
+      createdAt: "",
+      rawCollection: {
+        id: `bm-${i}`,
+        title: bm.name,
+        url: bm.url,
+        kind: k,
+        status: "curated",
+        sourceLabel: hostOfUrl(bm.url) || "网站"
+      }
+    });
+  }
+  if (includeFeed) {
+    for (const item of feedItems.slice(0, 18)) {
+      if (item.url && seenUrls.has(item.url)) continue;
+      const k = item.sourceId === "youtube" || item.kind === "episode" || item.kind === "short" ? "video" : "article";
+      list.push({
+        id: `feed:${item.id}`,
+        entryType: "feed",
+        kind: k,
+        status: "inbox",
+        title: item.title,
+        body: item.tldr || item.summary || item.reason || "",
+        url: item.url,
+        externalUrl: null,
+        thumbnail: item.thumbnail ?? item.cover ?? null,
+        sourceLabel: item.sourceLabel || item.origin || "订阅源",
+        tags: item.tags ?? item.keywords ?? [],
+        meta: item.metrics ?? null,
+        createdAt: item.publishedAt || "",
+        rawFeed: item
+      });
+    }
+  }
+  return list;
+}
+function MediaCollectionCard({
+  entry,
+  relatedHighlight,
+  draggable,
+  onDragStart,
+  onOpen,
+  onQuickSaveFeed,
+  onQuickTask
+}) {
+  const [imgBroken, setImgBroken] = useState4(false);
+  const showMedia = Boolean(entry.thumbnail) && !imgBroken;
+  const tone = hashCode(entry.id) % 6;
+  const stars = entry.meta?.stars ?? entry.meta?.upvotes ?? null;
+  const language = entry.meta?.language ?? null;
+  const author = entry.meta?.author ?? entry.meta?.artist ?? null;
+  const duration = entry.meta?.duration ?? null;
+  return /* @__PURE__ */ React20.createElement(
+    "article",
+    {
+      className: `sy-mcard kind-${entry.kind} status-${entry.status}${relatedHighlight ? " is-related" : ""}`,
+      "data-card-id": entry.id,
+      draggable,
+      onDragStart: (e) => onDragStart?.(e, entry),
+      onClick: () => onOpen(entry),
+      tabIndex: 0,
+      role: "button",
+      "aria-label": `${KIND_BADGE_LABELS[entry.kind] ?? entry.kind}：${entry.title}`,
+      onKeyDown: (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(entry);
+        }
+      }
+    },
+    showMedia ? /* @__PURE__ */ React20.createElement("div", { className: "sy-mcard-media" }, /* @__PURE__ */ React20.createElement(
+      "img",
+      {
+        src: entry.thumbnail,
+        alt: "",
+        loading: "lazy",
+        draggable: false,
+        referrerPolicy: "no-referrer",
+        onError: () => setImgBroken(true)
+      }
+    ), entry.kind === "video" ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-badge" }, "▶ ", duration || "视频") : null, entry.kind === "music" ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-badge" }, "♪ ", duration || "音乐") : null, entry.kind === "image" ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-badge" }, "图片") : null) : entry.kind === "music" || entry.kind === "image" || entry.kind === "video" ? /* @__PURE__ */ React20.createElement("div", { className: `sy-mcard-fallback tone-${tone}` }, /* @__PURE__ */ React20.createElement("span", null, entry.kind === "music" ? "♪" : entry.kind === "video" ? "▶" : "▨"), /* @__PURE__ */ React20.createElement("small", null, KIND_BADGE_LABELS[entry.kind])) : null,
+    /* @__PURE__ */ React20.createElement("div", { className: "sy-mcard-body" }, /* @__PURE__ */ React20.createElement("div", { className: "sy-mcard-top" }, /* @__PURE__ */ React20.createElement("span", { className: `sy-mcard-pill kind-${entry.kind}` }, KIND_BADGE_LABELS[entry.kind] ?? entry.kind), language ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-meta-tag" }, language) : null, stars !== null && stars !== void 0 ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-meta-tag" }, "★ ", stars) : null, author ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-meta-tag" }, "@", String(author).replace(/^@/, "")) : null, entry.externalUrl ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-feishu", title: "已关联外部文档（如飞书）" }, "飞书/外链 ↗") : null), /* @__PURE__ */ React20.createElement("h3", { className: "sy-mcard-title" }, entry.title), entry.body ? /* @__PURE__ */ React20.createElement("p", { className: "sy-mcard-desc" }, entry.body) : null, entry.tags.length > 0 ? /* @__PURE__ */ React20.createElement("div", { className: "sy-mcard-tags" }, entry.tags.slice(0, 4).map((tag) => /* @__PURE__ */ React20.createElement("span", { key: tag, className: "sy-mcard-tag" }, "#", tag.replace(/^#/, "")))) : null),
+    /* @__PURE__ */ React20.createElement("footer", { className: "sy-mcard-foot", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React20.createElement("span", { className: `sy-mcard-dot status-${entry.status}` }), /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-source" }, entry.sourceLabel), /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-time" }, relativeTimeShort(entry.createdAt)), /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-acts" }, entry.entryType === "feed" && onQuickSaveFeed ? /* @__PURE__ */ React20.createElement(
+      "button",
+      {
+        type: "button",
+        className: "sy-mini-act",
+        title: "收入个人收藏库",
+        onClick: () => onQuickSaveFeed(entry)
+      },
+      "+收藏"
+    ) : null, onQuickTask ? /* @__PURE__ */ React20.createElement(
+      "button",
+      {
+        type: "button",
+        className: "sy-mini-act",
+        title: "转为排期任务",
+        onClick: () => onQuickTask(entry)
+      },
+      "+待办"
+    ) : null, entry.url ? /* @__PURE__ */ React20.createElement(
+      "a",
+      {
+        className: "sy-mini-act",
+        href: safeUrl(entry.url),
+        target: "_blank",
+        rel: "noopener noreferrer",
+        title: "打开原链接"
+      },
+      "↗"
+    ) : null))
+  );
+}
+function CaptureModal({
+  initialTab = "note",
+  onClose,
+  onRun
+}) {
+  const [tab, setTab] = useState4(initialTab);
+  const [text, setText] = useState4("");
+  const [title, setTitle] = useState4("");
+  const [url, setUrl] = useState4("");
+  const [externalUrl, setExternalUrl] = useState4("");
+  const [thumbnail, setThumbnail] = useState4("");
+  const [kind, setKind] = useState4("github");
+  const [tagsText, setTagsText] = useState4("");
+  const [due, setDue] = useState4("");
+  const [priority, setPriority] = useState4("medium");
+  const [project, setProject] = useState4("");
+  const [metaExtra, setMetaExtra] = useState4("");
+  const [batchJson, setBatchJson] = useState4("");
+  const [busy, setBusy] = useState4(false);
+  useEffect2(() => {
+    if (url.trim()) {
+      setKind(detectKindFromUrl(url.trim(), kind));
+    }
+  }, [url]);
+  const parseTags = (raw) => raw.split(/[,，、\s#]+/).map((s) => s.trim()).filter(Boolean).slice(0, 10);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      if (tab === "note") {
+        if (!text.trim()) return;
+        await onRun(
+          "note.add",
+          {
+            title: title.trim() || void 0,
+            text: text.trim(),
+            tags: parseTags(tagsText),
+            externalUrl: externalUrl.trim() || null
+          },
+          { toast: "已记下灵感/备忘" }
+        );
+        onClose();
+      } else if (tab === "task") {
+        if (!title.trim()) return;
+        await onRun(
+          "task.add",
+          {
+            title: title.trim(),
+            due: due || null,
+            priority,
+            project: project.trim() || null,
+            note: text.trim() || void 0
+          },
+          { toast: due ? `已新建并排期至 ${due}` : "已新建到待排期收件箱" }
+        );
+        onClose();
+      } else if (tab === "collection") {
+        if (!title.trim() && !url.trim()) return;
+        const meta = {};
+        if (metaExtra.trim()) {
+          if (kind === "github") meta.language = metaExtra.trim();
+          else if (kind === "x") meta.author = metaExtra.trim();
+          else if (kind === "music" || kind === "video") meta.duration = metaExtra.trim();
+        }
+        await onRun(
+          "collection.save",
+          {
+            kind,
+            title: title.trim() || url.trim(),
+            url: url.trim() || void 0,
+            thumbnail: thumbnail.trim() || void 0,
+            summary: text.trim(),
+            externalUrl: externalUrl.trim() || void 0,
+            tags: parseTags(tagsText),
+            meta: Object.keys(meta).length > 0 ? meta : void 0
+          },
+          { toast: `已存入「${KIND_BADGE_LABELS[kind]}」收藏库` }
+        );
+        onClose();
+      } else if (tab === "batch") {
+        if (!batchJson.trim()) return;
+        let items = [];
+        try {
+          const parsed = JSON.parse(batchJson.trim());
+          items = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.items) ? parsed.items : [parsed];
+        } catch {
+          items = batchJson.trim().split(/\r?\n/).map((line) => {
+            const [k, t, u, thumb, sum] = line.split(/[,，\t]/).map((c) => c.trim());
+            if (!t && !u) return null;
+            return {
+              kind: detectKindFromUrl(u || "", k || "web"),
+              title: t || u,
+              url: u || "",
+              thumbnail: thumb || void 0,
+              summary: sum || ""
+            };
+          }).filter(Boolean);
+        }
+        if (items.length > 0) {
+          await onRun("collection.save", { items }, { toast: `已批量导入 ${items.length} 条收藏元信息` });
+          onClose();
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  return /* @__PURE__ */ React20.createElement("div", { className: "sy-scrim", "data-act": "scrim", onClick: (e) => {
+    if (e.target === e.currentTarget) onClose();
+  } }, /* @__PURE__ */ React20.createElement("div", { className: "sy-modal sy-capture-modal", role: "dialog", "aria-label": "快速记录与收藏入库" }, /* @__PURE__ */ React20.createElement("div", { className: "sy-modal-h" }, /* @__PURE__ */ React20.createElement("div", null, /* @__PURE__ */ React20.createElement("b", null, "快速记录 · 收藏入库"), /* @__PURE__ */ React20.createElement("div", { className: "meta" }, "只存轻量备忘与多媒介元信息（缩略图、标题、说明、外链），长文可关联飞书文档")), /* @__PURE__ */ React20.createElement("button", { type: "button", className: "sy-icon-btn", onClick: onClose, "aria-label": "关闭" }, "✕")), /* @__PURE__ */ React20.createElement("div", { className: "sy-capture-tabs", role: "tablist" }, [
+    ["note", "速记 / 灵感"],
+    ["collection", "偏好收藏 (GitHub/X/图音视)"],
+    ["task", "排期任务 (Todo)"],
+    ["batch", "批量导入 (JSON/CSV)"]
+  ].map(([id, label]) => /* @__PURE__ */ React20.createElement(
+    "button",
+    {
+      key: id,
+      type: "button",
+      role: "tab",
+      "aria-selected": tab === id,
+      className: tab === id ? "is-on" : "",
+      onClick: () => setTab(id)
+    },
+    label
+  ))), /* @__PURE__ */ React20.createElement("form", { className: "sy-modal-b sy-form-stack", onSubmit: handleSubmit }, tab === "note" ? /* @__PURE__ */ React20.createElement(React20.Fragment, null, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "备忘 / 灵感闪念 *"), /* @__PURE__ */ React20.createElement(
+    "textarea",
+    {
+      rows: 3,
+      required: true,
+      value: text,
+      onChange: (e) => setText(e.target.value),
+      placeholder: "随手记下一句话、一个灵感或备忘要点……"
+    }
+  )), /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "短标题（可选）"), /* @__PURE__ */ React20.createElement("input", { value: title, onChange: (e) => setTitle(e.target.value), placeholder: "默认取第一句" })), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "标签（逗号或空格分隔）"), /* @__PURE__ */ React20.createElement("input", { value: tagsText, onChange: (e) => setTagsText(e.target.value), placeholder: "如：灵感, 架构, 生活" }))), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "关联飞书 / 外部深度文档链接（可选）"), /* @__PURE__ */ React20.createElement(
+    "input",
+    {
+      type: "url",
+      value: externalUrl,
+      onChange: (e) => setExternalUrl(e.target.value),
+      placeholder: "https://xxx.feishu.cn/docx/..."
+    }
+  ))) : null, tab === "collection" ? /* @__PURE__ */ React20.createElement(React20.Fragment, null, /* @__PURE__ */ React20.createElement("div", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "收藏类别"), /* @__PURE__ */ React20.createElement("div", { className: "sy-kind-pills" }, ["github", "x", "web", "image", "music", "video"].map((k) => /* @__PURE__ */ React20.createElement(
+    "button",
+    {
+      type: "button",
+      key: k,
+      className: kind === k ? "is-on" : "",
+      onClick: () => setKind(k)
+    },
+    KIND_BADGE_LABELS[k]
+  )))), /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "标题 / 名称 *"), /* @__PURE__ */ React20.createElement(
+    "input",
+    {
+      required: true,
+      value: title,
+      onChange: (e) => setTitle(e.target.value),
+      placeholder: kind === "github" ? "owner/repo 仓库名或简介" : "收藏标题"
+    }
+  )), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "原始链接 URL"), /* @__PURE__ */ React20.createElement(
+    "input",
+    {
+      type: "url",
+      value: url,
+      onChange: (e) => setUrl(e.target.value),
+      placeholder: "https://..."
+    }
+  ))), /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "缩略图 / 封面图 URL（仅存元信息）"), /* @__PURE__ */ React20.createElement(
+    "input",
+    {
+      type: "url",
+      value: thumbnail,
+      onChange: (e) => setThumbnail(e.target.value),
+      placeholder: "https://.../cover.webp"
+    }
+  )), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, kind === "github" ? "主要语言 (如 TypeScript)" : kind === "x" ? "作者 (@handle)" : "时长 / 创作者"), /* @__PURE__ */ React20.createElement(
+    "input",
+    {
+      value: metaExtra,
+      onChange: (e) => setMetaExtra(e.target.value),
+      placeholder: kind === "github" ? "Rust / TypeScript" : kind === "x" ? "@karpathy" : "04:32"
+    }
+  ))), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "说明信息 / 为什么收藏"), /* @__PURE__ */ React20.createElement(
+    "textarea",
+    {
+      rows: 2,
+      value: text,
+      onChange: (e) => setText(e.target.value),
+      placeholder: "记录一句你的评价、用途或关键信息……"
+    }
+  )), /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "标签"), /* @__PURE__ */ React20.createElement("input", { value: tagsText, onChange: (e) => setTagsText(e.target.value), placeholder: "Agent, UI, 必看" })), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "关联飞书笔记链接（可选）"), /* @__PURE__ */ React20.createElement(
+    "input",
+    {
+      type: "url",
+      value: externalUrl,
+      onChange: (e) => setExternalUrl(e.target.value),
+      placeholder: "https://xxx.feishu.cn/..."
+    }
+  )))) : null, tab === "task" ? /* @__PURE__ */ React20.createElement(React20.Fragment, null, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "待办事项标题 *"), /* @__PURE__ */ React20.createElement(
+    "input",
+    {
+      required: true,
+      value: title,
+      onChange: (e) => setTitle(e.target.value),
+      placeholder: "要做什么事？"
+    }
+  )), /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row3" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "排期日期（留空进待排期 Inbox）"), /* @__PURE__ */ React20.createElement("input", { type: "date", value: due, onChange: (e) => setDue(e.target.value) })), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "优先级"), /* @__PURE__ */ React20.createElement("select", { value: priority, onChange: (e) => setPriority(e.target.value) }, /* @__PURE__ */ React20.createElement("option", { value: "high" }, "高优先级 (High)"), /* @__PURE__ */ React20.createElement("option", { value: "medium" }, "中优先级 (Medium)"), /* @__PURE__ */ React20.createElement("option", { value: "low" }, "低优先级 (Low)"))), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "所属项目 (Project)"), /* @__PURE__ */ React20.createElement("input", { value: project, onChange: (e) => setProject(e.target.value), placeholder: "如：核心研发" }))), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "任务备注说明"), /* @__PURE__ */ React20.createElement("textarea", { rows: 2, value: text, onChange: (e) => setText(e.target.value), placeholder: "补充上下文或验收标准……" }))) : null, tab === "batch" ? /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "粘贴 JSON 数组，或每行一条 CSV（格式：类型,标题,链接,缩略图URL,说明）"), /* @__PURE__ */ React20.createElement(
+    "textarea",
+    {
+      rows: 6,
+      required: true,
+      value: batchJson,
+      onChange: (e) => setBatchJson(e.target.value),
+      placeholder: `[
+  { "kind": "github", "title": "deepseek-ai/DeepSeek-V3", "url": "https://github.com/deepseek-ai/DeepSeek-V3", "summary": "MLA 与 MoE 架构参考", "tags": ["LLM", "Star"] },
+  { "kind": "video", "title": "Bento UI 设计拆解", "url": "https://www.bilibili.com/video/BV1xx", "thumbnail": "https://example.com/cover.jpg", "summary": "卡片排版参考" }
+]`
+    }
+  )) : null, /* @__PURE__ */ React20.createElement("div", { className: "sy-modal-f" }, /* @__PURE__ */ React20.createElement("span", { className: "grow" }), /* @__PURE__ */ React20.createElement("button", { type: "button", className: "sy-btn", onClick: onClose }, "取消"), /* @__PURE__ */ React20.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink", disabled: busy }, busy ? "保存中…" : "保存入库")))));
+}
+function EntryDetailModal({
+  entry,
+  onClose,
+  onRun
+}) {
+  const [title, setTitle] = useState4(entry.title);
+  const [body, setBody] = useState4(entry.body || (entry.rawNote?.text ?? ""));
+  const [thumbnail, setThumbnail] = useState4(entry.thumbnail ?? "");
+  const [externalUrl, setExternalUrl] = useState4(entry.externalUrl ?? "");
+  const [status, setStatus] = useState4(entry.status || "inbox");
+  const [tagsText, setTagsText] = useState4(entry.tags.join(", "));
+  const [kind, setKind] = useState4(entry.kind === "note" ? "web" : entry.kind);
+  const handleSave = async (e) => {
+    e.preventDefault();
+    const tags = tagsText.split(/[,，、\s#]+/).map((s) => s.trim()).filter(Boolean).slice(0, 12);
+    if (entry.entryType === "note" && entry.rawNote) {
+      await onRun(
+        "note.update",
+        {
+          id: entry.rawNote.id,
+          title: title.trim() || null,
+          text: body.trim() || title.trim(),
+          status,
+          tags,
+          externalUrl: externalUrl.trim() || null
+        },
+        { toast: "已更新速记备忘" }
+      );
+    } else {
+      const colId = entry.rawCollection?.id || entry.rawFeed?.id;
+      await onRun(
+        "collection.save",
+        {
+          id: colId,
+          kind,
+          status,
+          title: title.trim(),
+          url: entry.url || void 0,
+          thumbnail: thumbnail.trim() || void 0,
+          summary: body.trim(),
+          externalUrl: externalUrl.trim() || void 0,
+          tags,
+          meta: entry.meta ?? void 0
+        },
+        { toast: "已保存收藏元信息" }
+      );
+    }
+    onClose();
+  };
+  const handleDelete = async () => {
+    if (entry.entryType === "note" && entry.rawNote) {
+      await onRun("note.remove", { id: entry.rawNote.id }, { toast: "已删除速记" });
+    } else if (entry.rawCollection?.id) {
+      await onRun("collection.remove", { id: entry.rawCollection.id }, { toast: "已移除收藏" });
+    }
+    onClose();
+  };
+  const handleToTask = async () => {
+    await onRun(
+      "task.add",
+      {
+        title: title.trim().slice(0, 120),
+        note: body.trim().slice(0, 500) || void 0,
+        origin: {
+          title: title.trim(),
+          url: entry.url || entry.externalUrl || void 0,
+          source: entry.sourceLabel
+        }
+      },
+      { toast: "已转为待排期任务（Inbox）" }
+    );
+    onClose();
+  };
+  return /* @__PURE__ */ React20.createElement("div", { className: "sy-scrim", "data-act": "scrim", onClick: (e) => {
+    if (e.target === e.currentTarget) onClose();
+  } }, /* @__PURE__ */ React20.createElement("div", { className: "sy-modal sy-capture-modal", role: "dialog", "aria-label": "条目元信息详情" }, /* @__PURE__ */ React20.createElement("div", { className: "sy-modal-h" }, /* @__PURE__ */ React20.createElement("div", null, /* @__PURE__ */ React20.createElement("b", null, KIND_BADGE_LABELS[entry.kind] ?? "元信息", " · 详情与整理"), /* @__PURE__ */ React20.createElement("div", { className: "meta" }, entry.sourceLabel, " ", entry.createdAt ? `· ${relativeTimeShort(entry.createdAt)}` : "")), /* @__PURE__ */ React20.createElement("button", { type: "button", className: "sy-icon-btn", onClick: onClose, "aria-label": "关闭" }, "✕")), /* @__PURE__ */ React20.createElement("form", { className: "sy-modal-b sy-form-stack", onSubmit: handleSave }, thumbnail ? /* @__PURE__ */ React20.createElement("div", { className: "sy-detail-preview" }, /* @__PURE__ */ React20.createElement("img", { src: thumbnail, alt: "", referrerPolicy: "no-referrer" })) : null, /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "标题"), /* @__PURE__ */ React20.createElement("input", { value: title, onChange: (e) => setTitle(e.target.value), required: true })), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "整理状态"), /* @__PURE__ */ React20.createElement("select", { value: status, onChange: (e) => setStatus(e.target.value) }, STATUS_OPTIONS.map((opt) => /* @__PURE__ */ React20.createElement("option", { key: opt.value, value: opt.value }, opt.label))))), entry.entryType !== "note" ? /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "媒介类型"), /* @__PURE__ */ React20.createElement("select", { value: kind, onChange: (e) => setKind(e.target.value) }, ["github", "x", "web", "image", "music", "video", "article"].map((k) => /* @__PURE__ */ React20.createElement("option", { key: k, value: k }, KIND_BADGE_LABELS[k])))), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "缩略图 URL"), /* @__PURE__ */ React20.createElement(
+    "input",
+    {
+      type: "url",
+      value: thumbnail,
+      onChange: (e) => setThumbnail(e.target.value),
+      placeholder: "https://..."
+    }
+  ))) : null, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, entry.entryType === "note" ? "速记内容" : "说明信息 / 摘要备注"), /* @__PURE__ */ React20.createElement("textarea", { rows: 3, value: body, onChange: (e) => setBody(e.target.value) })), /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "标签（逗号分隔）"), /* @__PURE__ */ React20.createElement("input", { value: tagsText, onChange: (e) => setTagsText(e.target.value) })), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "关联飞书 / 深度笔记链接"), /* @__PURE__ */ React20.createElement(
+    "input",
+    {
+      type: "url",
+      value: externalUrl,
+      onChange: (e) => setExternalUrl(e.target.value),
+      placeholder: "https://xxx.feishu.cn/..."
+    }
+  ))), /* @__PURE__ */ React20.createElement("div", { className: "sy-modal-f" }, entry.entryType !== "feed" ? /* @__PURE__ */ React20.createElement("button", { type: "button", className: "sy-btn", onClick: handleDelete }, "删除") : null, /* @__PURE__ */ React20.createElement("button", { type: "button", className: "sy-btn", onClick: handleToTask }, "转为排期任务"), entry.url ? /* @__PURE__ */ React20.createElement(
+    "a",
+    {
+      className: "sy-btn",
+      href: safeUrl(entry.url),
+      target: "_blank",
+      rel: "noopener noreferrer"
+    },
+    "打开原链接 ↗"
+  ) : null, externalUrl ? /* @__PURE__ */ React20.createElement(
+    "a",
+    {
+      className: "sy-btn",
+      href: safeUrl(externalUrl),
+      target: "_blank",
+      rel: "noopener noreferrer"
+    },
+    "打开飞书文档 ↗"
+  ) : null, /* @__PURE__ */ React20.createElement("span", { className: "grow" }), /* @__PURE__ */ React20.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink" }, "保存修改")))));
+}
+
+// src/client/views/ContentView.tsx
+var React21 = __toESM(require("react"), 1);
+var { useState: useState5, useMemo: useMemo2 } = React21;
+function ContentView({
+  notes,
+  readLaterEntries,
+  bookmarks,
+  feedItems,
+  onOpenEntry,
+  onOpenCapture,
+  onRun
+}) {
+  const [mode, setMode] = useState5("board");
+  const [boardGroup, setBoardGroup] = useState5("kind");
+  const [kindFilter, setKindFilter] = useState5("all");
+  const [search, setSearch] = useState5("");
+  const [dragOverCol, setDragOverCol] = useState5(null);
+  const [sort, setSort] = useState5({
+    key: "createdAt",
+    dir: -1
+  });
+  const allEntries = useMemo2(
+    () => buildUnifiedEntries(notes, readLaterEntries, bookmarks, feedItems, false),
+    [notes, readLaterEntries, bookmarks, feedItems]
+  );
+  const filtered = useMemo2(() => {
+    const q = search.trim().toLowerCase();
+    return allEntries.filter((entry) => {
+      if (kindFilter !== "all" && entry.kind !== kindFilter) return false;
+      if (!q) return true;
+      return [
+        entry.title,
+        entry.body,
+        entry.sourceLabel,
+        KIND_BADGE_LABELS[entry.kind],
+        ...entry.tags,
+        entry.meta?.language,
+        entry.meta?.author
+      ].some((v) => String(v ?? "").toLowerCase().includes(q));
+    });
+  }, [allEntries, kindFilter, search]);
+  const noteCount = allEntries.filter((e) => e.entryType === "note").length;
+  const colCount = allEntries.filter((e) => e.entryType === "collection").length;
+  const curatedCount = allEntries.filter((e) => e.status === "curated").length;
+  const handleDragStart = (event, entry) => {
+    event.dataTransfer.setData("text/sooyo-entry-id", entry.id);
+    event.dataTransfer.effectAllowed = "move";
+  };
+  const handleDropStatus = async (status, event) => {
+    event.preventDefault();
+    setDragOverCol(null);
+    const id = event.dataTransfer.getData("text/sooyo-entry-id");
+    const entry = allEntries.find((e) => e.id === id);
+    if (!entry || entry.status === status) return;
+    if (entry.entryType === "note" && entry.rawNote) {
+      await onRun("note.update", { id: entry.rawNote.id, status }, { toast: `已移至「${STATUS_OPTIONS.find((s) => s.value === status)?.label}」` });
+    } else if (entry.rawCollection?.id) {
+      await onRun(
+        "collection.save",
+        {
+          ...entry.rawCollection,
+          id: entry.rawCollection.id,
+          status
+        },
+        { toast: `已移至「${STATUS_OPTIONS.find((s) => s.value === status)?.label}」` }
+      );
+    }
+  };
+  const handleQuickTask = (entry) => {
+    void onRun(
+      "task.add",
+      {
+        title: entry.title.slice(0, 120),
+        origin: { title: entry.title, url: entry.url || void 0, source: entry.sourceLabel }
+      },
+      { toast: "已加入待排期收件箱（Inbox）" }
+    );
+  };
+  const kindColumns = [
+    {
+      id: "memo",
+      title: "速记与灵感备忘",
+      dot: "note",
+      rows: filtered.filter((e) => e.kind === "note")
+    },
+    {
+      id: "code-social",
+      title: "GitHub Stars & X 收藏",
+      dot: "github",
+      rows: filtered.filter((e) => e.kind === "github" || e.kind === "x")
+    },
+    {
+      id: "web-article",
+      title: "收藏网站与文章",
+      dot: "web",
+      rows: filtered.filter((e) => e.kind === "web" || e.kind === "article")
+    },
+    {
+      id: "media",
+      title: "图片 · 音乐 · 视频元信息",
+      dot: "media",
+      rows: filtered.filter((e) => e.kind === "image" || e.kind === "music" || e.kind === "video")
+    }
+  ];
+  const sortedTable = useMemo2(() => {
+    return [...filtered].sort((a, b) => {
+      const av = String(a[sort.key] ?? "");
+      const bv = String(b[sort.key] ?? "");
+      return av.localeCompare(bv) * sort.dir;
+    });
+  }, [filtered, sort]);
+  return /* @__PURE__ */ React21.createElement("div", { className: "sy-app-page", "data-view": "content" }, /* @__PURE__ */ React21.createElement("header", { className: "sy-view-head" }, /* @__PURE__ */ React21.createElement("div", null, /* @__PURE__ */ React21.createElement("h1", { className: "sy-view-title" }, "内容 · 收藏与速记库"), /* @__PURE__ */ React21.createElement("p", { className: "sy-view-sub" }, `共 ${allEntries.length} 条记录 · ${noteCount} 条速记备忘 · ${colCount} 条多媒介收藏 · ${curatedCount} 条精选常看`)), /* @__PURE__ */ React21.createElement("div", { className: "sy-view-controls" }, /* @__PURE__ */ React21.createElement("label", { className: "sy-search-pill" }, /* @__PURE__ */ React21.createElement("span", null, "⌕"), /* @__PURE__ */ React21.createElement(
+    "input",
+    {
+      value: search,
+      onChange: (e) => setSearch(e.target.value),
+      placeholder: "搜索标题、说明、标签、GitHub/X…",
+      "aria-label": "搜索内容"
+    }
+  )), /* @__PURE__ */ React21.createElement("div", { className: "sy-seg" }, /* @__PURE__ */ React21.createElement(
+    "button",
+    {
+      type: "button",
+      "aria-pressed": mode === "board",
+      onClick: () => setMode("board")
+    },
+    "看板"
+  ), /* @__PURE__ */ React21.createElement(
+    "button",
+    {
+      type: "button",
+      "aria-pressed": mode === "table",
+      onClick: () => setMode("table")
+    },
+    "表格"
+  )), mode === "board" ? /* @__PURE__ */ React21.createElement("div", { className: "sy-seg" }, /* @__PURE__ */ React21.createElement(
+    "button",
+    {
+      type: "button",
+      "aria-pressed": boardGroup === "kind",
+      onClick: () => setBoardGroup("kind")
+    },
+    "按媒介"
+  ), /* @__PURE__ */ React21.createElement(
+    "button",
+    {
+      type: "button",
+      "aria-pressed": boardGroup === "status",
+      onClick: () => setBoardGroup("status")
+    },
+    "按状态"
+  )) : null, /* @__PURE__ */ React21.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-btn",
+      onClick: () => onOpenCapture("batch")
+    },
+    "批量导入"
+  ), /* @__PURE__ */ React21.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-btn sy-btn-ink",
+      onClick: () => onOpenCapture("collection")
+    },
+    "+ 录入收藏 / 速记"
+  ))), /* @__PURE__ */ React21.createElement("div", { className: "sy-filter-bar", role: "toolbar", "aria-label": "按媒介类型筛选" }, KIND_FILTER_OPTIONS.map((opt) => /* @__PURE__ */ React21.createElement(
+    "button",
+    {
+      type: "button",
+      key: opt.value,
+      className: `sy-chip${kindFilter === opt.value ? " is-on" : ""}`,
+      onClick: () => setKindFilter(opt.value)
+    },
+    opt.label
+  ))), filtered.length === 0 ? /* @__PURE__ */ React21.createElement("div", { className: "sy-empty-box" }, /* @__PURE__ */ React21.createElement("b", null, search ? "没有匹配的收藏或速记" : "还没有收藏或速记记录"), /* @__PURE__ */ React21.createElement("p", null, "在首页一句话记下备忘灵感，或把你的 GitHub Stars、X 收藏、网站、图片、音视频元信息存进来。"), /* @__PURE__ */ React21.createElement("div", { className: "row", style: { justifyContent: "center", marginTop: 10 } }, /* @__PURE__ */ React21.createElement("button", { type: "button", className: "sy-btn sy-btn-ink", onClick: () => onOpenCapture("collection") }, "+ 录入第一条收藏"), /* @__PURE__ */ React21.createElement("button", { type: "button", className: "sy-btn", onClick: () => onOpenCapture("batch") }, "粘贴 JSON/CSV 批量入库"))) : mode === "board" ? boardGroup === "status" ? /* @__PURE__ */ React21.createElement("div", { className: "sy-kanban-board", "data-cols": "3" }, STATUS_OPTIONS.map((col) => {
+    const rows = filtered.filter((e) => e.status === col.value);
+    return /* @__PURE__ */ React21.createElement(
+      "section",
+      {
+        key: col.value,
+        className: `sy-kanban-col${dragOverCol === col.value ? " is-over" : ""}`,
+        onDragOver: (e) => {
+          e.preventDefault();
+          setDragOverCol(col.value);
+        },
+        onDragLeave: (e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) setDragOverCol(null);
+        },
+        onDrop: (e) => void handleDropStatus(col.value, e)
+      },
+      /* @__PURE__ */ React21.createElement("header", { className: "sy-kanban-head" }, /* @__PURE__ */ React21.createElement("span", { className: `sy-mcard-dot status-${col.value}` }), /* @__PURE__ */ React21.createElement("h3", null, col.label), /* @__PURE__ */ React21.createElement("span", { className: "meta" }, rows.length)),
+      /* @__PURE__ */ React21.createElement("div", { className: "sy-kanban-list" }, rows.map((entry) => /* @__PURE__ */ React21.createElement(
+        MediaCollectionCard,
+        {
+          key: entry.id,
+          entry,
+          draggable: true,
+          onDragStart: handleDragStart,
+          onOpen: onOpenEntry,
+          onQuickTask: handleQuickTask
+        }
+      )))
+    );
+  })) : /* @__PURE__ */ React21.createElement("div", { className: "sy-kanban-board", "data-cols": "4" }, kindColumns.map((col) => /* @__PURE__ */ React21.createElement("section", { key: col.id, className: "sy-kanban-col" }, /* @__PURE__ */ React21.createElement("header", { className: "sy-kanban-head" }, /* @__PURE__ */ React21.createElement("span", { className: `sy-mcard-dot kind-${col.dot}` }), /* @__PURE__ */ React21.createElement("h3", null, col.title), /* @__PURE__ */ React21.createElement("span", { className: "meta" }, col.rows.length)), /* @__PURE__ */ React21.createElement("div", { className: "sy-kanban-list" }, col.rows.map((entry) => /* @__PURE__ */ React21.createElement(
+    MediaCollectionCard,
+    {
+      key: entry.id,
+      entry,
+      onOpen: onOpenEntry,
+      onQuickTask: handleQuickTask
+    }
+  )))))) : /* @__PURE__ */ React21.createElement("div", { className: "sy-table-wrap" }, /* @__PURE__ */ React21.createElement("table", { className: "sy-data-table" }, /* @__PURE__ */ React21.createElement("thead", null, /* @__PURE__ */ React21.createElement("tr", null, /* @__PURE__ */ React21.createElement("th", null, /* @__PURE__ */ React21.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: () => setSort((s) => ({ key: "title", dir: s.key === "title" ? s.dir === 1 ? -1 : 1 : 1 }))
+    },
+    "标题与说明"
+  )), /* @__PURE__ */ React21.createElement("th", null, /* @__PURE__ */ React21.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: () => setSort((s) => ({ key: "kind", dir: s.key === "kind" ? s.dir === 1 ? -1 : 1 : 1 }))
+    },
+    "类别 / 来源"
+  )), /* @__PURE__ */ React21.createElement("th", null, /* @__PURE__ */ React21.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: () => setSort((s) => ({ key: "status", dir: s.key === "status" ? s.dir === 1 ? -1 : 1 : 1 }))
+    },
+    "状态"
+  )), /* @__PURE__ */ React21.createElement("th", null, "标签 / 元信息"), /* @__PURE__ */ React21.createElement("th", null, "链接 / 飞书"), /* @__PURE__ */ React21.createElement("th", null, /* @__PURE__ */ React21.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: () => setSort((s) => ({ key: "createdAt", dir: s.key === "createdAt" ? s.dir === 1 ? -1 : 1 : -1 }))
+    },
+    "记录于"
+  )))), /* @__PURE__ */ React21.createElement("tbody", null, sortedTable.map((entry) => /* @__PURE__ */ React21.createElement("tr", { key: entry.id, onClick: () => onOpenEntry(entry), tabIndex: 0 }, /* @__PURE__ */ React21.createElement("td", { className: "sy-td-main" }, /* @__PURE__ */ React21.createElement("span", { className: "sy-td-thumb" }, entry.thumbnail ? /* @__PURE__ */ React21.createElement("img", { src: entry.thumbnail, alt: "", loading: "lazy", referrerPolicy: "no-referrer" }) : /* @__PURE__ */ React21.createElement("span", null, entry.title.slice(0, 1))), /* @__PURE__ */ React21.createElement("div", null, /* @__PURE__ */ React21.createElement("strong", null, entry.title), entry.body ? /* @__PURE__ */ React21.createElement("small", null, entry.body.slice(0, 90)) : null)), /* @__PURE__ */ React21.createElement("td", null, /* @__PURE__ */ React21.createElement("span", { className: `sy-mcard-pill kind-${entry.kind}` }, KIND_BADGE_LABELS[entry.kind] ?? entry.kind), /* @__PURE__ */ React21.createElement("div", { className: "meta" }, entry.sourceLabel)), /* @__PURE__ */ React21.createElement("td", null, /* @__PURE__ */ React21.createElement("span", { className: `sy-status-pill status-${entry.status}` }, STATUS_OPTIONS.find((s) => s.value === entry.status)?.label ?? entry.status)), /* @__PURE__ */ React21.createElement("td", null, /* @__PURE__ */ React21.createElement("div", { className: "sy-mcard-tags" }, entry.tags.map((t) => /* @__PURE__ */ React21.createElement("span", { key: t, className: "sy-mcard-tag" }, "#", t)), entry.meta?.language ? /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-meta-tag" }, entry.meta.language) : null, entry.meta?.stars ? /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-meta-tag" }, "★ ", entry.meta.stars) : null)), /* @__PURE__ */ React21.createElement("td", { onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React21.createElement("div", { className: "row" }, entry.url ? /* @__PURE__ */ React21.createElement("a", { className: "sy-mini-act", href: safeUrl(entry.url), target: "_blank", rel: "noopener noreferrer" }, "源链 ↗") : null, entry.externalUrl ? /* @__PURE__ */ React21.createElement(
+    "a",
+    {
+      className: "sy-mini-act",
+      href: safeUrl(entry.externalUrl),
+      target: "_blank",
+      rel: "noopener noreferrer"
+    },
+    "飞书 ↗"
+  ) : null)), /* @__PURE__ */ React21.createElement("td", { className: "meta" }, relativeTimeShort(entry.createdAt) || "—")))))));
+}
+
+// src/client/views/RetroView.tsx
+var React22 = __toESM(require("react"), 1);
+var { useState: useState6, useMemo: useMemo3, useEffect: useEffect3 } = React22;
+function currentWeekKey(today) {
+  const date = /* @__PURE__ */ new Date(`${today}T00:00:00`);
+  const jan1 = new Date(date.getFullYear(), 0, 1);
+  const days = Math.floor((date.getTime() - jan1.getTime()) / 864e5);
+  const week = Math.ceil((days + jan1.getDay() + 1) / 7);
+  return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+function isoDayOffset(baseIso, deltaDays) {
+  const date = /* @__PURE__ */ new Date(`${baseIso.slice(0, 10)}T12:00:00`);
+  date.setDate(date.getDate() + deltaDays);
+  return toDayKey(date);
+}
+function TrendChart({
+  points
+}) {
+  const [hoverIdx, setHoverIdx] = useState6(null);
+  const width = 460;
+  const height = 170;
+  const padL = 26;
+  const padR = 12;
+  const padT = 16;
+  const padB = 26;
+  const innerW = width - padL - padR;
+  const innerH = height - padT - padB;
+  const maxVal = Math.max(4, ...points.map((point) => point.total));
+  const stepX = points.length > 1 ? innerW / (points.length - 1) : innerW;
+  const coords = points.map((point, index) => ({
+    x: padL + index * stepX,
+    y: padT + innerH - point.total / maxVal * innerH,
+    yTask: padT + innerH - point.tasks / maxVal * innerH,
+    ...point
+  }));
+  const linePath = coords.map((pt, index) => `${index === 0 ? "M" : "L"}${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(" ");
+  const lastCoord = coords[coords.length - 1];
+  const firstCoord = coords[0];
+  const areaPath = lastCoord && firstCoord ? `${linePath} L${lastCoord.x.toFixed(1)},${(padT + innerH).toFixed(1)} L${firstCoord.x.toFixed(1)},${(padT + innerH).toFixed(1)} Z` : "";
+  const hovered = hoverIdx !== null ? coords[hoverIdx] : lastCoord;
+  return /* @__PURE__ */ React22.createElement("div", { className: "sy-chart-wrap" }, hovered ? /* @__PURE__ */ React22.createElement("div", { className: "sy-chart-stat" }, /* @__PURE__ */ React22.createElement("span", { className: "mono" }, hovered.date.slice(5)), /* @__PURE__ */ React22.createElement("span", null, "完成 ", /* @__PURE__ */ React22.createElement("b", null, hovered.tasks), " 项 · 收录/速记 ", /* @__PURE__ */ React22.createElement("b", null, hovered.captures), " 条")) : null, /* @__PURE__ */ React22.createElement(
+    "svg",
+    {
+      className: "sy-chart",
+      viewBox: `0 0 ${width} ${height}`,
+      onMouseLeave: () => setHoverIdx(null)
+    },
+    /* @__PURE__ */ React22.createElement("defs", null, /* @__PURE__ */ React22.createElement("linearGradient", { id: "syRetroGrad", x1: "0", y1: "0", x2: "0", y2: "1" }, /* @__PURE__ */ React22.createElement("stop", { offset: "0%", stopColor: "var(--sy-accent)", stopOpacity: "0.28" }), /* @__PURE__ */ React22.createElement("stop", { offset: "100%", stopColor: "var(--sy-accent)", stopOpacity: "0.0" }))),
+    [0, 0.5, 1].map((ratio, idx) => {
+      const y = padT + innerH * (1 - ratio);
+      const val = Math.round(maxVal * ratio);
+      return /* @__PURE__ */ React22.createElement("g", { key: idx }, /* @__PURE__ */ React22.createElement(
+        "line",
+        {
+          x1: padL,
+          x2: width - padR,
+          y1: y,
+          y2: y,
+          stroke: "var(--sy-line)",
+          strokeDasharray: ratio === 0 ? void 0 : "3 3"
+        }
+      ), /* @__PURE__ */ React22.createElement(
+        "text",
+        {
+          x: padL - 6,
+          y: y + 3,
+          textAnchor: "end",
+          fontSize: "10",
+          fill: "var(--sy-ink3)",
+          fontFamily: "var(--sy-mono)"
+        },
+        val
+      ));
+    }),
+    areaPath ? /* @__PURE__ */ React22.createElement("path", { d: areaPath, fill: "url(#syRetroGrad)" }) : null,
+    linePath ? /* @__PURE__ */ React22.createElement(
+      "path",
+      {
+        d: linePath,
+        fill: "none",
+        stroke: "var(--sy-accent)",
+        strokeWidth: "2.2",
+        strokeLinecap: "round",
+        strokeLinejoin: "round"
+      }
+    ) : null,
+    coords.map((pt, index) => /* @__PURE__ */ React22.createElement(
+      "g",
+      {
+        key: pt.date,
+        onMouseEnter: () => setHoverIdx(index),
+        style: { cursor: "pointer" }
+      },
+      /* @__PURE__ */ React22.createElement(
+        "rect",
+        {
+          x: pt.x - stepX / 2,
+          y: padT,
+          width: Math.max(12, stepX),
+          height: innerH,
+          fill: "transparent"
+        }
+      ),
+      /* @__PURE__ */ React22.createElement(
+        "circle",
+        {
+          cx: pt.x,
+          cy: pt.y,
+          r: hoverIdx === index ? 4.5 : 2.8,
+          fill: hoverIdx === index ? "var(--sy-accent)" : "var(--sy-card)",
+          stroke: "var(--sy-accent)",
+          strokeWidth: "2"
+        }
+      ),
+      index % 3 === 0 || index === coords.length - 1 ? /* @__PURE__ */ React22.createElement(
+        "text",
+        {
+          x: pt.x,
+          y: height - 6,
+          textAnchor: "middle",
+          fontSize: "10",
+          fill: "var(--sy-ink3)",
+          fontFamily: "var(--sy-mono)"
+        },
+        pt.date.slice(5)
+      ) : null
+    ))
+  ));
+}
+function RetroView({
+  daily,
+  items,
+  onRun,
+  onNavigate,
+  onOpenEntry
+}) {
+  const today = toDayKey(/* @__PURE__ */ new Date());
+  const [period, setPeriod] = useState6("week");
+  const [trendMode, setTrendMode] = useState6("chart");
+  const periodKey = useMemo3(() => {
+    if (period === "day") return today;
+    if (period === "week") return currentWeekKey(today);
+    return today.slice(0, 7);
+  }, [period, today]);
+  const existingRetro = daily?.retros?.[periodKey];
+  const [highlights, setHighlights] = useState6("");
+  const [blockers, setBlockers] = useState6("");
+  const [nextFocus, setNextFocus] = useState6("");
+  useEffect3(() => {
+    setHighlights(existingRetro?.highlights ?? "");
+    setBlockers(existingRetro?.blockers ?? "");
+    setNextFocus(existingRetro?.nextFocus ?? "");
+  }, [periodKey, existingRetro?.updatedAt]);
+  const dayMap = useMemo3(
+    () => buildDayFootprintMap(
+      daily?.notes ?? [],
+      daily?.tasks ?? [],
+      daily?.readLaterEntries ?? {},
+      daily?.retros ?? {}
+    ),
+    [daily?.notes, daily?.tasks, daily?.readLaterEntries, daily?.retros]
+  );
+  const streak = useMemo3(() => computeActiveStreak(dayMap), [dayMap]);
+  const entries = useMemo3(
+    () => buildUnifiedEntries(
+      daily?.notes ?? [],
+      daily?.readLaterEntries ?? {},
+      daily?.bookmarks ?? [],
+      items,
+      false
+    ),
+    [daily?.notes, daily?.readLaterEntries, daily?.bookmarks, items]
+  );
+  const tasks = daily?.tasks ?? [];
+  const habits = daily?.habits ?? [];
+  const proposals = daily?.agentInbox ?? [];
+  const rangeDays = period === "day" ? 1 : period === "week" ? 7 : 30;
+  const cutoffIso = isoDayOffset(today, -(rangeDays - 1));
+  const periodStats = useMemo3(() => {
+    let completedCount = 0;
+    let createdNotesAndCollections = 0;
+    for (let offset = -(rangeDays - 1); offset <= 0; offset += 1) {
+      const date = isoDayOffset(today, offset);
+      const list = dayMap.get(date) ?? [];
+      for (const item of list) {
+        if (item.kind === "task") completedCount += 1;
+        if (item.kind === "note" || item.kind === "collection") createdNotesAndCollections += 1;
+      }
+    }
+    const openTodayOrOverdue = tasks.filter(
+      (task) => !task.done && (task.list === "today" || task.due && task.due <= today)
+    );
+    const activeProjects = /* @__PURE__ */ new Map();
+    for (const task of tasks) {
+      const proj = task.project?.trim() || "未分类日常";
+      const cur = activeProjects.get(proj) ?? { total: 0, done: 0 };
+      cur.total += 1;
+      if (task.done) cur.done += 1;
+      activeProjects.set(proj, cur);
+    }
+    const sortedProjects = [...activeProjects.entries()].sort((a, b) => b[1].total - a[1].total);
+    const kindCounts = /* @__PURE__ */ new Map();
+    for (const entry of entries) {
+      if (entry.createdAt.slice(0, 10) >= cutoffIso || period !== "day") {
+        kindCounts.set(entry.kind, (kindCounts.get(entry.kind) ?? 0) + 1);
+      }
+    }
+    return {
+      completedCount,
+      createdNotesAndCollections,
+      openTodayOrOverdue,
+      sortedProjects,
+      kindCounts,
+      focusMin: daily?.focus?.totalMinutesToday ?? daily?.focus?.minutes ?? 0
+    };
+  }, [
+    rangeDays,
+    today,
+    dayMap,
+    tasks,
+    entries,
+    cutoffIso,
+    period,
+    daily?.focus?.totalMinutesToday,
+    daily?.focus?.minutes
+  ]);
+  const trendPoints = useMemo3(() => {
+    const out = [];
+    for (let offset = -13; offset <= 0; offset += 1) {
+      const date = isoDayOffset(today, offset);
+      const list = dayMap.get(date) ?? [];
+      const t = list.filter((item) => item.kind === "task").length;
+      const c = list.filter((item) => item.kind === "note" || item.kind === "collection").length;
+      out.push({
+        date,
+        tasks: t,
+        captures: c,
+        total: list.length
+      });
+    }
+    return out;
+  }, [dayMap, today]);
+  const topProjectName = periodStats.sortedProjects[0]?.[0] ?? "日常事项";
+  const recentHighlights = useMemo3(() => entries.slice(0, 3), [entries]);
+  const handleSaveRetro = (event) => {
+    event.preventDefault();
+    void onRun(
+      "retro.save",
+      {
+        key: periodKey,
+        period,
+        highlights: highlights.trim(),
+        blockers: blockers.trim(),
+        nextFocus: nextFocus.trim()
+      },
+      { toast: `已保存「${periodKey}」个人复盘` }
+    );
+  };
+  const handleRolloverOpenTasks = async () => {
+    for (const task of periodStats.openTodayOrOverdue) {
+      await onRun("task.update", { id: task.id, due: today, list: "today" });
+    }
+  };
+  const handleNextFocusToTask = () => {
+    const firstLine = nextFocus.split(/\r?\n/).map((line) => line.replace(/^[-*•\d.\s]+/, "").trim()).find(Boolean);
+    if (!firstLine) return;
+    void onRun(
+      "task.add",
+      { title: firstLine.slice(0, 80), list: "today", due: today, priority: "high" },
+      { toast: `已加入今日排期：${firstLine.slice(0, 24)}` }
+    );
+  };
+  return /* @__PURE__ */ React22.createElement("div", { className: "sy-view-retro", "data-view": "retro" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-view-toolbar" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-view-toolbar-left" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-seg sm", role: "tablist", "aria-label": "复盘周期" }, /* @__PURE__ */ React22.createElement(
+    "button",
+    {
+      type: "button",
+      role: "tab",
+      "aria-selected": period === "day",
+      onClick: () => setPeriod("day")
+    },
+    "今日复盘"
+  ), /* @__PURE__ */ React22.createElement(
+    "button",
+    {
+      type: "button",
+      role: "tab",
+      "aria-selected": period === "week",
+      onClick: () => setPeriod("week")
+    },
+    "本周复盘"
+  ), /* @__PURE__ */ React22.createElement(
+    "button",
+    {
+      type: "button",
+      role: "tab",
+      "aria-selected": period === "month",
+      onClick: () => setPeriod("month")
+    },
+    "本月复盘"
+  )), /* @__PURE__ */ React22.createElement("span", { className: "meta" }, `周期标识：${periodKey} · 连续活跃 ${streak} 天`)), /* @__PURE__ */ React22.createElement("div", { className: "sy-view-toolbar-right" }, periodStats.openTodayOrOverdue.length > 0 ? /* @__PURE__ */ React22.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-btn",
+      onClick: () => void handleRolloverOpenTasks()
+    },
+    `顺延 ${periodStats.openTodayOrOverdue.length} 项未完待办到今天`
+  ) : null, /* @__PURE__ */ React22.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-btn",
+      onClick: () => onNavigate("schedule")
+    },
+    "打开排期日历 →"
+  ))), /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-grid" }, /* @__PURE__ */ React22.createElement("section", { className: "sy-retro-tile sy-retro-hero" }, /* @__PURE__ */ React22.createElement("div", null, /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-eyebrow" }, period === "day" ? "DAILY RETROSPECTIVE · 今日小结" : period === "week" ? "WEEKLY RETROSPECTIVE · 本周复盘" : "MONTHLY RETROSPECTIVE · 月度复盘"), /* @__PURE__ */ React22.createElement("h2", { className: "sy-retro-title" }, period === "day" ? "今天" : period === "week" ? "最近 7 天" : "最近 30 天", "共完成了", " ", /* @__PURE__ */ React22.createElement("em", null, periodStats.completedCount, " 项任务"), "，收录了", " ", /* @__PURE__ */ React22.createElement("b", null, periodStats.createdNotesAndCollections, " 条灵感与偏好收藏"), "；重心集中在「", /* @__PURE__ */ React22.createElement("b", null, topProjectName), "」，当前还有", " ", /* @__PURE__ */ React22.createElement("b", null, periodStats.openTodayOrOverdue.length, " 项今日待办"), "等待收尾。")), /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-metrics" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-metric" }, /* @__PURE__ */ React22.createElement("span", { className: "num" }, periodStats.completedCount), /* @__PURE__ */ React22.createElement("span", { className: "lbl" }, "已完成任务")), /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-metric" }, /* @__PURE__ */ React22.createElement("span", { className: "num" }, periodStats.focusMin), /* @__PURE__ */ React22.createElement("span", { className: "lbl" }, "今日专注分钟")), /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-metric" }, /* @__PURE__ */ React22.createElement("span", { className: "num" }, entries.length), /* @__PURE__ */ React22.createElement("span", { className: "lbl" }, "偏好与速记总数")), /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-metric" }, /* @__PURE__ */ React22.createElement("span", { className: "num" }, `${streak}d`), /* @__PURE__ */ React22.createElement("span", { className: "lbl" }, "连续记录天数")))), /* @__PURE__ */ React22.createElement("section", { className: "sy-retro-tile sy-retro-trend" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-tile-h" }, /* @__PURE__ */ React22.createElement("div", null, /* @__PURE__ */ React22.createElement("h3", null, "近 14 日节奏曲线"), /* @__PURE__ */ React22.createElement("span", { className: "meta" }, "任务完成 + 灵感与收藏收录")), /* @__PURE__ */ React22.createElement("div", { className: "sy-seg sm" }, /* @__PURE__ */ React22.createElement(
+    "button",
+    {
+      type: "button",
+      "aria-selected": trendMode === "chart",
+      onClick: () => setTrendMode("chart")
+    },
+    "图"
+  ), /* @__PURE__ */ React22.createElement(
+    "button",
+    {
+      type: "button",
+      "aria-selected": trendMode === "table",
+      onClick: () => setTrendMode("table")
+    },
+    "表"
+  ))), trendMode === "chart" ? /* @__PURE__ */ React22.createElement(TrendChart, { points: trendPoints }) : /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-mini-table" }, trendPoints.slice().reverse().slice(0, 6).map((row) => /* @__PURE__ */ React22.createElement("div", { key: row.date, className: "sy-retro-mini-row" }, /* @__PURE__ */ React22.createElement("span", { className: "mono" }, row.date), /* @__PURE__ */ React22.createElement("span", null, `完成 ${row.tasks} · 收录 ${row.captures}`), /* @__PURE__ */ React22.createElement("b", { className: "mono" }, row.total))))), /* @__PURE__ */ React22.createElement("section", { className: "sy-retro-tile sy-retro-dist" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-tile-h" }, /* @__PURE__ */ React22.createElement("div", null, /* @__PURE__ */ React22.createElement("h3", null, "项目推进与收藏构成"), /* @__PURE__ */ React22.createElement("span", { className: "meta" }, "工作进度与输入偏好分布"))), /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-list" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-subhead" }, "项目完成度"), periodStats.sortedProjects.slice(0, 3).map(([proj, stat]) => {
+    const pct = stat.total > 0 ? Math.round(stat.done / stat.total * 100) : 0;
+    return /* @__PURE__ */ React22.createElement("div", { key: proj, className: "sy-dist-row" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-label" }, /* @__PURE__ */ React22.createElement("b", null, proj), /* @__PURE__ */ React22.createElement("span", { className: "mono" }, `${stat.done}/${stat.total} (${pct}%)`)), /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-bar" }, /* @__PURE__ */ React22.createElement("i", { style: { width: `${pct}%` } })));
+  }), /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-subhead", style: { marginTop: 8 } }, "偏好内容分布"), ["note", "github", "x", "video", "web"].map((kind) => {
+    const count = periodStats.kindCounts.get(kind) ?? 0;
+    const pct = entries.length > 0 ? Math.round(count / entries.length * 100) : 0;
+    const label = KIND_BADGE_LABELS[kind] ?? kind;
+    return /* @__PURE__ */ React22.createElement("div", { key: kind, className: "sy-dist-row" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-label" }, /* @__PURE__ */ React22.createElement("span", null, label), /* @__PURE__ */ React22.createElement("span", { className: "mono" }, `${count} 条`)), /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-bar" }, /* @__PURE__ */ React22.createElement("i", { style: { width: `${Math.max(pct, count > 0 ? 8 : 0)}%` } })));
+  }), habits.length > 0 ? /* @__PURE__ */ React22.createElement(React22.Fragment, null, /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-subhead", style: { marginTop: 8 } }, "习惯打卡"), /* @__PURE__ */ React22.createElement("div", { className: "sy-chips" }, habits.map((habit) => {
+    const doneToday = habit.lastTickDate === today;
+    return /* @__PURE__ */ React22.createElement(
+      "button",
+      {
+        key: habit.id,
+        type: "button",
+        className: "sy-chipbtn",
+        "aria-pressed": doneToday,
+        "data-act": "habit-tick",
+        "data-habit": habit.id
+      },
+      `${doneToday ? "✓ " : ""}${habit.name} (${habit.streak ?? 0}d)`
+    );
+  }))) : null)), /* @__PURE__ */ React22.createElement("section", { className: "sy-retro-tile sy-retro-reflect" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-tile-h" }, /* @__PURE__ */ React22.createElement("div", null, /* @__PURE__ */ React22.createElement("h3", null, "个人复盘手记 · ", periodKey), /* @__PURE__ */ React22.createElement("span", { className: "meta" }, "沉淀关键收获，飞书长文可贴在内容库"))), /* @__PURE__ */ React22.createElement("form", { className: "sy-retro-form", onSubmit: handleSaveRetro }, /* @__PURE__ */ React22.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React22.createElement("span", null, "✨ 本期高光与关键产出"), /* @__PURE__ */ React22.createElement(
+    "textarea",
+    {
+      name: "retro-highlights",
+      value: highlights,
+      onChange: (event) => setHighlights(event.target.value),
+      rows: 2,
+      placeholder: "这周/今天最有价值的一件事是什么？"
+    }
+  )), /* @__PURE__ */ React22.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React22.createElement("span", null, "🚧 卡点与精力复盘"), /* @__PURE__ */ React22.createElement(
+    "textarea",
+    {
+      name: "retro-blockers",
+      value: blockers,
+      onChange: (event) => setBlockers(event.target.value),
+      rows: 2,
+      placeholder: "哪里拖慢了节奏？下次如何规避？"
+    }
+  )), /* @__PURE__ */ React22.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React22.createElement("span", null, "🎯 下一阶段聚焦（可一键转待办）"), /* @__PURE__ */ React22.createElement(
+    "textarea",
+    {
+      name: "retro-next-focus",
+      value: nextFocus,
+      onChange: (event) => setNextFocus(event.target.value),
+      rows: 2,
+      placeholder: "写下接下来最重要的一件事..."
+    }
+  )), /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-form-foot" }, nextFocus.trim() ? /* @__PURE__ */ React22.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-btn",
+      onClick: handleNextFocusToTask
+    },
+    "转为今日任务"
+  ) : null, /* @__PURE__ */ React22.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink", "data-act": "retro-save" }, "保存复盘记录"))), recentHighlights.length > 0 ? /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-recent" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-subhead" }, "最新收录与闪念"), recentHighlights.map((entry) => /* @__PURE__ */ React22.createElement(
+    "button",
+    {
+      key: entry.id,
+      type: "button",
+      className: "sy-retro-recent-item",
+      onClick: () => onOpenEntry(entry)
+    },
+    /* @__PURE__ */ React22.createElement("span", { className: "badge" }, KIND_BADGE_LABELS[entry.kind] ?? entry.kind),
+    /* @__PURE__ */ React22.createElement("span", { className: "c1" }, entry.title)
+  ))) : null), /* @__PURE__ */ React22.createElement("section", { className: "sy-retro-tile sy-retro-advice" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-tile-h" }, /* @__PURE__ */ React22.createElement("div", null, /* @__PURE__ */ React22.createElement("h3", null, "Agent 复盘建议与行动"), /* @__PURE__ */ React22.createElement("span", { className: "meta" }, "基于当前待办、收藏与复盘提议"))), /* @__PURE__ */ React22.createElement("div", { className: "sy-advice-list" }, proposals.map((proposal) => {
+    const applied = proposal.status === "applied";
+    return /* @__PURE__ */ React22.createElement("div", { key: proposal.id, className: "sy-advice-card" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-advice-top" }, /* @__PURE__ */ React22.createElement("span", { className: "sy-pill" }, applied ? "已生效" : "Agent 提议"), /* @__PURE__ */ React22.createElement("b", null, proposal.reason)), /* @__PURE__ */ React22.createElement("div", { className: "sy-advice-acts" }, applied ? /* @__PURE__ */ React22.createElement(
+      "button",
+      {
+        type: "button",
+        className: "sy-btn",
+        "data-act": "proposal-rollback",
+        "data-proposal": proposal.id
+      },
+      "撤销改动"
+    ) : /* @__PURE__ */ React22.createElement(React22.Fragment, null, /* @__PURE__ */ React22.createElement(
+      "button",
+      {
+        type: "button",
+        className: "sy-btn sy-btn-ink",
+        "data-act": "proposal-approve",
+        "data-proposal": proposal.id
+      },
+      "采纳并执行"
+    ), /* @__PURE__ */ React22.createElement(
+      "button",
+      {
+        type: "button",
+        className: "sy-btn",
+        "data-act": "proposal-reject",
+        "data-proposal": proposal.id
+      },
+      "忽略"
+    ))));
+  }), /* @__PURE__ */ React22.createElement("div", { className: "sy-advice-card" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-advice-top" }, /* @__PURE__ */ React22.createElement("span", { className: "sy-pill" }, "智能洞察"), /* @__PURE__ */ React22.createElement("b", null, periodStats.openTodayOrOverdue.length > 0 ? `今日还有 ${periodStats.openTodayOrOverdue.length} 项待办未收尾` : "今日排期已全部清空")), /* @__PURE__ */ React22.createElement("p", null, periodStats.openTodayOrOverdue[0] ? `建议优先完成「${periodStats.openTodayOrOverdue[0].title}」，或进入排期日历拖拽调整日期。` : "可以前往「内容」库整理近期收藏的 GitHub Stars、X 书签与视频，或开启下一轮专注。"), /* @__PURE__ */ React22.createElement("div", { className: "sy-advice-acts" }, /* @__PURE__ */ React22.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-btn",
+      onClick: () => onNavigate(periodStats.openTodayOrOverdue.length > 0 ? "schedule" : "content")
+    },
+    periodStats.openTodayOrOverdue.length > 0 ? "去排期日历调整 →" : "去内容库整理收藏 →"
+  )))))));
+}
+
+// src/client/views/ScheduleView.tsx
+var React23 = __toESM(require("react"), 1);
+var { useState: useState7, useMemo: useMemo4 } = React23;
+var MONTHS_EN = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December"
+];
+var WEEK_HEADERS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+var DRAG_TASK_MIME = "text/sooyo-task-id";
+var PRIORITY_LABELS = {
+  high: "高优",
+  medium: "中优",
+  low: "低优"
+};
+function TaskDetailModal({
+  task,
+  onClose,
+  onRun
+}) {
+  const [title, setTitle] = useState7(task.title);
+  const [due, setDue] = useState7(task.due ? task.due.slice(0, 10) : "");
+  const [priority, setPriority] = useState7(task.priority ?? "");
+  const [project, setProject] = useState7(task.project ?? "");
+  const [note, setNote] = useState7(task.note ?? "");
+  const [subtasks, setSubtasks] = useState7(Array.isArray(task.subtasks) ? task.subtasks : []);
+  const [newSub, setNewSub] = useState7("");
+  const addSubtask = () => {
+    const t = newSub.trim();
+    if (!t) return;
+    setSubtasks((prev) => [...prev, { id: `sub-${Date.now().toString(36)}`, title: t, done: false }]);
+    setNewSub("");
+  };
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    await onRun(
+      "task.update",
+      {
+        id: task.id,
+        title: title.trim(),
+        due: due || null,
+        priority: priority || null,
+        project: project.trim() || "",
+        note: note.trim(),
+        subtasks
+      },
+      { toast: "已更新任务排期与详情" }
+    );
+    onClose();
+  };
+  const handleDelete = async () => {
+    await onRun("task.remove", { id: task.id }, { toast: "已删除任务" });
+    onClose();
+  };
+  return /* @__PURE__ */ React23.createElement("div", { className: "sy-scrim", "data-act": "scrim", onClick: (e) => {
+    if (e.target === e.currentTarget) onClose();
+  } }, /* @__PURE__ */ React23.createElement("div", { className: "sy-modal sy-capture-modal", role: "dialog", "aria-label": "任务排期与详情" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-modal-h" }, /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("b", null, "任务排期与子步骤"), /* @__PURE__ */ React23.createElement("div", { className: "meta" }, due ? `已排期至 ${due}` : "未排期（位于收件箱 Inbox）", task.origin?.url ? ` · 来源：${task.origin.source || task.origin.title || "外链"}` : "")), /* @__PURE__ */ React23.createElement("button", { type: "button", className: "sy-icon-btn", onClick: onClose, "aria-label": "关闭" }, "✕")), /* @__PURE__ */ React23.createElement("form", { className: "sy-modal-b sy-form-stack", onSubmit: handleSave }, /* @__PURE__ */ React23.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React23.createElement("span", null, "任务标题"), /* @__PURE__ */ React23.createElement("input", { value: title, onChange: (e) => setTitle(e.target.value), required: true })), /* @__PURE__ */ React23.createElement("div", { className: "sy-form-row3" }, /* @__PURE__ */ React23.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React23.createElement("span", null, "排期日期（清空则回 Inbox）"), /* @__PURE__ */ React23.createElement("input", { type: "date", value: due, onChange: (e) => setDue(e.target.value) })), /* @__PURE__ */ React23.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React23.createElement("span", null, "优先级"), /* @__PURE__ */ React23.createElement("select", { value: priority, onChange: (e) => setPriority(e.target.value) }, /* @__PURE__ */ React23.createElement("option", { value: "" }, "无优先级"), /* @__PURE__ */ React23.createElement("option", { value: "high" }, "高优先级 (High)"), /* @__PURE__ */ React23.createElement("option", { value: "medium" }, "中优先级 (Medium)"), /* @__PURE__ */ React23.createElement("option", { value: "low" }, "低优先级 (Low)"))), /* @__PURE__ */ React23.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React23.createElement("span", null, "所属项目 (Project)"), /* @__PURE__ */ React23.createElement("input", { value: project, onChange: (e) => setProject(e.target.value), placeholder: "如：插件重构" }))), /* @__PURE__ */ React23.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React23.createElement("span", null, "备注说明"), /* @__PURE__ */ React23.createElement(
+    "textarea",
+    {
+      rows: 2,
+      value: note,
+      onChange: (e) => setNote(e.target.value),
+      placeholder: "记录执行要点、上下文或相关链接……"
+    }
+  )), /* @__PURE__ */ React23.createElement("div", { className: "sy-field" }, /* @__PURE__ */ React23.createElement("span", null, "子步骤清单 (", subtasks.filter((s) => s.done).length, "/", subtasks.length, ")"), /* @__PURE__ */ React23.createElement("div", { className: "sy-subtask-list" }, subtasks.map((sub, idx) => /* @__PURE__ */ React23.createElement("div", { key: sub.id, className: "sy-subtask-row" }, /* @__PURE__ */ React23.createElement(
+    "input",
+    {
+      type: "checkbox",
+      checked: sub.done,
+      onChange: () => setSubtasks((prev) => prev.map((s, i) => i === idx ? { ...s, done: !s.done } : s))
+    }
+  ), /* @__PURE__ */ React23.createElement("span", { className: sub.done ? "is-done" : "" }, sub.title), /* @__PURE__ */ React23.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-mini-act",
+      onClick: () => setSubtasks((prev) => prev.filter((_, i) => i !== idx))
+    },
+    "✕"
+  ))), /* @__PURE__ */ React23.createElement("div", { className: "sy-subtask-add" }, /* @__PURE__ */ React23.createElement(
+    "input",
+    {
+      value: newSub,
+      onChange: (e) => setNewSub(e.target.value),
+      placeholder: "添加子步骤，按加号确认",
+      onKeyDown: (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          addSubtask();
+        }
+      }
+    }
+  ), /* @__PURE__ */ React23.createElement("button", { type: "button", className: "sy-btn", onClick: addSubtask }, "+ 添加步骤")))), /* @__PURE__ */ React23.createElement("div", { className: "sy-modal-f" }, /* @__PURE__ */ React23.createElement("button", { type: "button", className: "sy-btn", onClick: handleDelete }, "删除任务"), /* @__PURE__ */ React23.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-btn",
+      onClick: async () => {
+        await onRun("task.update", { id: task.id, done: !task.done });
+        onClose();
+      }
+    },
+    task.done ? "标记为未完成" : "✓ 标记完成"
+  ), /* @__PURE__ */ React23.createElement("span", { className: "grow" }), /* @__PURE__ */ React23.createElement("button", { type: "button", className: "sy-btn", onClick: onClose }, "取消"), /* @__PURE__ */ React23.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink" }, "保存排期")))));
+}
+function ScheduleView({
+  tasks,
+  dayMap,
+  initialFocusDay,
+  onCaptureToday,
+  onRun
+}) {
+  const todayKey = toDayKey(/* @__PURE__ */ new Date());
+  const [calMode, setCalMode] = useState7("month");
+  const [cursor, setCursor] = useState7(() => {
+    if (initialFocusDay && /^\d{4}-\d{2}-\d{2}/.test(initialFocusDay)) {
+      const d = /* @__PURE__ */ new Date(`${initialFocusDay.slice(0, 10)}T12:00:00`);
+      if (!Number.isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), 1);
+    }
+    const now = /* @__PURE__ */ new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [selectedDay, setSelectedDay] = useState7(initialFocusDay || todayKey);
+  const [dragOverCell, setDragOverCell] = useState7(null);
+  const [dragOverTray, setDragOverTray] = useState7(false);
+  const [editingTask, setEditingTask] = useState7(null);
+  const [inboxDraft, setInboxDraft] = useState7("");
+  const [dayDraft, setDayDraft] = useState7("");
+  const y = cursor.getFullYear();
+  const m = cursor.getMonth();
+  const monthPrefix = `${y}-${String(m + 1).padStart(2, "0")}`;
+  const cells = useMemo4(() => {
+    if (calMode === "week") {
+      const anchor = selectedDay ? /* @__PURE__ */ new Date(`${selectedDay}T12:00:00`) : /* @__PURE__ */ new Date();
+      const start = new Date(anchor);
+      start.setDate(anchor.getDate() - anchor.getDay());
+      return Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        return d;
+      });
+    }
+    const firstDow = new Date(y, m, 1).getDay();
+    const raw = [];
+    for (let i = 0; i < 42; i += 1) raw.push(new Date(y, m, i - firstDow + 1));
+    if (raw[28] && raw[28].getMonth() !== m) return raw.slice(0, 28);
+    if (raw[35] && raw[35].getMonth() === m) return raw;
+    return raw.slice(0, 35);
+  }, [calMode, y, m, selectedDay]);
+  const tasksByDay = useMemo4(() => {
+    const map = /* @__PURE__ */ new Map();
+    const pRank = { high: 0, medium: 1, low: 2 };
+    for (const task of tasks) {
+      const effectiveDay = task.due ? task.due.slice(0, 10) : task.list === "today" ? todayKey : null;
+      if (!effectiveDay) continue;
+      const arr = map.get(effectiveDay) ?? [];
+      arr.push(task);
+      map.set(effectiveDay, arr);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => {
+        if (a.done !== b.done) return a.done ? 1 : -1;
+        return (pRank[a.priority ?? ""] ?? 3) - (pRank[b.priority ?? ""] ?? 3);
+      });
+    }
+    return map;
+  }, [tasks, todayKey]);
+  const unscheduledInbox = useMemo4(
+    () => tasks.filter((t) => !t.due && t.list === "inbox" && !t.done),
+    [tasks]
+  );
+  const todayAndOverdue = useMemo4(
+    () => tasks.filter((t) => !t.done && (t.list === "today" || t.due && t.due.slice(0, 10) <= todayKey)).sort((a, b) => {
+      const pRank = { high: 0, medium: 1, low: 2 };
+      return (pRank[a.priority ?? ""] ?? 3) - (pRank[b.priority ?? ""] ?? 3);
+    }),
+    [tasks, todayKey]
+  );
+  const nextFocusTask = todayAndOverdue[0] ?? tasks.find((t) => !t.done && t.due && t.due >= todayKey) ?? null;
+  const streak = useMemo4(() => computeActiveStreak(dayMap), [dayMap]);
+  const monthScheduledCount = useMemo4(
+    () => [...tasksByDay.entries()].filter(([k]) => k.startsWith(monthPrefix)).reduce((sum, [, list]) => sum + list.length, 0),
+    [tasksByDay, monthPrefix]
+  );
+  const monthDoneCount = useMemo4(
+    () => tasks.filter(
+      (t) => t.done && (t.due && t.due.startsWith(monthPrefix) || t.completedAt && t.completedAt.startsWith(monthPrefix))
+    ).length,
+    [tasks, monthPrefix]
+  );
+  const startDragTask = (event, taskId) => {
+    event.dataTransfer.setData(DRAG_TASK_MIME, taskId);
+    event.dataTransfer.effectAllowed = "move";
+  };
+  const scheduleTaskToDate = async (taskId, dayKeyStr) => {
+    await onRun(
+      "task.update",
+      {
+        id: taskId,
+        due: dayKeyStr,
+        list: dayKeyStr <= todayKey ? "today" : "later"
+      },
+      { toast: dayKeyStr === todayKey ? "已排期到今天" : `已排期至 ${dayKeyStr}` }
+    );
+  };
+  const unscheduleTaskToInbox = async (taskId) => {
+    await onRun(
+      "task.update",
+      { id: taskId, due: null, list: "inbox" },
+      { toast: "已取消排期，移回待排期收件箱" }
+    );
+  };
+  const handleAddInbox = async (e) => {
+    e.preventDefault();
+    const val = inboxDraft.trim();
+    if (!val) return;
+    setInboxDraft("");
+    await onRun("task.add", { title: val, list: "inbox" }, { toast: "已加入待排期收件箱" });
+  };
+  const handleAddOnSelectedDay = async (e) => {
+    e.preventDefault();
+    const val = dayDraft.trim();
+    if (!val) return;
+    setDayDraft("");
+    await onRun(
+      "task.add",
+      {
+        title: val,
+        due: selectedDay,
+        list: selectedDay <= todayKey ? "today" : "later"
+      },
+      { toast: `已排期至 ${selectedDay}` }
+    );
+  };
+  const selectedDayTasks = tasksByDay.get(selectedDay) ?? [];
+  return /* @__PURE__ */ React23.createElement("div", { className: "sy-app-page", "data-view": "schedule" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-schedule-layout" }, /* @__PURE__ */ React23.createElement("section", { className: "sy-cal-tile" }, /* @__PURE__ */ React23.createElement("header", { className: "sy-cal-head" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-cal-num" }, String(m + 1).padStart(2, "0")), /* @__PURE__ */ React23.createElement("div", { className: "sy-cal-month" }, /* @__PURE__ */ React23.createElement("span", null, y), /* @__PURE__ */ React23.createElement("em", null, MONTHS_EN[m])), /* @__PURE__ */ React23.createElement("dl", { className: "sy-cal-stats" }, /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("dt", null, "连续记录"), /* @__PURE__ */ React23.createElement("dd", null, streak, /* @__PURE__ */ React23.createElement("small", null, "天"))), /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("dt", null, "本月排期"), /* @__PURE__ */ React23.createElement("dd", null, monthScheduledCount, /* @__PURE__ */ React23.createElement("small", null, "项"))), /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("dt", null, "本月完成"), /* @__PURE__ */ React23.createElement("dd", null, monthDoneCount, /* @__PURE__ */ React23.createElement("small", null, "项")))), /* @__PURE__ */ React23.createElement("span", { className: "grow" }), /* @__PURE__ */ React23.createElement("div", { className: "sy-seg" }, /* @__PURE__ */ React23.createElement(
+    "button",
+    {
+      type: "button",
+      "aria-pressed": calMode === "month",
+      onClick: () => setCalMode("month")
+    },
+    "月历"
+  ), /* @__PURE__ */ React23.createElement(
+    "button",
+    {
+      type: "button",
+      "aria-pressed": calMode === "week",
+      onClick: () => setCalMode("week")
+    },
+    "周视图"
+  )), /* @__PURE__ */ React23.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-icon-btn",
+      "aria-label": "上个月",
+      onClick: () => setCursor(new Date(y, m - 1, 1))
+    },
+    "‹"
+  ), /* @__PURE__ */ React23.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-btn",
+      onClick: () => {
+        const now = /* @__PURE__ */ new Date();
+        setCursor(new Date(now.getFullYear(), now.getMonth(), 1));
+        setSelectedDay(todayKey);
+      }
+    },
+    "今天"
+  ), /* @__PURE__ */ React23.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-icon-btn",
+      "aria-label": "下个月",
+      onClick: () => setCursor(new Date(y, m + 1, 1))
+    },
+    "›"
+  )), /* @__PURE__ */ React23.createElement("div", { className: "sy-cal-weeks" }, WEEK_HEADERS.map((w) => /* @__PURE__ */ React23.createElement("span", { key: w }, w))), /* @__PURE__ */ React23.createElement(
+    "div",
+    {
+      className: `sy-cal-grid${calMode === "week" ? " is-week" : ""}`,
+      role: "grid",
+      style: { "--cal-rows": Math.max(1, cells.length / 7) }
+    },
+    cells.map((date) => {
+      const key = toDayKey(date);
+      const dayTasks = tasksByDay.get(key) ?? [];
+      const stamps = dayMap.get(key);
+      const isToday = key === todayKey;
+      const isSelected = key === selectedDay;
+      const isOutside = calMode === "month" && date.getMonth() !== m;
+      const maxShow = calMode === "week" ? 8 : 3;
+      return /* @__PURE__ */ React23.createElement(
+        "div",
+        {
+          key,
+          role: "gridcell",
+          "data-day": key,
+          className: `sy-cal-cell${isOutside ? " is-outside" : ""}${isToday ? " is-today" : ""}${isSelected ? " is-selected" : ""}${dragOverCell === key ? " is-over" : ""}`,
+          onClick: () => setSelectedDay(key),
+          onDragOver: (e) => {
+            e.preventDefault();
+            setDragOverCell(key);
+          },
+          onDragLeave: (e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) {
+              setDragOverCell((cur) => cur === key ? null : cur);
+            }
+          },
+          onDrop: (e) => {
+            e.preventDefault();
+            setDragOverCell(null);
+            const taskId = e.dataTransfer.getData(DRAG_TASK_MIME);
+            if (taskId) void scheduleTaskToDate(taskId, key);
+          }
+        },
+        /* @__PURE__ */ React23.createElement("div", { className: "sy-cal-cell-top" }, /* @__PURE__ */ React23.createElement("span", { className: "sy-cal-date" }, date.getDate(), isToday ? /* @__PURE__ */ React23.createElement("small", null, "今日") : null), stamps?.length || isToday ? /* @__PURE__ */ React23.createElement("div", { className: "sy-cal-stamp", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React23.createElement(
+          Stamp,
+          {
+            list: stamps,
+            today: isToday,
+            label: `${date.getMonth() + 1}月${date.getDate()}日`,
+            onCaptureToday,
+            onOpen: () => setSelectedDay(key)
+          }
+        )) : null),
+        /* @__PURE__ */ React23.createElement("div", { className: "sy-cal-tasks", onClick: (e) => e.stopPropagation() }, dayTasks.slice(0, maxShow).map((task) => {
+          const subDone = (task.subtasks ?? []).filter((s) => s.done).length;
+          const subTotal = (task.subtasks ?? []).length;
+          return /* @__PURE__ */ React23.createElement(
+            "div",
+            {
+              key: task.id,
+              className: `sy-cal-chip${task.done ? " is-done" : ""} prio-${task.priority || "none"}`,
+              draggable: true,
+              onDragStart: (e) => startDragTask(e, task.id),
+              onClick: () => setEditingTask(task),
+              title: task.title
+            },
+            /* @__PURE__ */ React23.createElement(
+              "button",
+              {
+                type: "button",
+                className: `sy-chk${task.done ? " on" : ""}`,
+                "aria-label": task.done ? "标记未完成" : "标记完成",
+                onClick: (e) => {
+                  e.stopPropagation();
+                  void onRun("task.update", { id: task.id, done: !task.done });
+                }
+              }
+            ),
+            /* @__PURE__ */ React23.createElement("span", { className: "sy-cal-chip-title" }, task.title),
+            subTotal > 0 ? /* @__PURE__ */ React23.createElement("small", { className: "sy-cal-chip-sub" }, subDone, "/", subTotal) : null
+          );
+        }), dayTasks.length > maxShow ? /* @__PURE__ */ React23.createElement(
+          "button",
+          {
+            type: "button",
+            className: "sy-cal-more",
+            onClick: () => setSelectedDay(key)
+          },
+          "还有 ",
+          dayTasks.length - maxShow,
+          " 项"
+        ) : null)
+      );
+    })
+  ), /* @__PURE__ */ React23.createElement("div", { className: "sy-day-agenda" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-day-agenda-head" }, /* @__PURE__ */ React23.createElement("b", null, selectedDay === todayKey ? `今日日程 (${selectedDay})` : `${selectedDay} 排期事项`), /* @__PURE__ */ React23.createElement("span", { className: "meta" }, "共 ", selectedDayTasks.length, " 项任务 · 点击任务可编辑优先级与子步骤")), /* @__PURE__ */ React23.createElement("form", { className: "sy-day-add-form", onSubmit: handleAddOnSelectedDay }, /* @__PURE__ */ React23.createElement(
+    "input",
+    {
+      value: dayDraft,
+      onChange: (e) => setDayDraft(e.target.value),
+      placeholder: `在 ${selectedDay} 新建一项排期任务，回车保存…`,
+      "aria-label": `在 ${selectedDay} 新建排期任务`
+    }
+  ), /* @__PURE__ */ React23.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink", disabled: !dayDraft.trim() }, "+ 排入当天")), selectedDayTasks.length > 0 ? /* @__PURE__ */ React23.createElement("div", { className: "sy-day-agenda-list" }, selectedDayTasks.map((task) => /* @__PURE__ */ React23.createElement("div", { key: task.id, className: `sy-agenda-item${task.done ? " is-done" : ""}` }, /* @__PURE__ */ React23.createElement(
+    "button",
+    {
+      type: "button",
+      className: `sy-chk${task.done ? " on" : ""}`,
+      onClick: () => void onRun("task.update", { id: task.id, done: !task.done })
+    }
+  ), /* @__PURE__ */ React23.createElement("div", { className: "sy-agenda-main", onClick: () => setEditingTask(task) }, /* @__PURE__ */ React23.createElement("b", null, task.title), task.note ? /* @__PURE__ */ React23.createElement("p", null, task.note) : null), task.priority ? /* @__PURE__ */ React23.createElement("span", { className: `sy-prio-badge prio-${task.priority}` }, PRIORITY_LABELS[task.priority] ?? task.priority) : null, task.project ? /* @__PURE__ */ React23.createElement("span", { className: "sy-pill" }, task.project) : null, /* @__PURE__ */ React23.createElement("button", { type: "button", className: "sy-mini-act", onClick: () => setEditingTask(task) }, "详情")))) : null)), /* @__PURE__ */ React23.createElement("aside", { className: "sy-schedule-rail" }, nextFocusTask ? /* @__PURE__ */ React23.createElement("div", { className: "sy-next-card", onClick: () => setEditingTask(nextFocusTask), role: "button", tabIndex: 0 }, /* @__PURE__ */ React23.createElement("div", { className: "sy-next-top" }, /* @__PURE__ */ React23.createElement("span", null, "今日聚焦 · 下一件事"), /* @__PURE__ */ React23.createElement("span", null, nextFocusTask.due || "今天")), /* @__PURE__ */ React23.createElement("strong", { className: "sy-next-title" }, nextFocusTask.title), nextFocusTask.note ? /* @__PURE__ */ React23.createElement("p", { className: "sy-next-note" }, nextFocusTask.note) : null, /* @__PURE__ */ React23.createElement("div", { className: "sy-next-foot", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React23.createElement("span", null, nextFocusTask.project ? `${nextFocusTask.project} · ` : "", nextFocusTask.priority ? `${PRIORITY_LABELS[nextFocusTask.priority]} · ` : "", todayAndOverdue.length, " 项今日待办"), /* @__PURE__ */ React23.createElement(
+    "button",
+    {
+      type: "button",
+      className: "sy-btn sy-btn-ink",
+      onClick: () => void onRun("task.update", { id: nextFocusTask.id, done: true }, { toast: "已完成今日聚焦事项" })
+    },
+    "✓ 完成"
+  ))) : /* @__PURE__ */ React23.createElement("div", { className: "sy-next-card is-calm" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-next-top" }, /* @__PURE__ */ React23.createElement("span", null, "今日聚焦"), /* @__PURE__ */ React23.createElement("span", null, todayKey)), /* @__PURE__ */ React23.createElement("strong", { className: "sy-next-title" }, "今天的排期已经全部清空"), /* @__PURE__ */ React23.createElement("p", { className: "sy-next-note" }, "可以从下方待排期收件箱把任务拖到日历任意一天。")), /* @__PURE__ */ React23.createElement(
+    "section",
+    {
+      className: `sy-inbox-tray${dragOverTray ? " is-over" : ""}`,
+      "aria-label": "待排期收件箱",
+      onDragOver: (e) => {
+        e.preventDefault();
+        setDragOverTray(true);
+      },
+      onDragLeave: (e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setDragOverTray(false);
+      },
+      onDrop: (e) => {
+        e.preventDefault();
+        setDragOverTray(false);
+        const taskId = e.dataTransfer.getData(DRAG_TASK_MIME);
+        if (taskId) void unscheduleTaskToInbox(taskId);
+      }
+    },
+    /* @__PURE__ */ React23.createElement("header", { className: "sy-tray-head" }, /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("h2", null, "待排期 · Inbox (", unscheduledInbox.length, ")"), /* @__PURE__ */ React23.createElement("span", { className: "meta" }, "拖到左侧日历即可排期；从日历拖回此处取消排期"))),
+    /* @__PURE__ */ React23.createElement("form", { className: "sy-tray-add", onSubmit: handleAddInbox }, /* @__PURE__ */ React23.createElement(
+      "input",
+      {
+        value: inboxDraft,
+        onChange: (e) => setInboxDraft(e.target.value),
+        placeholder: "先记下待办，稍后再拖上日历排期…",
+        "aria-label": "新建待排期任务"
+      }
+    ), /* @__PURE__ */ React23.createElement("button", { type: "submit", className: "sy-btn", disabled: !inboxDraft.trim() }, "+ 记入")),
+    /* @__PURE__ */ React23.createElement("div", { className: "sy-tray-scroll" }, unscheduledInbox.length === 0 ? /* @__PURE__ */ React23.createElement("p", { className: "meta", style: { padding: "16px 4px", textAlign: "center" } }, "收件箱为空，所有待办均已排入日历。") : unscheduledInbox.map((task) => /* @__PURE__ */ React23.createElement(
+      "div",
+      {
+        key: task.id,
+        className: `sy-tray-item prio-${task.priority || "none"}`,
+        draggable: true,
+        onDragStart: (e) => startDragTask(e, task.id),
+        onClick: () => setEditingTask(task)
+      },
+      /* @__PURE__ */ React23.createElement("span", { className: "sy-drag-grip", "aria-hidden": "true" }, "⋮⋮"),
+      /* @__PURE__ */ React23.createElement("div", { className: "sy-tray-item-body" }, /* @__PURE__ */ React23.createElement("b", null, task.title), /* @__PURE__ */ React23.createElement("small", null, task.project ? `#${task.project} · ` : "", task.priority ? PRIORITY_LABELS[task.priority] : "待排期")),
+      /* @__PURE__ */ React23.createElement(
+        "button",
+        {
+          type: "button",
+          className: "sy-mini-act",
+          title: "排到今天",
+          onClick: (e) => {
+            e.stopPropagation();
+            void scheduleTaskToDate(task.id, todayKey);
+          }
+        },
+        "今天"
+      )
+    )))
+  ))), editingTask ? /* @__PURE__ */ React23.createElement(
+    TaskDetailModal,
+    {
+      task: editingTask,
+      onClose: () => setEditingTask(null),
+      onRun
+    }
+  ) : null);
+}
+
 // sooyo-css:./styles/tokens.css
 var tokens_default = CSS;
 
 // src/client/SooyoPanel.tsx
-var { useState: useState4, useEffect: useEffect2, useRef: useRef2, useCallback: useCallback2, useMemo } = React19;
+var { useState: useState8, useEffect: useEffect4, useRef: useRef2, useCallback: useCallback2, useMemo: useMemo5 } = React24;
 function InlineHeadlineIcon({ name, rotated, text }) {
-  const [hidden, setHidden] = useState4(false);
-  return /* @__PURE__ */ React19.createElement("span", { className: "sy-nw" }, !hidden ? /* @__PURE__ */ React19.createElement(
+  const [hidden, setHidden] = useState8(false);
+  return /* @__PURE__ */ React24.createElement("span", { className: "sy-nw" }, !hidden ? /* @__PURE__ */ React24.createElement(
     "img",
     {
       className: `sy-hi${rotated ? " r" : ""}`,
@@ -2623,30 +4843,38 @@ function InlineHeadlineIcon({ name, rotated, text }) {
       alt: "",
       onError: () => setHidden(true)
     }
-  ) : null, /* @__PURE__ */ React19.createElement("b", null, text));
+  ) : null, /* @__PURE__ */ React24.createElement("b", null, text));
 }
 function SooyoPanel() {
   const state = useDaily();
   const rootRef = useRef2(null);
   const gridRef = useRef2(null);
-  const [cols, setCols] = useState4(12);
-  const [editing, setEditing] = useState4(false);
-  const [modal, setModal] = useState4(null);
-  const [menu, setMenu] = useState4(null);
-  const [deck, setDeck] = useState4({
+  const [cols, setCols] = useState8(12);
+  const [appView, setAppView] = useState8("home");
+  const [homeMode, setHomeMode] = useState8("bento");
+  const [homeKindFilter, setHomeKindFilter] = useState8("all");
+  const [heroInput, setHeroInput] = useState8("");
+  const [heroCaptureMode, setHeroCaptureMode] = useState8("auto");
+  const [captureModalTab, setCaptureModalTab] = useState8(null);
+  const [activeEntryDetail, setActiveEntryDetail] = useState8(null);
+  const [scheduleFocusDay, setScheduleFocusDay] = useState8(null);
+  const [editing, setEditing] = useState8(false);
+  const [modal, setModal] = useState8(null);
+  const [menu, setMenu] = useState8(null);
+  const [deck, setDeck] = useState8({
     index: {},
     flipped: {}
   });
-  const [query, setQuery] = useState4("");
-  const [cmdOpen, setCmdOpen] = useState4(false);
-  const [theme, setTheme] = useState4("light");
+  const [query, setQuery] = useState8("");
+  const [cmdOpen, setCmdOpen] = useState8(false);
+  const [theme, setTheme] = useState8("light");
   const daily = state.daily;
   const widgets = daily?.widgets ?? {};
   const types = daily?.types ?? {};
   const boards = daily?.boards ?? [];
   const activeBoard = daily?.active ?? boards[0]?.id ?? null;
   const layout = activeBoard ? daily?.layouts?.[activeBoard]?.[cols] ?? daily?.layouts?.[activeBoard]?.[12] ?? [] : [];
-  useEffect2(() => {
+  useEffect4(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return void 0;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const stored = (() => {
@@ -2661,7 +4889,11 @@ function SooyoPanel() {
     media.addEventListener?.("change", sync);
     return () => media.removeEventListener?.("change", sync);
   }, []);
-  useEffect2(() => {
+  useEffect4(() => {
+    if (rootRef.current) rootRef.current.scrollTop = 0;
+    if (typeof window !== "undefined") window.scrollTo(0, 0);
+  }, [appView]);
+  useEffect4(() => {
     const element = gridRef.current;
     if (!element || typeof ResizeObserver === "undefined") return void 0;
     const apply = () => setCols(columnsFor(gridRef.current?.clientWidth || element.clientWidth || 1200));
@@ -2669,8 +4901,8 @@ function SooyoPanel() {
     const observer = new ResizeObserver(apply);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [daily]);
-  const byId = useMemo(() => {
+  }, [daily, appView, homeMode]);
+  const byId = useMemo5(() => {
     const map = /* @__PURE__ */ new Map();
     for (const [id, snap] of Object.entries(daily?.readLaterEntries ?? {})) {
       if (snap && typeof snap === "object") map.set(id, snap);
@@ -2678,13 +4910,42 @@ function SooyoPanel() {
     for (const item of state.items) map.set(item.id, item);
     return map;
   }, [state.items, daily?.readLaterEntries]);
-  const saved = useMemo(() => new Set(daily?.readLater ?? []), [daily?.readLater]);
-  const layoutSizes = useMemo(() => {
+  const saved = useMemo5(() => new Set(daily?.readLater ?? []), [daily?.readLater]);
+  const dayMap = useDayFootprintMap(
+    daily?.notes ?? [],
+    daily?.tasks ?? [],
+    daily?.readLaterEntries ?? {},
+    daily?.retros ?? {}
+  );
+  const unifiedEntries = useMemo5(
+    () => buildUnifiedEntries(
+      daily?.notes ?? [],
+      daily?.readLaterEntries ?? {},
+      daily?.bookmarks ?? [],
+      state.items,
+      false
+    ),
+    [daily?.notes, daily?.readLaterEntries, daily?.bookmarks, state.items]
+  );
+  const filteredHomeEntries = useMemo5(() => {
+    return unifiedEntries.filter((entry) => {
+      if (homeKindFilter !== "all" && entry.kind !== homeKindFilter) return false;
+      return entry.status !== "archived";
+    });
+  }, [unifiedEntries, homeKindFilter]);
+  const relatedHeroEntries = useMemo5(() => {
+    const q = heroInput.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return unifiedEntries.filter(
+      (entry) => entry.title.toLowerCase().includes(q) || entry.body.toLowerCase().includes(q) || entry.tags.some((t) => t.toLowerCase().includes(q))
+    ).slice(0, 3);
+  }, [heroInput, unifiedEntries]);
+  const layoutSizes = useMemo5(() => {
     const map = {};
     for (const entry of layout) map[entry.id] = entry.size;
     return map;
   }, [layout]);
-  const context = useMemo(
+  const context = useMemo5(
     () => ({
       items: state.items,
       byId,
@@ -2708,7 +4969,7 @@ function SooyoPanel() {
     }),
     [state.items, byId, saved, daily, types, cols, layoutSizes, deck]
   );
-  const positions = useMemo(() => pack(types, widgets, layout, cols), [types, widgets, layout, cols]);
+  const positions = useMemo5(() => pack(types, widgets, layout, cols), [types, widgets, layout, cols]);
   const decide = useCallback2(
     async (proposalId, decision) => {
       if (!proposalId) return;
@@ -2872,7 +5133,19 @@ function SooyoPanel() {
       const act = element.dataset.act;
       const ds = element.dataset;
       switch (act) {
+        case "app-view":
+          if (ds.view === "home" || ds.view === "content" || ds.view === "schedule" || ds.view === "retro") {
+            setAppView(ds.view);
+            setEditing(false);
+          }
+          break;
+        case "capture-modal-open":
+          setCaptureModalTab(
+            ds.tab ?? "note"
+          );
+          break;
         case "board":
+          setAppView("home");
           void state.run("board.active", { id: ds.board });
           break;
         case "board-new": {
@@ -2989,9 +5262,15 @@ function SooyoPanel() {
         }
         case "modal-close":
           setModal(null);
+          setCaptureModalTab(null);
+          setActiveEntryDetail(null);
           break;
         case "scrim":
-          if (target === element) setModal(null);
+          if (target === element) {
+            setModal(null);
+            setCaptureModalTab(null);
+            setActiveEntryDetail(null);
+          }
           break;
         case "proposal-approve":
           void decide(ds.proposal, "approve");
@@ -3027,6 +5306,34 @@ function SooyoPanel() {
       const form = event.target instanceof Element ? event.target.closest("[data-form]") : null;
       if (!form) return;
       event.preventDefault();
+      if (form.dataset.form === "hero-capture") {
+        const value2 = heroInput.trim();
+        if (!value2) return;
+        const isUrl = /^https?:\/\/\S+$/i.test(value2);
+        if (heroCaptureMode === "collection" || heroCaptureMode === "auto" && isUrl) {
+          void state.run(
+            "collection.save",
+            isUrl ? { url: value2, title: value2 } : { title: value2 },
+            { toast: "已存入偏好收藏库" }
+          ).then(() => setHeroInput(""));
+          return;
+        }
+        if (heroCaptureMode === "note") {
+          void state.run("capture", { text: value2, mode: "note" }, { toast: "已记入速记备忘" }).then(() => setHeroInput(""));
+          return;
+        }
+        if (heroCaptureMode === "task") {
+          void state.run("capture", { text: value2, mode: "task" }, { toast: "已加入待排期收件箱" }).then(() => setHeroInput(""));
+          return;
+        }
+        if (/^(todo|task)[:：\s]/i.test(value2)) {
+          const clean = value2.replace(/^(todo|task)[:：\s]+/i, "").trim();
+          void state.run("capture", { text: clean || value2, mode: "task" }, { toast: "已加入待排期收件箱" }).then(() => setHeroInput(""));
+        } else {
+          void state.run("capture", { text: value2, mode: "note" }, { toast: "已记入速记与灵感墙" }).then(() => setHeroInput(""));
+        }
+        return;
+      }
       const input = form.querySelector("input");
       const value = (input?.value ?? "").trim();
       if (!value) return;
@@ -3044,11 +5351,11 @@ function SooyoPanel() {
         void state.run("board.create", { name: value }).then(() => setMenu(null));
       }
     },
-    [state]
+    [state, heroInput, heroCaptureMode]
   );
-  useEffect2(() => {
+  useEffect4(() => {
     const onKeyDown = (event) => {
-      const inField = /INPUT|TEXTAREA/.test(document.activeElement?.tagName ?? "");
+      const inField = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName ?? "");
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         rootRef.current?.querySelector('input[name="cmd"]')?.focus();
@@ -3056,6 +5363,8 @@ function SooyoPanel() {
       }
       if (event.key === "Escape") {
         if (menu) setMenu(null);
+        else if (captureModalTab) setCaptureModalTab(null);
+        else if (activeEntryDetail) setActiveEntryDetail(null);
         else if (modal) setModal(null);
         else if (cmdOpen) setCmdOpen(false);
         else if (editing) setEditing(false);
@@ -3088,7 +5397,7 @@ function SooyoPanel() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [menu, modal, cmdOpen, editing, stepDeck, currentDeckItem, toggleLater]);
+  }, [menu, captureModalTab, activeEntryDetail, modal, cmdOpen, editing, stepDeck, currentDeckItem, toggleLater]);
   const onPointerDown = useCallback2(
     (event) => {
       const target = event.target instanceof Element ? event.target : null;
@@ -3158,7 +5467,7 @@ function SooyoPanel() {
     },
     [editing, cols, types, widgets, layout, activeBoard, state, setSize, stepDeck, currentDeckItem, toggleLater]
   );
-  const commands = useMemo(() => {
+  const commands = useMemo5(() => {
     const text = query.trim();
     const out = [];
     const head = (text.match(/^(\S+)\s*(.*)$/)?.[1] ?? "").toLowerCase();
@@ -3182,9 +5491,50 @@ function SooyoPanel() {
         keep: true
       });
       out.push({
+        k: "save",
+        label: "录入偏好收藏 (GitHub / X / 视频 / 网站)",
+        run: () => {
+          setCaptureModalTab("collection");
+          setCmdOpen(false);
+        }
+      });
+      out.push({
         k: "add",
         label: "添加 Widget",
         run: () => setModal({ kind: "gallery", type: "subscription", size: "M", sources: ["aihot"], pres: null })
+      });
+      out.push({ group: "视图导航" });
+      out.push({
+        k: "view",
+        label: "首页 · 灵感与工作台",
+        run: () => {
+          setAppView("home");
+          setCmdOpen(false);
+        }
+      });
+      out.push({
+        k: "view",
+        label: "内容 · 收藏与速记库",
+        run: () => {
+          setAppView("content");
+          setCmdOpen(false);
+        }
+      });
+      out.push({
+        k: "view",
+        label: "排期 · 待办与日历",
+        run: () => {
+          setAppView("schedule");
+          setCmdOpen(false);
+        }
+      });
+      out.push({
+        k: "view",
+        label: "复盘 · 节奏与个人总结",
+        run: () => {
+          setAppView("retro");
+          setCmdOpen(false);
+        }
       });
       out.push({ group: "前往 Board" });
       for (const board2 of boards) {
@@ -3192,6 +5542,7 @@ function SooyoPanel() {
           k: "go",
           label: board2.name,
           run: () => {
+            setAppView("home");
             void state.run("board.active", { id: board2.id });
             setCmdOpen(false);
           }
@@ -3259,6 +5610,7 @@ function SooyoPanel() {
           k: "go",
           label: board2.name,
           run: () => {
+            setAppView("home");
             void state.run("board.active", { id: board2.id });
             setCmdOpen(false);
           }
@@ -3305,12 +5657,12 @@ function SooyoPanel() {
   const erroring = (daily?.sources ?? []).filter((source) => source.lastError).length;
   const readLaterCount = daily?.readLater?.length ?? 0;
   const renderHeadline = () => {
-    if (!board) return /* @__PURE__ */ React19.createElement(React19.Fragment, null, greeting(), "。");
+    if (!board) return /* @__PURE__ */ React24.createElement(React24.Fragment, null, greeting(), "。");
     if (board.id === "home") {
-      return /* @__PURE__ */ React19.createElement(React19.Fragment, null, greeting(), "。今天还有 ", /* @__PURE__ */ React19.createElement(InlineHeadlineIcon, { name: "task", rotated: false, text: `${openTasks} 件事` }), "，", /* @__PURE__ */ React19.createElement(InlineHeadlineIcon, { name: "subscription", rotated: true, text: `${freshItems} 条` }), "新内容。");
+      return /* @__PURE__ */ React24.createElement(React24.Fragment, null, greeting(), "。今天还有 ", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "task", rotated: false, text: `${openTasks} 件事` }), "，", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "subscription", rotated: true, text: `${freshItems} 条` }), "新内容。");
     }
     if (board.id === "work") {
-      return /* @__PURE__ */ React19.createElement(React19.Fragment, null, "工作。", /* @__PURE__ */ React19.createElement(InlineHeadlineIcon, { name: "task", rotated: false, text: `${openTasks} 件任务` }), "待办，", /* @__PURE__ */ React19.createElement(
+      return /* @__PURE__ */ React24.createElement(React24.Fragment, null, "工作。", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "task", rotated: false, text: `${openTasks} 件任务` }), "待办，", /* @__PURE__ */ React24.createElement(
         InlineHeadlineIcon,
         {
           name: "project",
@@ -3320,14 +5672,14 @@ function SooyoPanel() {
       ), "在推进。");
     }
     if (board.id === "life") {
-      return /* @__PURE__ */ React19.createElement(React19.Fragment, null, "生活。", /* @__PURE__ */ React19.createElement(InlineHeadlineIcon, { name: "habit", rotated: false, text: `${(daily?.habits ?? []).length} 个习惯` }), "在坚持，", /* @__PURE__ */ React19.createElement(InlineHeadlineIcon, { name: "bookmarks", rotated: true, text: `${(daily?.bookmarks ?? []).length} 个书签` }), "常去。");
+      return /* @__PURE__ */ React24.createElement(React24.Fragment, null, "生活。", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "habit", rotated: false, text: `${(daily?.habits ?? []).length} 个习惯` }), "在坚持，", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "bookmarks", rotated: true, text: `${(daily?.bookmarks ?? []).length} 个书签` }), "常去。");
     }
     if (board.id === "read") {
-      return /* @__PURE__ */ React19.createElement(React19.Fragment, null, "阅读。", /* @__PURE__ */ React19.createElement(InlineHeadlineIcon, { name: "subscription", rotated: false, text: `${freshItems} 条` }), "新内容，", /* @__PURE__ */ React19.createElement(InlineHeadlineIcon, { name: "readlater", rotated: true, text: `${readLaterCount} 篇` }), "稍后读。");
+      return /* @__PURE__ */ React24.createElement(React24.Fragment, null, "阅读。", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "subscription", rotated: false, text: `${freshItems} 条` }), "新内容，", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "readlater", rotated: true, text: `${readLaterCount} 篇` }), "稍后读。");
     }
-    return /* @__PURE__ */ React19.createElement(React19.Fragment, null, board.name, "。这个 Board 上有 ", /* @__PURE__ */ React19.createElement("b", null, layout.length, " 个 Widget"), "。");
+    return /* @__PURE__ */ React24.createElement(React24.Fragment, null, board.name, "。这个 Board 上有 ", /* @__PURE__ */ React24.createElement("b", null, layout.length, " 个 Widget"), "。");
   };
-  return /* @__PURE__ */ React19.createElement(
+  return /* @__PURE__ */ React24.createElement(
     "div",
     {
       className: "sy-root",
@@ -3337,9 +5689,9 @@ function SooyoPanel() {
       onSubmit: onRootSubmit,
       onPointerDown
     },
-    /* @__PURE__ */ React19.createElement("style", null, tokens_default),
-    /* @__PURE__ */ React19.createElement("div", { className: 'sy-grain', "aria-hidden": "true" }),
-    /* @__PURE__ */ React19.createElement("div", { className: "sy-page" }, /* @__PURE__ */ React19.createElement("div", { className: `sy-frame${editing ? " sy-editing" : ""}`, "data-cols": cols }, /* @__PURE__ */ React19.createElement("header", { className: "sy-topbar" }, /* @__PURE__ */ React19.createElement("div", { className: "sy-brand" }, /* @__PURE__ */ React19.createElement(
+    /* @__PURE__ */ React24.createElement("style", null, tokens_default),
+    /* @__PURE__ */ React24.createElement("div", { className: 'sy-grain', "aria-hidden": "true" }),
+    /* @__PURE__ */ React24.createElement("div", { className: "sy-page" }, /* @__PURE__ */ React24.createElement("div", { className: `sy-frame${editing ? " sy-editing" : ""}`, "data-cols": cols }, /* @__PURE__ */ React24.createElement("header", { className: "sy-topbar" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-brand" }, /* @__PURE__ */ React24.createElement(
       "svg",
       {
         viewBox: "0 0 320 320",
@@ -3348,12 +5700,54 @@ function SooyoPanel() {
         "aria-hidden": true,
         dangerouslySetInnerHTML: { __html: BRAND_APP }
       }
-    ), "sooyo", /* @__PURE__ */ React19.createElement("span", null, "daily")), /* @__PURE__ */ React19.createElement(BoardTabs, { boards, activeBoard }), /* @__PURE__ */ React19.createElement("div", { className: "sy-cmd" }, /* @__PURE__ */ React19.createElement("div", { className: "sy-cmd-box" }, /* @__PURE__ */ React19.createElement(SvgIcon, { svg: I.search }), /* @__PURE__ */ React19.createElement(
+    ), "sooyo", /* @__PURE__ */ React24.createElement("span", null, "daily")), /* @__PURE__ */ React24.createElement("nav", { className: "sy-seg sy-app-nav", role: "tablist", "aria-label": "主视图导航" }, /* @__PURE__ */ React24.createElement(
+      "button",
+      {
+        type: "button",
+        role: "tab",
+        "aria-selected": appView === "home",
+        "data-act": "app-view",
+        "data-view": "home"
+      },
+      "首页"
+    ), /* @__PURE__ */ React24.createElement(
+      "button",
+      {
+        type: "button",
+        role: "tab",
+        "aria-selected": appView === "content",
+        "data-act": "app-view",
+        "data-view": "content"
+      },
+      "内容",
+      unifiedEntries.length > 0 ? /* @__PURE__ */ React24.createElement("small", null, unifiedEntries.length) : null
+    ), /* @__PURE__ */ React24.createElement(
+      "button",
+      {
+        type: "button",
+        role: "tab",
+        "aria-selected": appView === "schedule",
+        "data-act": "app-view",
+        "data-view": "schedule"
+      },
+      "排期",
+      openTasks > 0 ? /* @__PURE__ */ React24.createElement("small", null, openTasks) : null
+    ), /* @__PURE__ */ React24.createElement(
+      "button",
+      {
+        type: "button",
+        role: "tab",
+        "aria-selected": appView === "retro",
+        "data-act": "app-view",
+        "data-view": "retro"
+      },
+      "复盘"
+    )), /* @__PURE__ */ React24.createElement("div", { className: "sy-cmd" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-cmd-box" }, /* @__PURE__ */ React24.createElement(SvgIcon, { svg: I.search }), /* @__PURE__ */ React24.createElement(
       "input",
       {
         name: "cmd",
         value: query,
-        placeholder: "搜索，或输入 todo · note · add",
+        placeholder: "搜索，或输入 todo · note · save · add",
         autoComplete: "off",
         "aria-label": "搜索或输入命令",
         onFocus: () => setCmdOpen(true),
@@ -3369,8 +5763,8 @@ function SooyoPanel() {
           }
         }
       }
-    ), /* @__PURE__ */ React19.createElement("kbd", null, "⌘K")), cmdOpen && commands.length > 0 ? /* @__PURE__ */ React19.createElement("div", { className: "sy-cmd-pop", role: "listbox" }, commands.map(
-      (entry, index) => entry.group ? /* @__PURE__ */ React19.createElement("div", { key: `g${index}`, className: "sy-cmd-group" }, entry.group) : entry.href ? /* @__PURE__ */ React19.createElement(
+    ), /* @__PURE__ */ React24.createElement("kbd", null, "⌘K")), cmdOpen && commands.length > 0 ? /* @__PURE__ */ React24.createElement("div", { className: "sy-cmd-pop", role: "listbox" }, commands.map(
+      (entry, index) => entry.group ? /* @__PURE__ */ React24.createElement("div", { key: `g${index}`, className: "sy-cmd-group" }, entry.group) : entry.href ? /* @__PURE__ */ React24.createElement(
         "a",
         {
           key: `i${index}`,
@@ -3384,9 +5778,9 @@ function SooyoPanel() {
             entry.run?.();
           }
         },
-        /* @__PURE__ */ React19.createElement("span", { className: "k" }, entry.k ?? ""),
-        /* @__PURE__ */ React19.createElement("span", { className: "ci-t c1" }, entry.label)
-      ) : /* @__PURE__ */ React19.createElement(
+        /* @__PURE__ */ React24.createElement("span", { className: "k" }, entry.k ?? ""),
+        /* @__PURE__ */ React24.createElement("span", { className: "ci-t c1" }, entry.label)
+      ) : /* @__PURE__ */ React24.createElement(
         "button",
         {
           key: `i${index}`,
@@ -3397,10 +5791,20 @@ function SooyoPanel() {
             entry.run?.();
           }
         },
-        /* @__PURE__ */ React19.createElement("span", { className: "k" }, entry.k ?? ""),
-        /* @__PURE__ */ React19.createElement("span", { className: "ci-t c1" }, entry.label)
+        /* @__PURE__ */ React24.createElement("span", { className: "k" }, entry.k ?? ""),
+        /* @__PURE__ */ React24.createElement("span", { className: "ci-t c1" }, entry.label)
       )
-    )) : null), /* @__PURE__ */ React19.createElement("div", { className: "sy-actions" }, /* @__PURE__ */ React19.createElement(
+    )) : null), /* @__PURE__ */ React24.createElement("div", { className: "sy-actions" }, /* @__PURE__ */ React24.createElement(
+      "button",
+      {
+        type: "button",
+        className: "sy-btn sy-btn-capture",
+        "data-act": "capture-modal-open",
+        "data-tab": "collection"
+      },
+      /* @__PURE__ */ React24.createElement(SvgIcon, { svg: I.plus }),
+      /* @__PURE__ */ React24.createElement("span", { className: "lbl" }, "录入收藏")
+    ), appView === "home" ? /* @__PURE__ */ React24.createElement(React24.Fragment, null, /* @__PURE__ */ React24.createElement(
       "button",
       {
         className: "sy-switch",
@@ -3408,9 +5812,9 @@ function SooyoPanel() {
         "aria-checked": editing,
         "data-act": "edit-toggle"
       },
-      /* @__PURE__ */ React19.createElement("span", { className: "lbl" }, "编辑"),
-      /* @__PURE__ */ React19.createElement("span", { className: "sy-sw", "aria-hidden": true })
-    ), /* @__PURE__ */ React19.createElement("button", { className: "sy-btn sy-btn-add", "data-act": "gallery-open" }, /* @__PURE__ */ React19.createElement(SvgIcon, { svg: I.plus }), /* @__PURE__ */ React19.createElement("span", { className: "lbl" }, "添加 Widget")), /* @__PURE__ */ React19.createElement(
+      /* @__PURE__ */ React24.createElement("span", { className: "lbl" }, "编辑"),
+      /* @__PURE__ */ React24.createElement("span", { className: "sy-sw", "aria-hidden": true })
+    ), /* @__PURE__ */ React24.createElement("button", { className: "sy-btn sy-btn-add", "data-act": "gallery-open" }, /* @__PURE__ */ React24.createElement(SvgIcon, { svg: I.plus }), /* @__PURE__ */ React24.createElement("span", { className: "lbl" }, "添加 Widget"))) : null, /* @__PURE__ */ React24.createElement(
       "button",
       {
         className: "sy-icon-btn",
@@ -3424,8 +5828,8 @@ function SooyoPanel() {
           }
         }
       },
-      /* @__PURE__ */ React19.createElement(SvgIcon, { svg: screenshotTheme === "dark" ? I.sun : I.moon })
-    ), /* @__PURE__ */ React19.createElement(
+      /* @__PURE__ */ React24.createElement(SvgIcon, { svg: screenshotTheme === "dark" ? I.sun : I.moon })
+    ), /* @__PURE__ */ React24.createElement(
       "button",
       {
         className: "sy-icon-btn",
@@ -3433,8 +5837,115 @@ function SooyoPanel() {
         title: "刷新信息源",
         onClick: () => void state.refreshSources()
       },
-      /* @__PURE__ */ React19.createElement(SvgIcon, { svg: I.reset })
-    ))), /* @__PURE__ */ React19.createElement("section", { className: "sy-hero" }, /* @__PURE__ */ React19.createElement("div", null, /* @__PURE__ */ React19.createElement("span", { className: "sy-tag" }, `${(/* @__PURE__ */ new Date()).getMonth() + 1}月${(/* @__PURE__ */ new Date()).getDate()}日 · 星期${WEEK[(/* @__PURE__ */ new Date()).getDay()]}`), /* @__PURE__ */ React19.createElement("h1", { className: "sy-headline" }, renderHeadline())), /* @__PURE__ */ React19.createElement("div", { className: "sy-status" }, /* @__PURE__ */ React19.createElement("i", { className: erroring > 0 ? "warn" : "" }), `${(daily?.sources ?? []).length - erroring} 个来源正常 · ${state.items.length} 条内容`)), editing ? /* @__PURE__ */ React19.createElement("div", { className: "sy-editbar" }, /* @__PURE__ */ React19.createElement("span", { className: "grow" }, `正在编辑「${board?.name ?? ""}」的布局（${cols} 列）。拖动卡片排序，拖右下角改尺寸；不同宽度各自保存。`), /* @__PURE__ */ React19.createElement("button", { className: "sy-btn", "data-act": "gallery-open" }, "添加"), /* @__PURE__ */ React19.createElement("button", { className: "sy-btn sy-btn-ink", "data-act": "edit-toggle" }, "完成")) : null, /* @__PURE__ */ React19.createElement(
+      /* @__PURE__ */ React24.createElement(SvgIcon, { svg: I.reset })
+    ))), appView === "home" ? /* @__PURE__ */ React24.createElement(React24.Fragment, null, /* @__PURE__ */ React24.createElement("section", { className: "sy-hero" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-hero-main" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-hero-top-row" }, /* @__PURE__ */ React24.createElement("span", { className: "sy-tag" }, `${(/* @__PURE__ */ new Date()).getMonth() + 1}月${(/* @__PURE__ */ new Date()).getDate()}日 · 星期${WEEK[(/* @__PURE__ */ new Date()).getDay()]}`), /* @__PURE__ */ React24.createElement("div", { className: "sy-status" }, /* @__PURE__ */ React24.createElement("i", { className: erroring > 0 ? "warn" : "" }), `${(daily?.sources ?? []).length - erroring} 个来源正常 · ${state.items.length} 条内容`)), /* @__PURE__ */ React24.createElement("h1", { className: "sy-headline" }, renderHeadline()), /* @__PURE__ */ React24.createElement("form", { className: "sy-hero-capture", "data-form": "hero-capture" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-hero-capture-modes" }, [
+      { id: "auto", label: "智能识别" },
+      { id: "note", label: "✎ 速记/闪念" },
+      { id: "collection", label: "★ 偏好收藏" },
+      { id: "task", label: "✓ 待办事项" }
+    ].map((m) => /* @__PURE__ */ React24.createElement(
+      "button",
+      {
+        key: m.id,
+        type: "button",
+        className: "sy-hero-mode-pill",
+        "aria-pressed": heroCaptureMode === m.id,
+        onClick: () => setHeroCaptureMode(m.id)
+      },
+      m.label
+    ))), /* @__PURE__ */ React24.createElement("div", { className: "sy-hero-capture-row" }, /* @__PURE__ */ React24.createElement(
+      "input",
+      {
+        name: "hero-q",
+        value: heroInput,
+        onChange: (event) => setHeroInput(event.target.value),
+        placeholder: heroCaptureMode === "collection" ? "粘贴 GitHub / X / 网站 / 视频 / 音乐链接，回车保存元信息…" : heroCaptureMode === "task" ? "输入待办事项，回车进入排期收件箱…" : "随手记一条灵感备忘、贴入收藏链接，或输入 todo: 记待办…",
+        autoComplete: "off"
+      }
+    ), /* @__PURE__ */ React24.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink" }, "记下来 ↵"), /* @__PURE__ */ React24.createElement(
+      "button",
+      {
+        type: "button",
+        className: "sy-btn",
+        "data-act": "capture-modal-open",
+        "data-tab": "collection",
+        title: "打开完整录入面板（支持缩略图、飞书外链、JSON/CSV 批量导入）"
+      },
+      "详细录入"
+    )), relatedHeroEntries.length > 0 ? /* @__PURE__ */ React24.createElement("div", { className: "sy-hero-related" }, /* @__PURE__ */ React24.createElement("span", { className: "meta" }, "相似已收录："), relatedHeroEntries.map((item) => /* @__PURE__ */ React24.createElement(
+      "button",
+      {
+        key: item.id,
+        type: "button",
+        className: "sy-hero-related-chip",
+        onClick: () => setActiveEntryDetail(item)
+      },
+      /* @__PURE__ */ React24.createElement("span", null, KIND_BADGE_LABELS[item.kind] ?? item.kind),
+      /* @__PURE__ */ React24.createElement("span", { className: "c1" }, item.title)
+    ))) : null)), /* @__PURE__ */ React24.createElement("div", { className: "sy-hero-aside" }, /* @__PURE__ */ React24.createElement(
+      MiniStamps,
+      {
+        dayMap,
+        onCaptureToday: () => setCaptureModalTab("note"),
+        onOpenSchedule: (date) => {
+          if (date) setScheduleFocusDay(date);
+          setAppView("schedule");
+        }
+      }
+    ))), /* @__PURE__ */ React24.createElement("div", { className: "sy-home-dock", role: "toolbar", "aria-label": "看板与灵感墙切换" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-home-dock-left" }, /* @__PURE__ */ React24.createElement(BoardTabs, { boards, activeBoard }), /* @__PURE__ */ React24.createElement("div", { className: "sy-seg sm" }, /* @__PURE__ */ React24.createElement(
+      "button",
+      {
+        type: "button",
+        "aria-selected": homeMode === "bento",
+        onClick: () => setHomeMode("bento")
+      },
+      "工作台看板"
+    ), /* @__PURE__ */ React24.createElement(
+      "button",
+      {
+        type: "button",
+        "aria-selected": homeMode === "wall",
+        onClick: () => setHomeMode("wall")
+      },
+      `灵感与收藏墙 (${filteredHomeEntries.length})`
+    ))), /* @__PURE__ */ React24.createElement("div", { className: "sy-home-dock-filters" }, KIND_FILTER_OPTIONS.map((f) => /* @__PURE__ */ React24.createElement(
+      "button",
+      {
+        key: f.value,
+        type: "button",
+        className: "sy-chipbtn",
+        "aria-pressed": homeKindFilter === f.value,
+        onClick: () => {
+          setHomeKindFilter(f.value);
+          if (f.value !== "all") setHomeMode("wall");
+        }
+      },
+      f.label
+    )))), homeMode === "wall" ? /* @__PURE__ */ React24.createElement("section", { className: "sy-home-wall-section" }, filteredHomeEntries.length === 0 ? /* @__PURE__ */ React24.createElement("div", { className: "sy-view-empty" }, /* @__PURE__ */ React24.createElement("p", null, "当前分类还没有速记或偏好收藏。"), /* @__PURE__ */ React24.createElement(
+      "button",
+      {
+        type: "button",
+        className: "sy-btn sy-btn-ink",
+        "data-act": "capture-modal-open",
+        "data-tab": "collection"
+      },
+      "+ 录入第一条收藏或闪念"
+    )) : /* @__PURE__ */ React24.createElement("div", { className: "sy-wall-grid" }, filteredHomeEntries.map((entry) => /* @__PURE__ */ React24.createElement(
+      MediaCollectionCard,
+      {
+        key: entry.id,
+        entry,
+        onOpen: setActiveEntryDetail,
+        onQuickTask: (item) => void state.run(
+          "item.toTask",
+          {
+            title: item.title.slice(0, 60),
+            origin: { source: KIND_BADGE_LABELS[item.kind] ?? "收藏", url: item.url }
+          },
+          { toast: "已转为待办任务" }
+        )
+      }
+    )))) : null, editing ? /* @__PURE__ */ React24.createElement("div", { className: "sy-editbar" }, /* @__PURE__ */ React24.createElement("span", { className: "grow" }, `正在编辑「${board?.name ?? ""}」的布局（${cols} 列）。拖动卡片排序，拖右下角改尺寸；不同宽度各自保存。`), /* @__PURE__ */ React24.createElement("button", { className: "sy-btn", "data-act": "gallery-open" }, "添加"), /* @__PURE__ */ React24.createElement("button", { className: "sy-btn sy-btn-ink", "data-act": "edit-toggle" }, "完成")) : null, /* @__PURE__ */ React24.createElement(
       WidgetGrid,
       {
         gridRef,
@@ -3444,8 +5955,37 @@ function SooyoPanel() {
         positions,
         context
       }
-    ), /* @__PURE__ */ React19.createElement("div", { className: "meta", style: { marginTop: 14, whiteSpace: "normal", lineHeight: "19px" } }, "数据来源：AIHOT（个人非商业使用）、HuggingFace、Product Hunt、YouTube。抓取到的内容一律视为资料，不作为指令执行。"))),
-    menu ? /* @__PURE__ */ React19.createElement(
+    ), /* @__PURE__ */ React24.createElement("div", { className: "meta", style: { marginTop: 14, whiteSpace: "normal", lineHeight: "19px" } }, "数据来源：AIHOT（个人非商业使用）、HuggingFace、Product Hunt、YouTube。抓取到的内容一律视为资料，不作为指令执行。")) : null, appView === "content" ? /* @__PURE__ */ React24.createElement(
+      ContentView,
+      {
+        notes: daily?.notes ?? [],
+        readLaterEntries: daily?.readLaterEntries ?? {},
+        bookmarks: daily?.bookmarks ?? [],
+        feedItems: state.items,
+        onRun: state.run,
+        onOpenCapture: (tab) => setCaptureModalTab(tab),
+        onOpenEntry: (entry) => setActiveEntryDetail(entry)
+      }
+    ) : null, appView === "schedule" ? /* @__PURE__ */ React24.createElement(
+      ScheduleView,
+      {
+        tasks: daily?.tasks ?? [],
+        dayMap,
+        initialFocusDay: scheduleFocusDay,
+        onCaptureToday: () => setCaptureModalTab("task"),
+        onRun: state.run
+      }
+    ) : null, appView === "retro" ? /* @__PURE__ */ React24.createElement(
+      RetroView,
+      {
+        daily,
+        items: state.items,
+        onRun: state.run,
+        onNavigate: (v) => setAppView(v),
+        onOpenEntry: (entry) => setActiveEntryDetail(entry)
+      }
+    ) : null)),
+    menu ? /* @__PURE__ */ React24.createElement(
       MenuLayer,
       {
         menu,
@@ -3455,7 +5995,7 @@ function SooyoPanel() {
         onClose: () => setMenu(null)
       }
     ) : null,
-    modal ? /* @__PURE__ */ React19.createElement(
+    modal ? /* @__PURE__ */ React24.createElement(
       ModalLayer,
       {
         modal,
@@ -3468,7 +6008,23 @@ function SooyoPanel() {
         onRun: state.run
       }
     ) : null,
-    state.toast ? /* @__PURE__ */ React19.createElement("div", { className: "sy-toast", role: "status" }, /* @__PURE__ */ React19.createElement("span", null, state.toast.text)) : null
+    captureModalTab ? /* @__PURE__ */ React24.createElement(
+      CaptureModal,
+      {
+        initialTab: captureModalTab,
+        onClose: () => setCaptureModalTab(null),
+        onRun: state.run
+      }
+    ) : null,
+    activeEntryDetail ? /* @__PURE__ */ React24.createElement(
+      EntryDetailModal,
+      {
+        entry: activeEntryDetail,
+        onClose: () => setActiveEntryDetail(null),
+        onRun: state.run
+      }
+    ) : null,
+    state.toast ? /* @__PURE__ */ React24.createElement("div", { className: "sy-toast", role: "status" }, /* @__PURE__ */ React24.createElement("span", null, state.toast.text)) : null
   );
 }
 
@@ -3476,7 +6032,7 @@ function SooyoPanel() {
 var PANEL_ID = "sooyo";
 function SooyoIcon(props) {
   const size = props?.size ?? 18;
-  return React20.createElement("svg", {
+  return React25.createElement("svg", {
     viewBox: "0 0 24 24",
     width: size,
     height: size,

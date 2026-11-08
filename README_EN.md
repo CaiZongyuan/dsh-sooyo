@@ -63,11 +63,17 @@ The model is one sentence: **a Board holds Widgets, a Widget is an instance the 
 Requires [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) `>=0.2.0-rc.1` and Node.js `>=20`.
 
 ```sh
-dsh plugin --profile web add github:CaiZongyuan/dsh-sooyo
+dsh plugin --profile web add dsh-sooyo
 ```
 
-Then restart DSH once (a Host module is cached per specifier, so code changes need a fresh
-process) and reload the page.
+Use the npm installation after the first 0.3.0 publication. Follow DSH's activation result: native updates
+prefer HMR and explicitly report when a restart is required.
+
+The top-bar update button checks stable npm releases and installs only after a human click. Each DSH
+instance upgrades independently. Unsubmitted drafts block activation; accepted writes and the Client
+Outbox persist before shutdown. Both the local Host and browser builds are verified after activation.
+Source checkouts stay read-only, and GitHub/local package installs require a one-time switch to npm.
+Hosts without the native API keep read-only checks. See [plugin updates](./docs/plugin-updates.md).
 
 ## Configuration
 

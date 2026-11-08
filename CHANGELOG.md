@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 — 插件正式版本检查与原生热升级
+
+- 顶部「插件更新」入口：后台检查 npm 正式版本、查看发布说明、人工点击升级；每个实例独立处理。
+- 通过 DSH 原生 PluginManager 更新并优先 HMR，分别确认本机 Host 与浏览器构建；需要重启时显示待生效。
+- 升级前等待所有面板保存和冻结，统一停止新工作、等待写入/Outbox 持久化并异步关闭存储。
+- 旧包采用宿主尽力恢复；目标失败、恢复失败和回执丢失均明确可见。源码及非 registry 安装保持只读。
+- Host / Client 共用构建身份与发布兼容契约，修复强制检查仍读缓存的问题。
+- 单一 CI Workflow 增加版本 tag 的真实安装/升级 smoke、发布身份校验及 npm trusted publishing 步骤。
+
 ## Unreleased — 四视图空间、轻量速记与多媒介元数据收藏
 
 借鉴 `dsh-media-desk` 的双栏与四视图骨架，结合个人日常记录与跨平台偏好收藏场景，将面板升级为**首页 · 内容 · 排期 · 复盘**四视图结构（设计与取舍见 [`docs/adr/0003`](./docs/adr/0003-lightweight-memos-and-metadata-collections.md)）。

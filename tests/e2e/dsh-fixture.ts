@@ -26,6 +26,10 @@ export interface StartDshInstanceOptions {
   label?: string
   sooyoConfig?: Record<string, unknown>
   env?: Record<string, string>
+  pluginSpec?: string
+  registry?: string
+  bundleManaged?: boolean
+  hmr?: boolean
 }
 
 export interface DshInstance {
@@ -43,6 +47,11 @@ export interface DshInstance {
 
 function resolveDshBinJs(): string {
   const candidates: string[] = []
+  if (process.env.DSH_E2E_BIN) {
+    const override = resolve(process.env.DSH_E2E_BIN)
+    if (!existsSync(override)) throw new Error(`DSH_E2E_BIN does not exist: ${override}`)
+    return override
+  }
   if (process.env.APPDATA) {
     candidates.push(join(process.env.APPDATA, 'npm', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'))
   }
@@ -156,10 +165,12 @@ async function waitForSooyoReady(origin: string, timeoutMs = 20_000): Promise<Re
 export async function startDshInstance(options: StartDshInstanceOptions = {}): Promise<DshInstance> {
   const label = options.label ?? 'standalone'
   const dshBinJs = resolveDshBinJs()
-  const tarball = packPluginTarball()
+  const spec = options.pluginSpec ?? packPluginTarball()
   const home = mkdtempSync(join(tmpdir(), `sooyo-dsh-${label}-`))
   const patchPath = join(home, 'sooyo-e2e-overlay.json')
-  writeFileSync(patchPath, buildPatchYaml(options.sooyoConfig), 'utf8')
+  writeFileSync(patchPath, options.bundleManaged
+    ? JSON.stringify(options.hmr === false ? [{ id: 'hmr', disabled: true }] : [])
+    : buildPatchYaml(options.sooyoConfig), 'utf8')
 
   const baseEnv: NodeJS.ProcessEnv = {
     ...process.env,
@@ -168,18 +179,19 @@ export async function startDshInstance(options: StartDshInstanceOptions = {}): P
     ...(options.env ?? {}),
   }
 
-  const installRes = spawnSync(
-    process.execPath,
-    [dshBinJs, 'plugin', '--profile', 'web', 'add', tarball],
-    {
-      cwd: REPO_ROOT,
-      env: baseEnv,
-      encoding: 'utf8',
-    },
-  )
+  const installRes = await new Promise<{ status: number | null; output: string }>((done, reject) => {
+    const install = spawn(process.execPath,
+      [dshBinJs, 'plugin', '--profile', 'web', 'add', spec, ...(options.registry ? ['--registry', options.registry] : [])],
+      { cwd: REPO_ROOT, env: baseEnv, stdio: ['ignore', 'pipe', 'pipe'] })
+    let output = ''
+    install.stdout.on('data', (chunk) => { output += chunk })
+    install.stderr.on('data', (chunk) => { output += chunk })
+    install.once('error', reject)
+    install.once('exit', (status) => done({ status, output }))
+  })
   if (installRes.status !== 0) {
     rmSync(home, { recursive: true, force: true })
-    throw new Error(`dsh plugin add failed for [${label}]:\n${installRes.stderr || installRes.stdout}`)
+    throw new Error(`dsh plugin add failed for [${label}]:\n${installRes.output}`)
   }
 
   let child: ChildProcess | null = null
@@ -219,7 +231,7 @@ export async function startDshInstance(options: StartDshInstanceOptions = {}): P
         rejectUrl(
           new Error(`Timed out waiting for DSH [${label}] web URL.\nRecent logs:\n${logs.slice(-20).join('\n')}`),
         )
-      }, 30_000)
+      }, 60_000)
 
       let stdoutBuf = ''
       child!.stdout!.setEncoding('utf8')
@@ -312,7 +324,12 @@ export async function startDshInstance(options: StartDshInstanceOptions = {}): P
     }
   }
 
-  await boot(0)
+  try {
+    await boot(0)
+  } catch (error) {
+    await stop()
+    throw error
+  }
 
   return {
     label,
@@ -343,6 +360,8 @@ export async function openSooyoInDsh(page: Page, instance: DshInstance): Promise
         if (dialog.classList.contains('sy-sheet') || dialog.classList.contains('sy-pop') || dialog.closest('.sy-root')) {
           continue
         }
+        const title = `${dialog.getAttribute('aria-label') ?? ''} ${dialog.querySelector('h1, h2, [role="heading"]')?.textContent ?? ''}`
+        if (!/预览版说明|开始使用|preview|get started/i.test(title)) continue
         for (const btn of dialog.querySelectorAll('button')) {
           if (btn.textContent?.trim() === 'Continue') {
             ;(btn as HTMLButtonElement).click()
@@ -382,6 +401,8 @@ export async function openSooyoInDsh(page: Page, instance: DshInstance): Promise
         if (dialog.classList.contains('sy-sheet') || dialog.classList.contains('sy-pop') || dialog.closest('.sy-root')) {
           continue
         }
+        const title = `${dialog.getAttribute('aria-label') ?? ''} ${dialog.querySelector('h1, h2, [role="heading"]')?.textContent ?? ''}`
+        if (!/预览版说明|开始使用|preview|get started/i.test(title)) continue
         for (const btn of dialog.querySelectorAll('button')) {
           if (btn.textContent?.trim() === 'Continue') {
             ;(btn as HTMLButtonElement).click()
@@ -416,4 +437,16 @@ export async function openSooyoInDsh(page: Page, instance: DshInstance): Promise
   }
 
   await page.locator('.sy-root .sy-grid > .sy-w').first().waitFor({ state: 'visible', timeout: 20_000 })
+}
+
+/** DSH switches its navigation surface at the mobile breakpoint; reopen the global panel there. */
+export async function activateSooyoPanel(page: Page): Promise<void> {
+  if (!(await page.locator('.sy-root').isVisible())) {
+    const panel = page.locator('button[aria-label="sooyo daily"], button[title="sooyo daily"]').first()
+    if (!(await panel.isVisible())) {
+      await page.getByRole('button', { name: /^(打开侧边栏|Open sidebar)$/i }).last().click()
+    }
+    await panel.click()
+  }
+  await page.locator('.sy-root .sy-grid > .sy-w').first().waitFor({ state: 'visible' })
 }

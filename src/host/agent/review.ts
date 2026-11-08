@@ -23,6 +23,7 @@ export function createReviewer(deps: {
   role: () => string
   config?: Record<string, any>
   log?: (msg: string, data?: Record<string, unknown>) => void
+  write?: <T>(operation: () => Promise<T>) => Promise<T>
 }) {
   const { service, role, config = {}, log = () => {} } = deps
 
@@ -73,6 +74,10 @@ export function createReviewer(deps: {
   }
 
   async function acknowledge(entries: any[], runId?: string) {
+    return deps.write ? deps.write(() => acknowledgeNow(entries, runId)) : acknowledgeNow(entries, runId)
+  }
+
+  async function acknowledgeNow(entries: any[], runId?: string) {
     if (!Array.isArray(entries) || entries.length === 0) return { ok: true, acknowledged: 0 }
     const table = tables()
     let acknowledged = 0

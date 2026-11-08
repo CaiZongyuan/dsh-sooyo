@@ -3,6 +3,11 @@
 Reference for `src/host/sources/upstream.ts`, `src/host/build-info.ts`, and the
 `sooyo_aihot` / `sooyo_update_check` tools.
 
+AIHOT readers and the development-ref checker remain read-only. `sooyo_update_check` now uses the
+independent release service in `src/host/updates/service.ts`; human-triggered npm installation and
+activation are described in [plugin updates](./plugin-updates.md). The service verifies the local Host
+and browser builds and follows the native manager's HMR / pending-restart result.
+
 Two questions this answers, both of which the plugin previously could not:
 
 1. **"What can AIHOT do right now?"** AIHOT adds endpoints and changes their meaning over time
@@ -25,7 +30,7 @@ Source.
 |---|---|
 | `createAihotReader` | Fetches `https://aihot.news/changelog`, parses entries, caches by TTL **and** by the page's `aihot-release` stamp |
 | `createGuideReader` | Fetches `https://aihot.news/api/v1/agent` (Markdown), caches 6h |
-| `createUpdateChecker` | Compares the built commit against `refs/heads/main` of the upstream repo |
+| `createUpdateChecker` | Read-only development comparison against `refs/heads/main`; separate from formal npm release checks |
 | `parseAihotChangelog` | Pure parser, fixture-tested offline |
 | `parseRefAdvertisement` | Pure parser for git's pkt-line ref advertisement, fixture-tested offline |
 | `describeChangelog` / `describeUpdate` | One-line summaries for the Context Bridge |
@@ -58,7 +63,7 @@ Verified against the live page; re-check before trusting the parser if entries s
 - Every value goes through `stripTags` + `decodeEntities`: this is third-party HTML being fed to
   a model.
 
-## Update detection
+## Development-ref detection
 
 - **git's own ref advertisement, not the REST API.**
   `https://github.com/<owner>/<repo>/info/refs?service=git-upload-pack` is what `git ls-remote`
@@ -75,7 +80,7 @@ Verified against the live page; re-check before trusting the parser if entries s
   and stops. Applying an update mutates a profile (`pnpm add`, or pull + rebuild + DSH restart)
   and does not belong inside a chat turn.
 
-## The one-commit lag (known, by design)
+## The development artifact's one-commit lag
 
 A bundle can only record the HEAD that existed **when it was built**, and a commit is by
 definition created *after* the files it contains. So the artifact committed in revision `N`
@@ -86,8 +91,8 @@ commit A  (code + rebuilt index.js naming A)     <- artifact names its parent
 commit B  (the artifact commit itself)           <- upstream head is now B
 ```
 
-The tool reports that honestly as `updateAvailable: true` with the two revisions named. It does
-**not** claim to be current, and it does not invent a verdict it cannot support.
+The development check reports the two revisions as different. That does not mean a newer formal release
+exists; formal update availability is determined by npm versions in the independent release service.
 
 This is a false *alarm*, never a false *all-clear*, which is the safe direction: an unnecessary
 `git pull --ff-only` is a no-op, while a missed update is invisible. Do not "fix" it by committing
@@ -105,9 +110,9 @@ build made mid-edit could name a revision that never contained the change at all
 
 ## `__SOOYO_BUILD__`
 
-`dev/build.mjs` inlines `{ version, commit, dirty, builtAt }` via esbuild `define`, because the
+`dev/build.mjs` inlines the same `{ version, commit, dirty, builtAt }` in both bundles via esbuild `define`, because the
 build is the only moment `package.json` **and** `.git` are both readable: an installed package
-ships only `files`, and a `github:` install has no checkout. `src/host/build-info.ts` guards the
+ships only `files`, and a `github:` install has no checkout. `src/shared/build.ts` guards the
 reference with `typeof` so a direct `node` run (no define) does not throw.
 
 `installShape()` decides `checkout` vs `package` by looking for `.git` beside the entry — a
@@ -118,7 +123,7 @@ reference with `typeof` so a direct `node` run (no define) does not throw.
 The bridge appends at most two lines, and only when there is something to say:
 
 - the newest changelog entry (plus a pointer to `sooyo_aihot`), and
-- an update notice **only** when this build is behind, carries local edits, or the check failed.
+- a formal release notice or a failed-check notice from the independent plugin update service.
 
 Being current produces no line. The bridge reads the last successful parse — it never fetches —
 so a third party can never hold a turn open. `describeChangelog` is bounded by `limit`, and the

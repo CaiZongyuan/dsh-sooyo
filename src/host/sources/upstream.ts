@@ -78,6 +78,7 @@ async function readText(url: string, signal?: AbortSignal, accept = 'text/html')
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
   const onAbort = () => controller.abort()
   signal?.addEventListener?.('abort', onAbort, { once: true })
+  if (signal?.aborted) controller.abort()
   try {
     const response = await fetch(url, {
       headers: { accept, 'user-agent': 'dsh-sooyo (+personal, non-commercial; agent context)' },
@@ -318,8 +319,8 @@ export function createUpdateChecker(options: UpdateCheckerOptions = {}) {
   let cache: { at: number; value: UpdateCheck } | null = null
   let inflight: Promise<UpdateCheck> | null = null
 
-  async function check(signal?: AbortSignal): Promise<UpdateCheck> {
-    if (cache && Date.now() - cache.at < ttlMs) return cache.value
+  async function check(signal?: AbortSignal, force = false): Promise<UpdateCheck> {
+    if (!force && cache && Date.now() - cache.at < ttlMs) return cache.value
     if (inflight) return inflight
 
     inflight = (async () => {
@@ -389,7 +390,7 @@ export function describeUpdate(check: UpdateCheck | null): string | null {
   if (check.updateAvailable === true) {
     const local = check.installedCommit ? check.installedCommit.slice(0, 7) : check.installedVersion ?? 'unknown'
     const remote = check.latestCommit ? check.latestCommit.slice(0, 7) : 'unknown'
-    return `Update: dsh-sooyo ${local} → ${remote} on ${check.latestRef} (ask the user before updating; Host reload needs a restart).`
+    return `Development: dsh-sooyo ${local} differs from ${remote} on ${check.latestRef}; a checkout is updated manually.`
   }
   if (check.updateAvailable === false && check.installedDirty) {
     // Same revision upstream, but this build carries uncommitted edits: "not behind" is true and

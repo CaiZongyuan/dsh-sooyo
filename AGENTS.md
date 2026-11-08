@@ -13,6 +13,7 @@ The plugin runs in one of three roles (`standalone` by default, `hub`, `client`)
 - **Testing & CI policy, real DSH Playwright E2E, and pre-release smoke:** [`docs/testing.md`](./docs/testing.md)
 - **Adding a Source, `feed-parser.ts` fixtures, and `og:image` thumbnail rules:** [`docs/sources.md`](./docs/sources.md)
 - **AIHOT changelog/guide readers, plugin update detection, and `__SOOYO_BUILD__`:** [`docs/upstream.md`](./docs/upstream.md)
+- **Plugin upgrades, runtime shutdown, build verification, and npm releases:** [`docs/plugin-updates.md`](./docs/plugin-updates.md)
 - **Generating Widget Type icons (`.webp` in `assets/a/`):** [`docs/agents/image-generation.md`](./docs/agents/image-generation.md)
 
 ## File map
@@ -41,7 +42,7 @@ The plugin runs in one of three roles (`standalone` by default, `hub`, `client`)
 
 1. **Never import from `node_modules` in runtime Host files (`src/host/**` / `index.js`).** `plugin_manager install_bundle` links the bundle without `--preserve-symlinks`, so unbundled bare specifiers fail to resolve at runtime. Use Node built-ins (`node:*`) and relative imports only (`pnpm run check` enforces this).
 2. **Never bundle a duplicate copy of React in `client.js`.** `dev/build.mjs` wraps the Client bundle in `window.__ModuleLoader__.load` and resolves `react` via `require('react')`. Rebuild (`pnpm run build`) after editing `src/**`.
-3. **Host changes require a DSH restart; Client (`client.js`) hot-reloads on save.** Node's ESM cache keys by resolved file URL. Verify Host logic via `pnpm run test:offline` before restarting.
+3. **Host changes need explicit activation through DSH HMR or restart; Client (`client.js`) hot-reloads on save.** Run offline tests before activation, then verify the local Host and browser build identities. Installing files alone does not prove activation.
 4. **Storage keys must match `/^[a-zA-Z0-9_-]+$/` and table names `/^[a-z][a-z0-9_]*$/`.** Never use colons or slashes in record keys (`itemKey()` and `layoutKey()` sanitise them).
 5. **Every mutation goes through `src/host/domain/commands.ts` `execute()` and the single write queue.** Never mutate `daily.ts` or storage tables outside the queue/stamper, or ETag/Revision and crash recovery will drift.
 6. **Deterministic entity IDs and two-phase Intents.** Creating commands must derive stable entity IDs from `operationId` (or accept validated client IDs) and persist a `pending` Intent before mutating tables, so crash recovery and retries never duplicate records.

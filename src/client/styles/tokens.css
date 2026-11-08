@@ -882,6 +882,26 @@
 .sy-field input, .sy-field select, .sy-field textarea { min-height: 36px; border-radius: 10px; border: 1px solid var(--sy-line2); background: var(--sy-well); color: var(--sy-ink); padding: 6px 12px; outline: 0; }
 .sy-field textarea { resize: vertical; line-height: 1.5; }
 
+.sy-update-trigger { position: relative; flex-shrink: 0; }
+.sy-update-trigger i { position: absolute; right: 3px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--sy-accent); box-shadow: 0 0 0 2px var(--sy-card); }
+.sy-update-scrim { text-align: left; cursor: default; }
+.sy-update-modal { width: min(520px, 100%); }
+.sy-update-modal h2 { margin: 0; font-size: 18px; font-weight: 650; color: var(--sy-ink); }
+.sy-update-modal .sy-modal-h p { margin: 3px 0 0; font-size: 12px; color: var(--sy-ink3); }
+.sy-update-versions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.sy-update-versions > div { padding: 14px; background: var(--sy-well); border: 1px solid var(--sy-line); border-radius: 12px; }
+.sy-update-versions dt { font-size: 11px; color: var(--sy-ink3); margin-bottom: 5px; }
+.sy-update-versions dd { margin: 0; font-size: 14px; font-family: var(--sy-mono); overflow-wrap: anywhere; }
+.sy-update-muted { font-size: 12px; line-height: 1.6; color: var(--sy-ink3); margin: 0; overflow-wrap: anywhere; }
+.sy-update-notice, .sy-update-message { padding: 12px; margin: 0; border-radius: 10px; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; background: var(--sy-well); color: var(--sy-ink2); }
+.sy-update-message.is-complete { background: var(--sy-accent-soft); color: var(--sy-accent-ink); }
+.sy-update-release { border: 1px solid var(--sy-line); padding: 16px; border-radius: 12px; }
+.sy-update-release > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+.sy-update-release time { font-size: 11px; color: var(--sy-ink3); }
+.sy-update-release p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; margin: 12px 0 0; }
+.sy-update-modal .sy-modal-f { flex-wrap: wrap; }
+.sy-update-modal button:disabled { opacity: .5; cursor: wait; }
+
 @container sy (max-width: 980px) {
   .sy-kanban-board, .sy-kanban-board.cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sy-schedule-layout { grid-template-columns: 1fr; }

@@ -119,15 +119,25 @@ sync:
 
 前置：[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) `>=0.2.0-rc.1`、Node.js `>=20`。
 
-从 GitHub 直接装（Web profile）：
+0.3.0 正式发布至 npm 后，使用正式包安装（Web profile）：
 
 ```sh
-dsh plugin --profile web add github:CaiZongyuan/dsh-sooyo
+dsh plugin --profile web add dsh-sooyo
 ```
 
 桌面端可以在「设置 → 插件」里安装；本地开发时也可以用插件管理器指向本目录。
 
-装好之后重启一次 DSH（宿主插件是按 specifier 缓存的，改动要新进程才生效），刷新页面，侧栏就会出现「sooyo daily」。
+按宿主提示激活插件；支持原生更新的 DSH 优先热重载，需要重启时会明确提示。侧栏入口为「sooyo daily」。
+
+### 检查更新与升级
+
+顶部「插件更新」会检查 npm 正式版本，显示变更说明，由你点击升级。每个 DSH 实例独立更新；
+激活前检查所有打开面板的未提交内容，等待持久化，激活后核对本机服务和界面版本。
+失败时显示升级和旧包恢复结果；需要重启时由你安排，不自动重启 DSH。
+
+源码工作树只检查开发提交，不自动拉取或构建。已有 GitHub / 本地包安装需要在 DSH 插件管理器中切换
+为 npm 安装；旧宿主缺少更新接口时提供只读结果。原生升级针对 DSH `0.2.2-rc.1` 接口实现，
+配置、恢复边界与发布要求见 [插件更新说明](./docs/plugin-updates.md)。
 
 ## 配置
 
@@ -190,7 +200,7 @@ npm run test          # 完整自测（会联网实拉 5 个源，并断言新�
 npm run test:offline  # 离线 fixture、个人数据接口、同步协议与结构断言（CI 用这个）
 ```
 
-`dev/selftest.mjs` 用假 `ctx`（假的 `storageDomain.open` / `webServer.register` / `tools.register` / `effect`）直接跑真的 `apply()`，并用假 `req`/`res` 打自己注册的路由。**宿主的改动要重启才生效，所以先在本地把逻辑跑一遍比反复重启快得多。**
+`dev/selftest.mjs` 用假 `ctx`（假的 `storageDomain.open` / `webServer.register` / `tools.register` / `effect`）直接跑真的 `apply()`，并用假 `req`/`res` 打自己注册的路由。**先完成离线验证，再通过宿主支持的 HMR 或重启激活 Host。**
 
 架构与取舍记录在 [`docs/adr/`](./docs/adr/)、[`docs/sync.md`](./docs/sync.md)、[`docs/ui-and-layout.md`](./docs/ui-and-layout.md) 与 [`docs/sources.md`](./docs/sources.md)，术语见 [`GLOSSARY.md`](./GLOSSARY.md)。
 

@@ -1,16 +1,16 @@
 /**
  * Offline self-test for index.js + feed.js, plus static checks on client.js.
  *
- * The harness caches a Host plugin's module body per specifier, so a Host code change
- * only takes effect after a DSH restart. This script exercises the real `apply()` against
- * a fake context (and the real feed reader against fixtures) so a restart is a one-shot
- * success rather than a guess.
+ * Exercises real apply() and recovery against a fake storage context before a Host build
+ * is activated through DSH HMR or restart. Real installation and hot replacement belong
+ * to the isolated DSH E2E suite.
  *
  *   node dev/selftest.mjs
  */
 
 import { strict as assert } from 'node:assert'
 import { readFileSync } from 'node:fs'
+import { runUpdateSelftests } from './update-selftest.mjs'
 
 import {
   apply,
@@ -298,7 +298,9 @@ async function readJsonBody(req) {
 // ---- run -------------------------------------------------------------------
 
 const { ctx, routes, tools, warnings, effects, tables } = makeContext()
-const plugin = apply(ctx, {})
+const plugin = apply(ctx, OFFLINE
+  ? { autoRefresh: false, upstream: { context: false }, updates: { autoCheck: false } }
+  : {})
 await new Promise((resolve) => setTimeout(resolve, 60))
 
 /** The service `apply()` built — the sync section drives it directly, as the Hub route does. */
@@ -1925,6 +1927,8 @@ check('renderContextBlock ignores blank extras rather than emitting empty lines'
     { ready: true, generatedAt: 'now', dataRevision: 1, counts: {} },
     { extraLines: ['', '   '] },
   ) ?? '').includes('\n\n'))
+
+await runUpdateSelftests(check, { makeContext })
 
 // ---- teardown --------------------------------------------------------------
 

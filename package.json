@@ -1,6 +1,6 @@
 {
   "name": "dsh-sooyo",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "license": "MIT",
   "author": "CaiZongyuan",
@@ -58,8 +58,13 @@
     },
     "client": {
       "platform": "web",
-      "immediately": true
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-api-remotes"]
     }
+  },
+  "sooyo": {
+    "updateContract": { "version": 1, "dataSchemaVersion": 2, "protocolVersion": 1, "outboxVersion": 1 },
+    "releaseNotes": "新增插件更新面板：后台检查 npm 正式版本，点击后通过 DSH 原生更新并优先热重载。升级前保护未提交内容、等待持久化，升级后核对本机服务和界面版本。源码副本只检查；需要重启或恢复失败时明确提示。"
   },
   "scripts": {
     "build": "node dev/build.mjs",
@@ -68,7 +73,8 @@
     "test": "node dev/selftest.mjs",
     "test:offline": "node dev/selftest.mjs --offline",
     "test:e2e": "playwright test",
-    "prepack": "pnpm run typecheck && node dev/build.mjs --allow-dirty && pnpm run check"
+    "prepack": "pnpm run typecheck && node dev/build.mjs --allow-dirty && pnpm run check && node dev/verify-release.mjs",
+    "release:verify": "node dev/verify-release.mjs --release"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

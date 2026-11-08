@@ -150,6 +150,7 @@ export class RemoteSooyoService {
   cache: { snapshot: any; etag: string | null; at: number }
   cacheTables: TableAccessor | null
   health: Record<string, any>
+  private outboxFlush: Promise<{ flushed: number; conflicts: number; pending: number }> | null = null
 
   constructor(
     sync: any,
@@ -358,6 +359,12 @@ export class RemoteSooyoService {
   }
 
   async flushOutbox() {
+    if (this.outboxFlush) return this.outboxFlush
+    this.outboxFlush = this.flushOutboxNow()
+    try { return await this.outboxFlush } finally { this.outboxFlush = null }
+  }
+
+  private async flushOutboxNow() {
     if (!this.cacheTables || !this.ready) return { flushed: 0, conflicts: 0, pending: 0 }
     const outboxTable = this.cacheTables('outbox')
     const conflictsTable = this.cacheTables('conflicts')
@@ -621,7 +628,7 @@ export class RemoteSooyoService {
     }
   }
 
-  _applyOptimisticOutboxProjection(name: string, body: any, operationId: string) {
+  async _applyOptimisticOutboxProjection(name: string, body: any, operationId: string) {
     if (!this.cache.snapshot) return null
     const snap = JSON.parse(JSON.stringify(this.cache.snapshot))
     let optimisticResult: Record<string, any> | null = null
@@ -652,7 +659,7 @@ export class RemoteSooyoService {
     }
     this.cache.snapshot = snap
     if (this.cacheTables) {
-      void this.cacheTables('snapshots').put('latest', {
+      await this.cacheTables('snapshots').put('latest', {
         id: 'latest',
         snapshot: snap,
         etag: this.cache.etag,
@@ -729,7 +736,7 @@ export class RemoteSooyoService {
           lastError: error.message,
         }
         await this.cacheTables('outbox').put(operationId, entry)
-        const optimistic = this._applyOptimisticOutboxProjection(String(command?.name ?? ''), command?.body ?? {}, operationId)
+        const optimistic = await this._applyOptimisticOutboxProjection(String(command?.name ?? ''), command?.body ?? {}, operationId)
         return {
           ok: true,
           queued: true,
@@ -770,6 +777,7 @@ export class RemoteSooyoService {
   }
 
   async settled() {
+    if (this.outboxFlush) await this.outboxFlush
     return { revision: this.cache.snapshot?.dataRevision ?? 0, changedAt: null, writer: null }
   }
 }

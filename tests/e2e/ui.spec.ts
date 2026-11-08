@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { computeExportChecksum, normalizeWidget } from '../../src/host/index.ts'
-import { cleanupPackedTarball, openSooyoInDsh, startDshInstance, type DshInstance } from './dsh-fixture.ts'
+import { activateSooyoPanel, cleanupPackedTarball, openSooyoInDsh, startDshInstance, type DshInstance } from './dsh-fixture.ts'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const SCREENSHOT_DIR = process.env.SOOYO_SCREENSHOT_DIR || join(REPO_ROOT, 'test-results', 'screenshots')
@@ -335,6 +335,7 @@ test.describe('Sooyo Real DSH + Playwright E2E & Visual Verification', () => {
 
     await page.setViewportSize({ width: 390, height: 844 })
     await page.waitForTimeout(350)
+    await activateSooyoPanel(page)
     const mobileDark = await measureBentoLayout(page)
     expect(mobileDark.cols).toBe(4)
     expect(mobileDark.maxOvY, `Mobile 390 dark offenders: ${mobileDark.offenders.join(', ')}`).toBeLessThanOrEqual(1)

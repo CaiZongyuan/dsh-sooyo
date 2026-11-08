@@ -1,6 +1,7 @@
 /**
  * Client half of sooyo daily — generated from `src/client/index.ts`.
  * Do not edit by hand; run `pnpm run build` to regenerate.
+ * Build identity: {"version":"0.3.0","commit":"b5d075256fe7be78f88c06df033a2c67f6591b7f","dirty":false,"builtAt":"2026-11-08T08:11:53.000Z"}
  */
 window.__ModuleLoader__.load({
   id: 'dsh-sooyo',
@@ -892,6 +893,26 @@ window.__ModuleLoader__.load({
 .sy-field input, .sy-field select, .sy-field textarea { min-height: 36px; border-radius: 10px; border: 1px solid var(--sy-line2); background: var(--sy-well); color: var(--sy-ink); padding: 6px 12px; outline: 0; }
 .sy-field textarea { resize: vertical; line-height: 1.5; }
 
+.sy-update-trigger { position: relative; flex-shrink: 0; }
+.sy-update-trigger i { position: absolute; right: 3px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--sy-accent); box-shadow: 0 0 0 2px var(--sy-card); }
+.sy-update-scrim { text-align: left; cursor: default; }
+.sy-update-modal { width: min(520px, 100%); }
+.sy-update-modal h2 { margin: 0; font-size: 18px; font-weight: 650; color: var(--sy-ink); }
+.sy-update-modal .sy-modal-h p { margin: 3px 0 0; font-size: 12px; color: var(--sy-ink3); }
+.sy-update-versions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.sy-update-versions > div { padding: 14px; background: var(--sy-well); border: 1px solid var(--sy-line); border-radius: 12px; }
+.sy-update-versions dt { font-size: 11px; color: var(--sy-ink3); margin-bottom: 5px; }
+.sy-update-versions dd { margin: 0; font-size: 14px; font-family: var(--sy-mono); overflow-wrap: anywhere; }
+.sy-update-muted { font-size: 12px; line-height: 1.6; color: var(--sy-ink3); margin: 0; overflow-wrap: anywhere; }
+.sy-update-notice, .sy-update-message { padding: 12px; margin: 0; border-radius: 10px; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; background: var(--sy-well); color: var(--sy-ink2); }
+.sy-update-message.is-complete { background: var(--sy-accent-soft); color: var(--sy-accent-ink); }
+.sy-update-release { border: 1px solid var(--sy-line); padding: 16px; border-radius: 12px; }
+.sy-update-release > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+.sy-update-release time { font-size: 11px; color: var(--sy-ink3); }
+.sy-update-release p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; margin: 12px 0 0; }
+.sy-update-modal .sy-modal-f { flex-wrap: wrap; }
+.sy-update-modal button:disabled { opacity: .5; cursor: wait; }
+
 @container sy (max-width: 980px) {
   .sy-kanban-board, .sy-kanban-board.cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sy-schedule-layout { grid-template-columns: 1fr; }
@@ -989,29 +1010,407 @@ __export(index_exports, {
   default: () => index_default
 });
 module.exports = __toCommonJS(index_exports);
-var React25 = __toESM(require("react"), 1);
+
+// <define:__SOOYO_BUILD__>
+var define_SOOYO_BUILD_default = { version: "0.3.0", commit: "b5d075256fe7be78f88c06df033a2c67f6591b7f", dirty: false, builtAt: "2026-11-08T08:11:53.000Z" };
+
+// src/client/index.ts
+var React26 = __toESM(require("react"), 1);
 
 // src/client/SooyoPanel.tsx
-var React24 = __toESM(require("react"), 1);
+var React25 = __toESM(require("react"), 1);
+
+// src/shared/build.ts
+var BUILD = typeof define_SOOYO_BUILD_default === "object" && define_SOOYO_BUILD_default !== null ? define_SOOYO_BUILD_default : { version: null, commit: null, dirty: false, builtAt: null };
+function sameBuild(left, right) {
+  return Boolean(left.version && left.builtAt) && left.version === right.version && left.commit === right.commit && left.dirty === right.dirty && left.builtAt === right.builtAt;
+}
+
+// src/shared/updates.ts
+var PACKAGE_NAME = "dsh-sooyo";
+
+// src/client/updates/session.ts
+var RECEIPT_KEY = "sooyo:update-receipt-v1";
+var RECEIPT_EVENT = "sooyo:update-receipt";
+async function control(path, body, keepalive = false) {
+  const response = await fetch(`/sooyo${path}`, {
+    method: body === void 0 ? "GET" : "POST",
+    cache: "no-store",
+    keepalive,
+    headers: { accept: "application/json", "content-type": "application/json", "x-sooyo-ui": "1" },
+    body: body === void 0 ? void 0 : JSON.stringify(body),
+    signal: keepalive ? void 0 : AbortSignal.timeout(path === "/updates/prepare" ? 18e4 : path === "/updates/check" ? 12e4 : 2e4)
+  });
+  const answer = await response.json();
+  if (!response.ok) throw new Error(answer.error ?? `HTTP ${response.status}`);
+  return answer;
+}
+var UpdateSession = class {
+  id = `panel-${crypto.randomUUID()}`;
+  roots = /* @__PURE__ */ new Set();
+  edits = /* @__PURE__ */ new Map();
+  listeners = /* @__PURE__ */ new Set();
+  timer = null;
+  polling = false;
+  writes = 0;
+  freezeId = null;
+  lastStatus = 0;
+  manager = () => void 0;
+  recovery = null;
+  binding = 0;
+  events = new AbortController();
+  navigation = null;
+  model = {
+    status: null,
+    receipt: null,
+    busy: false,
+    message: null,
+    dirty: false,
+    native: false,
+    runtime: null,
+    build: BUILD
+  };
+  constructor() {
+    if (!window.__sooyoUpdateJob) {
+      let receipt = null;
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(RECEIPT_KEY) ?? "null");
+        if (saved && typeof saved.target === "string" && typeof saved.requestId === "string") {
+          receipt = { ...saved, outcome: saved.outcome === "updating" ? "uncertain" : saved.outcome };
+        }
+      } catch {
+      }
+      window.__sooyoUpdateJob = { receipt, busy: false };
+    }
+    this.model.receipt = window.__sooyoUpdateJob.receipt;
+    this.model.busy = window.__sooyoUpdateJob.busy;
+    this.listen();
+  }
+  listen() {
+    const signal = this.events.signal;
+    const remember = (event) => {
+      const element = event.target;
+      if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) return;
+      if (!this.owns(element) || !element.closest("form") || element.name === "cmd") return;
+      if (!this.edits.has(element)) this.edits.set(element, this.value(element));
+    };
+    document.addEventListener("focusin", remember, { capture: true, signal });
+    document.addEventListener("beforeinput", remember, { capture: true, signal });
+    document.addEventListener("input", () => {
+      this.updateDirty();
+      this.emit();
+    }, { capture: true, signal });
+    document.addEventListener("sooyo:form-saved", (event) => {
+      const form = event.detail;
+      for (const element of this.edits.keys()) if (form?.contains(element)) this.edits.set(element, this.value(element));
+      this.updateDirty();
+      this.emit();
+    }, { signal });
+    window.addEventListener("pagehide", () => {
+      void control("/updates/presence", { id: this.id, leaving: true }, true).catch(() => {
+      });
+    }, { signal });
+    window.addEventListener(RECEIPT_EVENT, () => {
+      const job = window.__sooyoUpdateJob;
+      this.model.receipt = job.receipt;
+      this.model.busy = job.busy;
+      this.model.message = job.receipt?.detail || this.model.message;
+      this.applyFreeze();
+      this.verify();
+      this.emit();
+    }, { signal });
+  }
+  bind(build, getManager) {
+    const binding = ++this.binding;
+    this.model.build = build;
+    this.manager = getManager;
+    this.model.native = typeof this.manager()?.updateBundle === "function";
+    this.emit();
+    return () => {
+      if (this.binding !== binding) return;
+      this.manager = () => void 0;
+      this.model.native = false;
+      this.emit();
+    };
+  }
+  bindNavigation(navigation) {
+    this.navigation = navigation;
+    const job = window.__sooyoUpdateJob;
+    if (job.returnToPanel) {
+      job.returnToPanel = false;
+      const cancelled = job.navigationSignal?.aborted;
+      job.navigationSignal = void 0;
+      if (!cancelled) navigation.open();
+    }
+    return () => {
+      if (this.navigation === navigation) this.navigation = null;
+    };
+  }
+  attach(root) {
+    if (this.events.signal.aborted) {
+      this.events = new AbortController();
+      this.listen();
+    }
+    this.roots.add(root);
+    this.recovery?.remove();
+    this.recovery = null;
+    this.applyFreeze();
+    if (!this.timer) this.timer = setInterval(() => void this.poll(), 2500);
+    void this.poll();
+    return () => {
+      this.roots.delete(root);
+      if (!this.roots.size) this.stop();
+    };
+  }
+  subscribe(listener) {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+  snapshot() {
+    return { ...this.model };
+  }
+  owns(element) {
+    return [...this.roots].some((root) => root.contains(element));
+  }
+  value(element) {
+    return element instanceof HTMLInputElement && ["checkbox", "radio"].includes(element.type) ? String(element.checked) : element.value;
+  }
+  updateDirty() {
+    for (const element of this.edits.keys()) if (!element.isConnected || !this.owns(element)) this.edits.delete(element);
+    this.model.dirty = [...this.edits].some(([element, original]) => this.value(element) !== original);
+  }
+  applyFreeze() {
+    const installing = window.__sooyoUpdateJob?.busy && window.__sooyoUpdateJob.receipt?.outcome === "updating";
+    for (const root of this.roots) root.inert = Boolean(this.freezeId || installing) || !this.model.runtime;
+  }
+  emit() {
+    for (const listener of this.listeners) listener();
+  }
+  persist() {
+    window.__sooyoUpdateJob.receipt = this.model.receipt;
+    try {
+      sessionStorage.setItem(RECEIPT_KEY, JSON.stringify(this.model.receipt));
+    } catch {
+    }
+    window.dispatchEvent(new Event(RECEIPT_EVENT));
+    this.emit();
+  }
+  async heartbeat() {
+    this.updateDirty();
+    const presence = () => control("/updates/presence", {
+      id: this.id,
+      build: this.model.build,
+      dirty: this.model.dirty,
+      busy: this.writes > 0,
+      freezeId: this.freezeId
+    });
+    const answer = await presence();
+    const changed = this.freezeId !== answer.freezeId;
+    this.freezeId = answer.freezeId;
+    this.model.runtime = answer.runtime;
+    const job = window.__sooyoUpdateJob;
+    if (changed && this.freezeId && this.roots.size) {
+      job.returnToPanel = true;
+      job.navigationSignal = this.navigation?.begin();
+    } else if (!this.freezeId && this.roots.size && !job.busy) {
+      job.returnToPanel = false;
+      job.navigationSignal = void 0;
+    }
+    this.applyFreeze();
+    if (changed && this.freezeId) await presence();
+    this.verify();
+  }
+  async poll() {
+    if (this.polling) return;
+    this.polling = true;
+    try {
+      this.model.native = typeof this.manager()?.updateBundle === "function";
+      await this.heartbeat();
+      if (Date.now() - this.lastStatus > 15e3) {
+        this.model.status = await control("/updates");
+        this.lastStatus = Date.now();
+      }
+    } catch (error) {
+      if (this.model.busy || this.model.receipt?.outcome === "updating") {
+        this.model.message = "插件正在重新加载，等待本机服务恢复…";
+      } else this.model.message = String(error?.message ?? error);
+    } finally {
+      this.polling = false;
+      this.emit();
+    }
+  }
+  verify() {
+    const receipt = this.model.receipt;
+    const runtime = this.model.runtime;
+    if (!receipt || !runtime) return;
+    const healthy = runtime.ready && runtime.phase === "running" && sameBuild(runtime.build, this.model.build);
+    if (receipt.outcome === "restart-required" && healthy && runtime.build.version === receipt.target) {
+      receipt.outcome = "applied";
+      receipt.detail = "重启后新版本已生效。";
+      this.persist();
+    }
+    if (receipt.outcome === "applied") {
+      this.model.message = healthy && runtime.build.version === receipt.target ? `已升级到 ${receipt.target}，本机服务和界面均已就绪` : "已安装新版本，正在等待本机服务和界面使用同一版本…";
+    } else if (receipt.outcome === "uncertain") {
+      this.model.message = healthy && runtime.build.version === receipt.target ? `当前已运行 ${receipt.target}，但上次升级的完整回执未收到` : "上次升级结果尚未确认，请检查当前运行版本或打开 DSH 插件管理器";
+    }
+  }
+  async check() {
+    if (this.model.busy) return;
+    this.model.busy = true;
+    this.model.message = "正在检查正式版本…";
+    this.emit();
+    try {
+      this.model.status = await control("/updates/check", {});
+      this.lastStatus = Date.now();
+      this.model.message = this.model.status.error ?? (this.model.status.candidate ? `发现正式版本 ${this.model.status.candidate.version}` : "当前已是最新正式版本");
+    } catch (error) {
+      this.model.message = String(error?.message ?? error);
+    } finally {
+      this.model.busy = false;
+      this.emit();
+    }
+  }
+  async upgrade() {
+    if (this.model.busy) return;
+    this.updateDirty();
+    if (this.model.dirty) {
+      this.model.message = "请先保存或取消未提交内容，再升级";
+      this.emit();
+      return;
+    }
+    const candidate = this.model.status?.candidate;
+    const manager = this.manager();
+    if (!candidate || !this.model.status?.canUpdate || typeof manager?.updateBundle !== "function") return;
+    this.model.busy = true;
+    window.__sooyoUpdateJob.busy = true;
+    this.model.message = "正在检查兼容性并等待所有窗口保存…";
+    this.emit();
+    let prepared = null;
+    try {
+      await this.heartbeat();
+      prepared = await control("/updates/prepare", { panelId: this.id, version: candidate.version });
+      this.model.receipt = {
+        requestId: prepared.requestId,
+        target: prepared.version,
+        previous: this.model.build.version,
+        startedAt: Date.now(),
+        outcome: "updating",
+        detail: ""
+      };
+      this.persist();
+      this.model.message = "正在安装并重新加载插件…";
+      this.emit();
+      const answer = await manager.updateBundle(PACKAGE_NAME, prepared.version, {
+        registry: prepared.registry,
+        requestId: prepared.requestId
+      });
+      if (!answer?.ok) throw new Error(answer?.error?.message ?? answer?.error?.diagnostic ?? "宿主更新调用失败");
+      const value = answer.value;
+      const application = value?.result?.application;
+      const restore = value?.restore?.application;
+      const failed = application === "failed" || application === "cancelled";
+      const detail = failed ? `升级失败：${value.result.error?.diagnostic ?? value.result.error?.code ?? application}。${restore === "applied" ? "宿主报告旧插件已恢复。" : restore === "restart-required" ? "旧插件恢复需要重启 DSH。" : restore ? "旧插件恢复也失败，请打开 DSH 插件管理器重新安装。" : "宿主未执行旧包恢复，请检查插件管理器。"}` : application === "restart-required" ? "新版本已安装，等待你安排重启 DSH 后生效。" : application === "applied" ? "宿主已激活插件，正在核对实际运行版本。" : "宿主没有返回可确认的激活结果，请检查 DSH 插件管理器。";
+      this.model.receipt = {
+        ...this.model.receipt,
+        outcome: failed ? "failed" : application === "applied" ? "applied" : application === "restart-required" ? "restart-required" : "uncertain",
+        detail
+      };
+      this.model.message = detail;
+      this.persist();
+    } catch (error) {
+      this.model.message = String(error?.message ?? error);
+      if (this.model.receipt?.outcome === "updating") {
+        this.model.receipt = { ...this.model.receipt, outcome: "uncertain", detail: this.model.message };
+        this.persist();
+      }
+    } finally {
+      if (prepared) await control("/updates/resume", { requestId: prepared.requestId }).catch(() => {
+      });
+      this.freezeId = null;
+      this.applyFreeze();
+      this.model.busy = false;
+      window.__sooyoUpdateJob.busy = false;
+      this.persist();
+      this.lastStatus = 0;
+      if (this.roots.size) await this.poll();
+      this.emit();
+      if (!this.roots.size) {
+        this.showRecovery();
+        this.stop();
+      }
+    }
+  }
+  beginWrite() {
+    const runtime = this.model.runtime;
+    if (this.freezeId || runtime && (!sameBuild(runtime.build, this.model.build) || runtime.phase !== "running")) {
+      throw new Error("插件正在升级或界面版本不同，请等待服务和界面就绪");
+    }
+    this.writes++;
+    return () => {
+      this.writes--;
+      this.emit();
+    };
+  }
+  stop() {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    this.events.abort();
+    void control("/updates/presence", { id: this.id, leaving: true }).catch(() => {
+    });
+  }
+  showRecovery() {
+    if (!this.model.receipt || this.model.receipt.outcome === "applied") return;
+    const notice = document.createElement("div");
+    notice.setAttribute("role", "alert");
+    notice.style.cssText = "position:fixed;bottom:20px;left:20px;z-index:100000;max-width:min(440px,90vw);padding:20px;background:#252a28;color:#fff;border-radius:16px;font:14px/1.6 sans-serif;box-shadow:0 12px 40px #0005";
+    notice.textContent = `sooyo 更新：${this.model.receipt.detail || this.model.message} 请打开「设置 → 插件」检查 dsh-sooyo。`;
+    const close = document.createElement("button");
+    close.textContent = "知道了";
+    close.style.cssText = "display:block;margin-top:12px;padding:6px 12px;border-radius:6px;color:#111;background:#fff";
+    close.onclick = () => notice.remove();
+    notice.append(close);
+    document.body.append(notice);
+    this.recovery = notice;
+  }
+};
+var localSession;
+function updateSession() {
+  if (!localSession) {
+    localSession = new UpdateSession();
+    window.__sooyoUpdateSession = localSession;
+  }
+  return localSession;
+}
 
 // src/client/api/client.ts
 var API = "/sooyo";
 async function api(path, init) {
-  const response = await fetch(API + path, {
-    cache: "no-store",
-    headers: { accept: "application/json", ...init?.headers ?? {} },
-    ...init
-  });
-  const text = await response.text();
-  const parsed = text ? (() => {
-    try {
-      return JSON.parse(text);
-    } catch {
-      return null;
-    }
-  })() : null;
-  if (!response.ok) throw new Error(parsed?.error ?? `HTTP ${response.status}`);
-  return parsed;
+  const finishWrite = init?.method && init.method !== "GET" ? updateSession().beginWrite() : null;
+  try {
+    const headers = new Headers(init?.headers);
+    if (!headers.has("accept")) headers.set("accept", "application/json");
+    headers.set("x-sooyo-build", JSON.stringify(BUILD));
+    const response = await fetch(API + path, {
+      ...init,
+      cache: "no-store",
+      headers
+    });
+    const text = await response.text();
+    const parsed = text ? (() => {
+      try {
+        return JSON.parse(text);
+      } catch {
+        return null;
+      }
+    })() : null;
+    if (!response.ok) throw new Error(parsed?.error ?? `HTTP ${response.status}`);
+    return parsed;
+  } finally {
+    finishWrite?.();
+  }
 }
 function action(name, body, precondition) {
   return api("/action", {
@@ -1157,6 +1556,59 @@ function useDaily() {
     return () => clearTimeout(timer);
   }, [toast]);
   return { daily, items, status, error, toast, setToast, run, refreshSources, reload: load };
+}
+
+// src/client/updates/PluginUpdates.tsx
+var React2 = __toESM(require("react"), 1);
+var { useEffect: useEffect2, useState: useState2 } = React2;
+function useUpdateState() {
+  const session = updateSession();
+  const [view, setView] = useState2(() => session.snapshot());
+  useEffect2(() => session.subscribe(() => setView(session.snapshot())), [session]);
+  return { session, view };
+}
+function PluginUpdateButton({ onClick }) {
+  const { view } = useUpdateState();
+  const target = view.status?.candidate;
+  return /* @__PURE__ */ React2.createElement(
+    "button",
+    {
+      className: `sy-icon-btn sy-update-trigger${target ? " has-update" : ""}`,
+      "aria-label": "插件更新",
+      title: target ? `发现新版本 ${target.version}` : "插件更新",
+      onClick
+    },
+    /* @__PURE__ */ React2.createElement("svg", { viewBox: "0 0 24 24", width: "18", height: "18", fill: "none", stroke: "currentColor", strokeWidth: "1.7", "aria-hidden": "true" }, /* @__PURE__ */ React2.createElement("path", { d: "M12 16V4m-4 4 4-4 4 4M5 14v5h14v-5", strokeLinecap: "round", strokeLinejoin: "round" })),
+    target ? /* @__PURE__ */ React2.createElement("i", { "aria-label": "有可用更新" }) : null
+  );
+}
+function PluginUpdates({ rootRef, open, onClose }) {
+  const { session, view } = useUpdateState();
+  useEffect2(() => rootRef.current ? session.attach(rootRef.current) : void 0, [rootRef, session]);
+  useEffect2(() => {
+    if (!open) return;
+    const escape = (event) => {
+      if (event.key === "Escape" && !view.busy) onClose();
+    };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [open, view.busy, onClose]);
+  const status = view.status;
+  const target = status?.candidate;
+  const mismatch = view.runtime && !sameBuild(view.runtime.build, view.build);
+  const completed = view.receipt?.outcome === "applied" && view.runtime?.ready && view.runtime.phase === "running" && view.runtime.build.version === view.receipt.target && !mismatch;
+  return /* @__PURE__ */ React2.createElement(React2.Fragment, null, open ? /* @__PURE__ */ React2.createElement("div", { className: "sy-scrim sy-update-scrim", onClick: (event) => {
+    if (event.target === event.currentTarget && !view.busy) onClose();
+  } }, /* @__PURE__ */ React2.createElement("section", { className: "sy-modal sy-update-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "sy-update-title" }, /* @__PURE__ */ React2.createElement("div", { className: "sy-modal-h" }, /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("h2", { id: "sy-update-title" }, "sooyo 更新"), /* @__PURE__ */ React2.createElement("p", null, "当前设备 · ", view.runtime?.role ?? "正在连接")), /* @__PURE__ */ React2.createElement("button", { className: "sy-icon-btn", "aria-label": "关闭更新面板", disabled: view.busy, onClick: onClose }, "×")), /* @__PURE__ */ React2.createElement("div", { className: "sy-modal-b" }, /* @__PURE__ */ React2.createElement("dl", { className: "sy-update-versions" }, /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("dt", null, "本机服务"), /* @__PURE__ */ React2.createElement("dd", null, view.runtime?.build.version ?? "正在读取", view.runtime?.ready ? " · 已就绪" : "")), /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("dt", null, "当前界面"), /* @__PURE__ */ React2.createElement("dd", null, view.build.version ?? "未知版本")), status?.installedVersion && status.installedVersion !== view.runtime?.build.version ? /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("dt", null, "已安装"), /* @__PURE__ */ React2.createElement("dd", null, status.installedVersion, " · 等待生效")) : null), mismatch ? /* @__PURE__ */ React2.createElement("p", { className: "sy-update-notice" }, "界面与本机服务版本尚未一致，写入暂不可用。请等待重新加载完成。") : null, status?.source === "checkout" ? /* @__PURE__ */ React2.createElement("p", { className: "sy-update-notice" }, "这是源码开发副本，仅提供检查。请在工作树中手动拉取、构建，并按宿主提示重新加载。") : null, status?.development ? /* @__PURE__ */ React2.createElement("p", { className: "sy-update-muted" }, "开发提交：", status.development.installedCommit?.slice(0, 7) ?? "未知", status.development.latestCommit ? ` → ${status.development.latestCommit.slice(0, 7)}` : "", status.development.changed ? " · 与上游不同" : "") : null, target ? /* @__PURE__ */ React2.createElement("div", { className: "sy-update-release" }, /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("strong", null, "正式版本 ", target.version), target.publishedAt ? /* @__PURE__ */ React2.createElement("time", null, new Date(target.publishedAt).toLocaleDateString()) : null), /* @__PURE__ */ React2.createElement("p", null, target.notes), target.reason ? /* @__PURE__ */ React2.createElement("p", { className: "sy-update-notice" }, target.reason) : null) : /* @__PURE__ */ React2.createElement("p", { className: "sy-update-muted" }, status?.state === "current" ? "当前已是最新正式版本。" : "后台会自动检查正式版本，也可以立即检查。"), status?.reason && status.source !== "checkout" ? /* @__PURE__ */ React2.createElement("p", { className: "sy-update-notice" }, status.reason) : null, status?.error ? /* @__PURE__ */ React2.createElement("p", { className: "sy-update-notice", role: "alert" }, status.error) : null, !view.native ? /* @__PURE__ */ React2.createElement("p", { className: "sy-update-muted" }, "当前宿主未提供一键更新能力，可在 DSH「设置 → 插件」中更新。") : null, view.dirty ? /* @__PURE__ */ React2.createElement("p", { className: "sy-update-notice" }, "有未提交内容，请先保存或取消，再升级。") : null, view.message ? /* @__PURE__ */ React2.createElement("p", { className: `sy-update-message${completed ? " is-complete" : ""}`, role: "status" }, view.message) : null, view.receipt?.detail && view.message !== view.receipt.detail ? /* @__PURE__ */ React2.createElement("p", { className: "sy-update-muted" }, view.receipt.detail) : null, /* @__PURE__ */ React2.createElement("p", { className: "sy-update-muted" }, "升级时面板会短暂重新加载。需要重启 DSH 时会提示你安排；升级失败后会尝试恢复旧插件，并显示恢复结果。")), /* @__PURE__ */ React2.createElement("div", { className: "sy-modal-f" }, /* @__PURE__ */ React2.createElement("button", { className: "sy-btn", disabled: view.busy, onClick: () => void session.check() }, view.busy ? "正在处理…" : "检查更新"), target ? /* @__PURE__ */ React2.createElement(
+    "button",
+    {
+      className: "sy-btn sy-btn-add",
+      disabled: view.busy || view.dirty || !status?.canUpdate || !view.native,
+      onClick: () => void session.upgrade()
+    },
+    "升级到 ",
+    target.version
+  ) : null))) : null);
 }
 
 // src/client/layout/breakpoints.ts
@@ -1325,10 +1777,10 @@ function startResize(_event, card, widgetId, cols, types, widgets, layout, commi
 }
 
 // src/client/shell/BoardTabs.tsx
-var React3 = __toESM(require("react"), 1);
+var React4 = __toESM(require("react"), 1);
 
 // src/client/widgets/shared.tsx
-var React2 = __toESM(require("react"), 1);
+var React3 = __toESM(require("react"), 1);
 var ASSET = `${API}/assets/a`;
 var BRAND_APP = '<rect width="320" height="320" rx="76" fill="#282D55"/><g transform="translate(15 36) scale(.8)"><path d="M205 23V44M162 42L173 56M249 38L237 54" fill="none" stroke="#DF793D" stroke-width="13" stroke-linecap="round"/><path d="M19 116C55 110 112 118 147 142C151 100 171 70 203 69C219 68 233 73 245 81C263 77 280 78 284 85C271 89 260 98 256 109L253 137C286 120 322 114 347 116Q361 116 357 132C345 191 306 221 244 219L215 217L221 250Q224 266 208 265Q199 274 189 266Q175 274 168 264Q152 269 147 260Q143 255 150 245L165 217C80 231 30 204 16 135Q10 119 19 116Z" fill="#F1D5BC"/><path d="M147 142C151 100 171 70 203 69C219 68 233 73 245 81C263 77 280 78 284 85C271 89 260 98 256 109C256 158 238 179 208 181C178 183 154 168 147 142Z" fill="#344DA8" opacity=".7"/><path d="M171 110C187 81 216 78 238 99C224 128 195 136 171 110Z" fill="#FFF6EC"/><path d="M190 106C190 91 215 86 220 101C224 116 197 123 191 111Z" fill="#282D55"/><path d="M58 134H75Q84 134 84 143V155Q84 163 76 163H58Q50 163 50 155V143Q50 134 58 134Z" fill="#344DA8"/><path d="M98 134H114Q123 134 123 143V155Q123 163 115 163H98Q90 163 90 155V143Q90 134 98 134Z" fill="#E9B68C"/><path d="M62 169H78Q87 169 87 178V190Q87 199 79 199H63Q54 199 54 190V178Q54 169 62 169Z" fill="#E9B68C"/><path d="M102 169H118Q127 169 127 178V190Q127 199 119 199H103Q94 199 94 190V178Q94 169 102 169Z" fill="#E9B68C"/><path d="M263 142L317 137Q333 136 326 153L313 181Q309 192 298 193L253 196Q239 197 244 182L252 153Q255 144 263 142Z" fill="#FFF6EC"/><path d="M270 156H310M264 176H299" fill="none" stroke="#344DA8" stroke-width="8" stroke-linecap="round"/><path d="M150 217C163 192 179 175 200 176C222 177 232 195 224 212C207 234 175 231 150 217Z" fill="#F1D5BC"/></g>';
 var BRAND_SMALL = '<path fill="currentColor" fill-rule="evenodd" d="M2 8.5C5 8 8 9 10 10.6C10.3 7.2 12 5 14.4 5C15.5 5 16.4 5.4 17 5.8C18.2 5.5 19.2 5.6 19.6 6.1L17.8 7.3L17.5 10.1C19.2 9.2 21.2 8.7 23 8.8C22.3 13.8 19.6 16.2 15 16L15.5 18.8Q15.8 20 14.5 19.8Q13.7 20.5 13 19.8Q11.5 20.5 10.8 19.5L12.1 16.4C6 17.5 2.2 14.7 1.3 9.5Q1.1 8.6 2 8.5ZM11.7 8.3Q13.5 5.5 16.3 7.6Q14.5 10.4 11.7 8.3ZM4 10H6V12H4ZM7 10H9V12H7ZM4.6 13H6.6V15H4.6ZM7.6 13H9.6V15H7.6ZM18 11H21V12.5H18Z"/><circle cx="14" cy="7.9" r=".85" fill="currentColor"/><path d="M14 1.4V3M10.6 2.5L11.5 3.6M17.3 2.4L16.4 3.6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>';
@@ -1425,27 +1877,27 @@ var I = {
   board: '<svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="14" height="14" rx="3"/><path d="M3 8h14M8 8v9"/></svg>'
 };
 function SvgIcon({ svg }) {
-  return /* @__PURE__ */ React2.createElement("span", { style: { display: "contents" }, dangerouslySetInnerHTML: { __html: svg } });
+  return /* @__PURE__ */ React3.createElement("span", { style: { display: "contents" }, dangerouslySetInnerHTML: { __html: svg } });
 }
 function WidgetIcon({ type, size = 22 }) {
-  const [fallback, setFallback] = React2.useState(false);
-  return /* @__PURE__ */ React2.createElement(
+  const [fallback, setFallback] = React3.useState(false);
+  return /* @__PURE__ */ React3.createElement(
     "span",
     {
       className: "sy-ic",
       "data-fallback": fallback ? "1" : void 0,
       style: { "--s": `${size}px`, "--ic-c": `var(--sy-t-${type})` }
     },
-    !fallback ? /* @__PURE__ */ React2.createElement("img", { src: `${ASSET}/${type}.webp`, alt: "", onError: () => setFallback(true) }) : null
+    !fallback ? /* @__PURE__ */ React3.createElement("img", { src: `${ASSET}/${type}.webp`, alt: "", onError: () => setFallback(true) }) : null
   );
 }
 function DecoImg({ name }) {
-  const [hidden, setHidden] = React2.useState(false);
-  if (hidden) return /* @__PURE__ */ React2.createElement("div", { className: "sy-deco" });
-  return /* @__PURE__ */ React2.createElement("div", { className: "sy-deco" }, /* @__PURE__ */ React2.createElement("img", { src: `${ASSET}/${name}.webp`, alt: "", onError: () => setHidden(true) }));
+  const [hidden, setHidden] = React3.useState(false);
+  if (hidden) return /* @__PURE__ */ React3.createElement("div", { className: "sy-deco" });
+  return /* @__PURE__ */ React3.createElement("div", { className: "sy-deco" }, /* @__PURE__ */ React3.createElement("img", { src: `${ASSET}/${name}.webp`, alt: "", onError: () => setHidden(true) }));
 }
 function ProgressBar({ pct, colour }) {
-  return /* @__PURE__ */ React2.createElement("div", { className: "sy-bar", style: { "--c": colour } }, /* @__PURE__ */ React2.createElement("i", { style: { width: `${Math.round(Math.max(0, Math.min(1, pct)) * 100)}%` } }));
+  return /* @__PURE__ */ React3.createElement("div", { className: "sy-bar", style: { "--c": colour } }, /* @__PURE__ */ React3.createElement("i", { style: { width: `${Math.round(Math.max(0, Math.min(1, pct)) * 100)}%` } }));
 }
 function ProgressRing({
   pct,
@@ -1457,7 +1909,7 @@ function ProgressRing({
   const radius = (size - stroke) / 2;
   const length = 2 * Math.PI * radius;
   const dash = length * (1 - Math.max(0, Math.min(1, pct)));
-  return /* @__PURE__ */ React2.createElement("div", { className: "sy-ring", style: { width: size, height: size } }, /* @__PURE__ */ React2.createElement("svg", { width: size, height: size, viewBox: `0 0 ${size} ${size}` }, /* @__PURE__ */ React2.createElement("circle", { cx: size / 2, cy: size / 2, r: radius, fill: "none", stroke: "var(--sy-well)", strokeWidth: stroke }), /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React3.createElement("div", { className: "sy-ring", style: { width: size, height: size } }, /* @__PURE__ */ React3.createElement("svg", { width: size, height: size, viewBox: `0 0 ${size} ${size}` }, /* @__PURE__ */ React3.createElement("circle", { cx: size / 2, cy: size / 2, r: radius, fill: "none", stroke: "var(--sy-well)", strokeWidth: stroke }), /* @__PURE__ */ React3.createElement(
     "circle",
     {
       cx: size / 2,
@@ -1472,11 +1924,11 @@ function ProgressRing({
       transform: `rotate(-90 ${size / 2} ${size / 2})`,
       style: { transition: "stroke-dashoffset .5s ease" }
     }
-  )), /* @__PURE__ */ React2.createElement("b", null, label));
+  )), /* @__PURE__ */ React3.createElement("b", null, label));
 }
 function MonoTile({ name, colour }) {
   const first = [...String(name).replace(/^(Sample|示例)\s*/, "")][0] ?? "·";
-  return /* @__PURE__ */ React2.createElement("span", { className: "sy-mono-t", style: { "--c": colour || tint(name) } }, first);
+  return /* @__PURE__ */ React3.createElement("span", { className: "sy-mono-t", style: { "--c": colour || tint(name) } }, first);
 }
 var EMPTY_TEXT = {
   task: { ill: "ill-done", text: "今天的事都做完了。新任务会先进收件箱。" },
@@ -1504,14 +1956,14 @@ function EmptyWidgetState({
   context
 }) {
   const entry = EMPTY_TEXT[widget.type] ?? { text: "这里还没有内容。" };
-  const [illErr, setIllErr] = React2.useState(false);
+  const [illErr, setIllErr] = React3.useState(false);
   if (size === "S") {
-    return /* @__PURE__ */ React2.createElement(React2.Fragment, null, /* @__PURE__ */ React2.createElement("div", { className: "sy-s-lab" }, widgetTitle(widget, context)), /* @__PURE__ */ React2.createElement("div", { className: "sy-state" }, /* @__PURE__ */ React2.createElement("p", { style: { fontSize: 13 } }, entry.text)));
+    return /* @__PURE__ */ React3.createElement(React3.Fragment, null, /* @__PURE__ */ React3.createElement("div", { className: "sy-s-lab" }, widgetTitle(widget, context)), /* @__PURE__ */ React3.createElement("div", { className: "sy-state" }, /* @__PURE__ */ React3.createElement("p", { style: { fontSize: 13 } }, entry.text)));
   }
   if (entry.ill) {
-    return /* @__PURE__ */ React2.createElement("div", { className: "sy-state-ill" }, !illErr ? /* @__PURE__ */ React2.createElement("img", { src: `${ASSET}/${entry.ill}.webp`, alt: "", onError: () => setIllErr(true) }) : null, /* @__PURE__ */ React2.createElement("p", { className: "sy-reason-plain", style: { margin: 0, fontSize: 13.5 } }, entry.text));
+    return /* @__PURE__ */ React3.createElement("div", { className: "sy-state-ill" }, !illErr ? /* @__PURE__ */ React3.createElement("img", { src: `${ASSET}/${entry.ill}.webp`, alt: "", onError: () => setIllErr(true) }) : null, /* @__PURE__ */ React3.createElement("p", { className: "sy-reason-plain", style: { margin: 0, fontSize: 13.5 } }, entry.text));
   }
-  return /* @__PURE__ */ React2.createElement("div", { className: "sy-state" }, /* @__PURE__ */ React2.createElement("p", null, entry.text));
+  return /* @__PURE__ */ React3.createElement("div", { className: "sy-state" }, /* @__PURE__ */ React3.createElement("p", null, entry.text));
 }
 function projectsOf(tasks) {
   const names = [...new Set(tasks.map((task) => task.project).filter((p) => Boolean(p)))];
@@ -1536,20 +1988,20 @@ var matchOf = (item, interests) => {
 function MatchChip({ item, interests }) {
   const keyword = matchOf(item, interests);
   if (!keyword) return null;
-  return /* @__PURE__ */ React2.createElement("span", { className: "sy-chip match", title: "命中你的关注词" }, /* @__PURE__ */ React2.createElement(SvgIcon, { svg: I.spark }), keyword);
+  return /* @__PURE__ */ React3.createElement("span", { className: "sy-chip match", title: "命中你的关注词" }, /* @__PURE__ */ React3.createElement(SvgIcon, { svg: I.spark }), keyword);
 }
 function ScoreBadge({ item }) {
   if (typeof item?.score !== "number") return null;
-  return /* @__PURE__ */ React2.createElement("span", { className: `sy-score${item.score >= 80 ? " hi" : ""}`, title: "AIHOT 评分" }, item.score);
+  return /* @__PURE__ */ React3.createElement("span", { className: `sy-score${item.score >= 80 ? " hi" : ""}`, title: "AIHOT 评分" }, item.score);
 }
 function CategoryBadge({ item }) {
   const label = categoryLabel(item?.category);
   if (!label) return null;
   const colour = (item.category ? CATEGORY_COLOUR[item.category] : void 0) ?? "var(--sy-ink3)";
-  return /* @__PURE__ */ React2.createElement("span", { className: "sy-cat", style: { "--c": colour } }, label);
+  return /* @__PURE__ */ React3.createElement("span", { className: "sy-cat", style: { "--c": colour } }, label);
 }
 function ItemActions({ item, saved }) {
-  return /* @__PURE__ */ React2.createElement("span", { className: "sy-acts" }, /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React3.createElement("span", { className: "sy-acts" }, /* @__PURE__ */ React3.createElement(
     "button",
     {
       "data-act": "item-later",
@@ -1558,8 +2010,8 @@ function ItemActions({ item, saved }) {
       "aria-label": saved ? "已在稍后读" : "稍后读",
       title: "稍后读"
     },
-    /* @__PURE__ */ React2.createElement(SvgIcon, { svg: saved ? I.bookmarkOn : I.bookmark })
-  ), /* @__PURE__ */ React2.createElement("button", { "data-act": "item-task", "data-item": item.id, "aria-label": "转为任务", title: "转为任务" }, /* @__PURE__ */ React2.createElement(SvgIcon, { svg: I.toTask })), /* @__PURE__ */ React2.createElement(
+    /* @__PURE__ */ React3.createElement(SvgIcon, { svg: saved ? I.bookmarkOn : I.bookmark })
+  ), /* @__PURE__ */ React3.createElement("button", { "data-act": "item-task", "data-item": item.id, "aria-label": "转为任务", title: "转为任务" }, /* @__PURE__ */ React3.createElement(SvgIcon, { svg: I.toTask })), /* @__PURE__ */ React3.createElement(
     "a",
     {
       href: safeUrl(item.url),
@@ -1568,7 +2020,7 @@ function ItemActions({ item, saved }) {
       "aria-label": "打开原文",
       title: "打开原文"
     },
-    /* @__PURE__ */ React2.createElement(SvgIcon, { svg: I.out })
+    /* @__PURE__ */ React3.createElement(SvgIcon, { svg: I.out })
   ));
 }
 function ItemLink({
@@ -1576,7 +2028,7 @@ function ItemLink({
   className,
   children
 }) {
-  return /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React3.createElement(
     "a",
     {
       className,
@@ -1591,14 +2043,14 @@ function ItemLink({
 function ThumbBox({ item, label }) {
   const cover = coverOf(item);
   if (cover) {
-    return /* @__PURE__ */ React2.createElement("img", { src: cover, alt: "", loading: "lazy" });
+    return /* @__PURE__ */ React3.createElement("img", { src: cover, alt: "", loading: "lazy" });
   }
-  return /* @__PURE__ */ React2.createElement("div", { className: "sy-gen", style: { "--c": tint(item.sourceId + (label ?? "")) } }, label ?? "");
+  return /* @__PURE__ */ React3.createElement("div", { className: "sy-gen", style: { "--c": tint(item.sourceId + (label ?? "")) } }, label ?? "");
 }
 
 // src/client/shell/BoardTabs.tsx
 function BoardTabs({ boards, activeBoard }) {
-  return /* @__PURE__ */ React3.createElement("div", { className: "sy-seg sy-seg-boards", role: "tablist" }, boards.map((entry) => /* @__PURE__ */ React3.createElement(
+  return /* @__PURE__ */ React4.createElement("div", { className: "sy-seg sy-seg-boards", role: "tablist" }, boards.map((entry) => /* @__PURE__ */ React4.createElement(
     "button",
     {
       key: entry.id,
@@ -1608,22 +2060,22 @@ function BoardTabs({ boards, activeBoard }) {
       "data-board": entry.id
     },
     entry.name
-  )), /* @__PURE__ */ React3.createElement("button", { className: "sy-seg-add", "data-act": "board-new", "aria-label": "新建 Board", title: "新建 Board" }, /* @__PURE__ */ React3.createElement(SvgIcon, { svg: I.plus })));
+  )), /* @__PURE__ */ React4.createElement("button", { className: "sy-seg-add", "data-act": "board-new", "aria-label": "新建 Board", title: "新建 Board" }, /* @__PURE__ */ React4.createElement(SvgIcon, { svg: I.plus })));
 }
 
 // src/client/shell/WidgetFrame.tsx
-var React15 = __toESM(require("react"), 1);
+var React16 = __toESM(require("react"), 1);
 
 // src/client/widgets/registry.ts
-var React14 = __toESM(require("react"), 1);
+var React15 = __toESM(require("react"), 1);
 
 // src/client/widgets/task/TaskWidget.tsx
-var React4 = __toESM(require("react"), 1);
+var React5 = __toESM(require("react"), 1);
 function tasksIn(tasks, settings, list) {
   return tasks.filter((task) => task.list === list && (!settings?.project || task.project === settings.project));
 }
 function TaskRow({ task, showProject }) {
-  return /* @__PURE__ */ React4.createElement("div", { className: `sy-row sy-t-row${task.done ? " sy-done" : ""}` }, /* @__PURE__ */ React4.createElement(
+  return /* @__PURE__ */ React5.createElement("div", { className: `sy-row sy-t-row${task.done ? " sy-done" : ""}` }, /* @__PURE__ */ React5.createElement(
     "button",
     {
       className: "sy-chk",
@@ -1631,8 +2083,8 @@ function TaskRow({ task, showProject }) {
       "data-task": task.id,
       "aria-label": `${task.done ? "标记为未完成" : "完成"}：${task.title}`
     },
-    /* @__PURE__ */ React4.createElement(SvgIcon, { svg: I.check })
-  ), /* @__PURE__ */ React4.createElement("span", { className: "sy-t-title c1 grow" }, task.title), task.origin?.url ? /* @__PURE__ */ React4.createElement(
+    /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.check })
+  ), /* @__PURE__ */ React5.createElement("span", { className: "sy-t-title c1 grow" }, task.title), task.origin?.url ? /* @__PURE__ */ React5.createElement(
     "a",
     {
       className: "sy-chip",
@@ -1642,7 +2094,7 @@ function TaskRow({ task, showProject }) {
       title: `来自 ${task.origin.source ?? ""}，点开原文`
     },
     task.origin.source ?? ""
-  ) : null, showProject && task.project ? /* @__PURE__ */ React4.createElement("span", { className: "sy-chip" }, task.project) : null, /* @__PURE__ */ React4.createElement("button", { className: "sy-mini", "data-act": "task-remove", "data-task": task.id, "aria-label": "删除任务", title: "删除" }, /* @__PURE__ */ React4.createElement(SvgIcon, { svg: I.x })));
+  ) : null, showProject && task.project ? /* @__PURE__ */ React5.createElement("span", { className: "sy-chip" }, task.project) : null, /* @__PURE__ */ React5.createElement("button", { className: "sy-mini", "data-act": "task-remove", "data-task": task.id, "aria-label": "删除任务", title: "删除" }, /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.x })));
 }
 function TaskWidget({ widget, size, settings, context }) {
   const tasks = context.tasks;
@@ -1654,10 +2106,10 @@ function TaskWidget({ widget, size, settings, context }) {
   const scope = settings?.project ? `${settings.project} · ` : "";
   if (size === "S") {
     if (open.length === 0) {
-      return /* @__PURE__ */ React4.createElement(React4.Fragment, null, /* @__PURE__ */ React4.createElement("div", { className: "sy-s-lab" }, scope, "今天"), /* @__PURE__ */ React4.createElement("div", { className: "sy-s-main sy-s-narrow" }, /* @__PURE__ */ React4.createElement("div", { className: "sy-s-big" }, done.length, /* @__PURE__ */ React4.createElement("small", null, "/", list.length)), /* @__PURE__ */ React4.createElement("div", { className: "sy-s-sub" }, "今天的事都做完了")), /* @__PURE__ */ React4.createElement("div", null));
+      return /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement("div", { className: "sy-s-lab" }, scope, "今天"), /* @__PURE__ */ React5.createElement("div", { className: "sy-s-main sy-s-narrow" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-s-big" }, done.length, /* @__PURE__ */ React5.createElement("small", null, "/", list.length)), /* @__PURE__ */ React5.createElement("div", { className: "sy-s-sub" }, "今天的事都做完了")), /* @__PURE__ */ React5.createElement("div", null));
     }
     const first = open[0];
-    return /* @__PURE__ */ React4.createElement(React4.Fragment, null, /* @__PURE__ */ React4.createElement("div", { className: "sy-s-lab" }, scope, "今天"), /* @__PURE__ */ React4.createElement("div", { className: "sy-s-main" }, /* @__PURE__ */ React4.createElement("div", { className: "sy-s-big" }, open.length), /* @__PURE__ */ React4.createElement("div", { className: "sy-s-sub" }, "件事还没做")), /* @__PURE__ */ React4.createElement(
+    return /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement("div", { className: "sy-s-lab" }, scope, "今天"), /* @__PURE__ */ React5.createElement("div", { className: "sy-s-main" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-s-big" }, open.length), /* @__PURE__ */ React5.createElement("div", { className: "sy-s-sub" }, "件事还没做")), /* @__PURE__ */ React5.createElement(
       "button",
       {
         className: "sy-s-next",
@@ -1665,14 +2117,14 @@ function TaskWidget({ widget, size, settings, context }) {
         "data-task": first.id,
         "aria-label": `完成：${first.title}`
       },
-      /* @__PURE__ */ React4.createElement("span", { className: "sy-chk" }, /* @__PURE__ */ React4.createElement(SvgIcon, { svg: I.check })),
-      /* @__PURE__ */ React4.createElement("span", { className: "c1" }, first.title)
+      /* @__PURE__ */ React5.createElement("span", { className: "sy-chk" }, /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.check })),
+      /* @__PURE__ */ React5.createElement("span", { className: "c1" }, first.title)
     ));
   }
   const progress = list.length ? done.length / list.length : 0;
   if (size === "M") {
     const shown = [...open, ...done].slice(0, 3);
-    return /* @__PURE__ */ React4.createElement(React4.Fragment, null, /* @__PURE__ */ React4.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 7, flex: "none" } }, /* @__PURE__ */ React4.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: 8 } }, /* @__PURE__ */ React4.createElement("span", { className: "sy-s-big", style: { fontSize: 36 } }, done.length, /* @__PURE__ */ React4.createElement("small", null, "/", list.length)), /* @__PURE__ */ React4.createElement("span", { className: "meta" }, "今天已完成")), /* @__PURE__ */ React4.createElement(ProgressBar, { pct: progress, colour: "var(--sy-t-task)" })), /* @__PURE__ */ React4.createElement("div", { className: "sy-list sy-fit", style: { gap: 3 } }, shown.map((task) => /* @__PURE__ */ React4.createElement("div", { key: task.id, className: `sy-row sy-t-row sy-t-m${task.done ? " sy-done" : ""}` }, /* @__PURE__ */ React4.createElement(
+    return /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 7, flex: "none" } }, /* @__PURE__ */ React5.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: 8 } }, /* @__PURE__ */ React5.createElement("span", { className: "sy-s-big", style: { fontSize: 36 } }, done.length, /* @__PURE__ */ React5.createElement("small", null, "/", list.length)), /* @__PURE__ */ React5.createElement("span", { className: "meta" }, "今天已完成")), /* @__PURE__ */ React5.createElement(ProgressBar, { pct: progress, colour: "var(--sy-t-task)" })), /* @__PURE__ */ React5.createElement("div", { className: "sy-list sy-fit", style: { gap: 3 } }, shown.map((task) => /* @__PURE__ */ React5.createElement("div", { key: task.id, className: `sy-row sy-t-row sy-t-m${task.done ? " sy-done" : ""}` }, /* @__PURE__ */ React5.createElement(
       "button",
       {
         className: "sy-chk",
@@ -1680,11 +2132,11 @@ function TaskWidget({ widget, size, settings, context }) {
         "data-task": task.id,
         "aria-label": `完成：${task.title}`
       },
-      /* @__PURE__ */ React4.createElement(SvgIcon, { svg: I.check })
-    ), /* @__PURE__ */ React4.createElement("span", { className: "sy-t-title c2 grow" }, task.title)))), /* @__PURE__ */ React4.createElement("div", { className: "meta", style: { flex: "none" } }, "收件箱 ", inbox.length, " · 之后 ", later.length));
+      /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.check })
+    ), /* @__PURE__ */ React5.createElement("span", { className: "sy-t-title c2 grow" }, task.title)))), /* @__PURE__ */ React5.createElement("div", { className: "meta", style: { flex: "none" } }, "收件箱 ", inbox.length, " · 之后 ", later.length));
   }
   const single = context.cols <= 4;
-  return /* @__PURE__ */ React4.createElement(React4.Fragment, null, /* @__PURE__ */ React4.createElement("form", { className: "sy-cap", "data-form": "task-add", "data-w": widget.id, style: { height: 36 } }, /* @__PURE__ */ React4.createElement("input", { name: "t", placeholder: "新建任务，回车加入今天", autoComplete: "off", "aria-label": "新建任务" }), /* @__PURE__ */ React4.createElement("kbd", null, "↵")), /* @__PURE__ */ React4.createElement(
+  return /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement("form", { className: "sy-cap", "data-form": "task-add", "data-w": widget.id, style: { height: 36 } }, /* @__PURE__ */ React5.createElement("input", { name: "t", placeholder: "新建任务，回车加入今天", autoComplete: "off", "aria-label": "新建任务" }), /* @__PURE__ */ React5.createElement("kbd", null, "↵")), /* @__PURE__ */ React5.createElement(
     "div",
     {
       style: {
@@ -1695,8 +2147,8 @@ function TaskWidget({ widget, size, settings, context }) {
         minHeight: 0
       }
     },
-    /* @__PURE__ */ React4.createElement("section", { style: { display: "flex", flexDirection: "column", minHeight: 0 } }, /* @__PURE__ */ React4.createElement("div", { className: "sy-agenda-h" }, "今天 · ", open.length, "/", list.length), /* @__PURE__ */ React4.createElement("div", { className: "sy-list sy-fit" }, [...open, ...done].map((task) => /* @__PURE__ */ React4.createElement(TaskRow, { key: task.id, task, showProject: !single })))),
-    !single ? /* @__PURE__ */ React4.createElement("section", { style: { display: "flex", flexDirection: "column", minHeight: 0 } }, /* @__PURE__ */ React4.createElement("div", { className: "sy-agenda-h" }, "收件箱 · ", inbox.length), /* @__PURE__ */ React4.createElement("div", { className: "sy-list sy-fit" }, inbox.length ? inbox.map((task) => /* @__PURE__ */ React4.createElement("div", { key: task.id, className: "sy-row" }, /* @__PURE__ */ React4.createElement("span", { className: "sy-t-title c1 grow" }, task.title), /* @__PURE__ */ React4.createElement("button", { className: "sy-mini", "data-act": "task-today", "data-task": task.id }, "移到今天"))) : /* @__PURE__ */ React4.createElement("div", { className: "meta", style: { padding: "8px 0" } }, "收件箱是空的"))) : null
+    /* @__PURE__ */ React5.createElement("section", { style: { display: "flex", flexDirection: "column", minHeight: 0 } }, /* @__PURE__ */ React5.createElement("div", { className: "sy-agenda-h" }, "今天 · ", open.length, "/", list.length), /* @__PURE__ */ React5.createElement("div", { className: "sy-list sy-fit" }, [...open, ...done].map((task) => /* @__PURE__ */ React5.createElement(TaskRow, { key: task.id, task, showProject: !single })))),
+    !single ? /* @__PURE__ */ React5.createElement("section", { style: { display: "flex", flexDirection: "column", minHeight: 0 } }, /* @__PURE__ */ React5.createElement("div", { className: "sy-agenda-h" }, "收件箱 · ", inbox.length), /* @__PURE__ */ React5.createElement("div", { className: "sy-list sy-fit" }, inbox.length ? inbox.map((task) => /* @__PURE__ */ React5.createElement("div", { key: task.id, className: "sy-row" }, /* @__PURE__ */ React5.createElement("span", { className: "sy-t-title c1 grow" }, task.title), /* @__PURE__ */ React5.createElement("button", { className: "sy-mini", "data-act": "task-today", "data-task": task.id }, "移到今天"))) : /* @__PURE__ */ React5.createElement("div", { className: "meta", style: { padding: "8px 0" } }, "收件箱是空的"))) : null
   ));
 }
 var taskWidgetDefinition = {
@@ -1726,7 +2178,7 @@ var taskWidgetDefinition = {
 };
 
 // src/client/widgets/subscription/SubscriptionWidget.tsx
-var React5 = __toESM(require("react"), 1);
+var React6 = __toESM(require("react"), 1);
 var DECK_SIZE = 10;
 var SUB_SORTS = [
   ["match", "关注优先"],
@@ -1769,7 +2221,7 @@ var metaLine = (item) => {
 var authorsLine = (item) => item.tags?.length ? `${item.tags[0]}${(item.authorCount ?? item.tags.length) > 1 ? ` 等 ${item.authorCount ?? item.tags.length} 人` : ""}` : "";
 var videoMeta = (item) => `${relTime(item.publishedAt)}${item.metrics?.views ? ` · ${fmtCount(item.metrics.views)} 次观看` : ""}${item.metrics?.likes ? ` · ${fmtCount(item.metrics.likes)} 赞` : ""}`;
 function UpvotesBadge({ item, className = "" }) {
-  return /* @__PURE__ */ React5.createElement("span", { className: `sy-up ${className}`.trim(), title: "HuggingFace 点赞" }, /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.up }), item.metrics?.upvotes ?? item.score ?? 0);
+  return /* @__PURE__ */ React6.createElement("span", { className: `sy-up ${className}`.trim(), title: "HuggingFace 点赞" }, /* @__PURE__ */ React6.createElement(SvgIcon, { svg: I.up }), item.metrics?.upvotes ?? item.score ?? 0);
 }
 function KeywordChips({
   item,
@@ -1778,32 +2230,32 @@ function KeywordChips({
 }) {
   const keyword = matchOf(item, interests);
   const rest = (item.keywords ?? []).filter((value) => !keyword || !String(value).toLowerCase().includes(keyword.toLowerCase())).slice(0, keyword ? count - 1 : count);
-  return /* @__PURE__ */ React5.createElement("div", { className: "sy-kws" }, keyword ? /* @__PURE__ */ React5.createElement("span", { className: "sy-chip match" }, /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.spark }), keyword) : null, rest.map((value, idx) => /* @__PURE__ */ React5.createElement("span", { key: idx, className: "sy-chip" }, value)));
+  return /* @__PURE__ */ React6.createElement("div", { className: "sy-kws" }, keyword ? /* @__PURE__ */ React6.createElement("span", { className: "sy-chip match" }, /* @__PURE__ */ React6.createElement(SvgIcon, { svg: I.spark }), keyword) : null, rest.map((value, idx) => /* @__PURE__ */ React6.createElement("span", { key: idx, className: "sy-chip" }, value)));
 }
 function PaperLinks({ item }) {
   const id = String(item.url ?? "").match(/papers\/([\d.]+)/)?.[1];
-  return /* @__PURE__ */ React5.createElement("div", { className: "sy-links" }, /* @__PURE__ */ React5.createElement("a", { href: safeUrl(item.url), target: "_blank", rel: "noopener noreferrer" }, "论文", id ? /* @__PURE__ */ React5.createElement("code", null, " ", id) : null, " ", /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.out })), item.altUrl ? /* @__PURE__ */ React5.createElement("a", { href: safeUrl(item.altUrl), target: "_blank", rel: "noopener noreferrer" }, "代码", item.metrics?.stars ? ` ★ ${fmtCount(item.metrics.stars)}` : "", " ", /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.out })) : null, item.project ? /* @__PURE__ */ React5.createElement("a", { href: safeUrl(item.project), target: "_blank", rel: "noopener noreferrer" }, "项目页 ", /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.out })) : null);
+  return /* @__PURE__ */ React6.createElement("div", { className: "sy-links" }, /* @__PURE__ */ React6.createElement("a", { href: safeUrl(item.url), target: "_blank", rel: "noopener noreferrer" }, "论文", id ? /* @__PURE__ */ React6.createElement("code", null, " ", id) : null, " ", /* @__PURE__ */ React6.createElement(SvgIcon, { svg: I.out })), item.altUrl ? /* @__PURE__ */ React6.createElement("a", { href: safeUrl(item.altUrl), target: "_blank", rel: "noopener noreferrer" }, "代码", item.metrics?.stars ? ` ★ ${fmtCount(item.metrics.stars)}` : "", " ", /* @__PURE__ */ React6.createElement(SvgIcon, { svg: I.out })) : null, item.project ? /* @__PURE__ */ React6.createElement("a", { href: safeUrl(item.project), target: "_blank", rel: "noopener noreferrer" }, "项目页 ", /* @__PURE__ */ React6.createElement(SvgIcon, { svg: I.out })) : null);
 }
 function NewsRow({ item, context }) {
   const colour = (item.category ? CATEGORY_COLOUR[item.category] : void 0) ?? "var(--sy-ink3)";
   const catLabel = categoryLabel(item.category);
-  return /* @__PURE__ */ React5.createElement("div", { className: `sy-row nr${item.state?.seen ? " sy-seen" : ""}` }, /* @__PURE__ */ React5.createElement("i", { className: "sy-cdot", style: { "--c": colour } }), /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-it-a" }, /* @__PURE__ */ React5.createElement("span", { className: "tt c1" }, item.title), /* @__PURE__ */ React5.createElement("span", { className: "meta c1", style: { whiteSpace: "normal" } }, catLabel ? `${catLabel} · ` : "", item.origin ?? "", " · ", relTime(item.publishedAt))), /* @__PURE__ */ React5.createElement(MatchChip, { item, interests: context.interests }), typeof item.score === "number" ? /* @__PURE__ */ React5.createElement("span", { className: "sy-sc" }, item.score) : null, /* @__PURE__ */ React5.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
+  return /* @__PURE__ */ React6.createElement("div", { className: `sy-row nr${item.state?.seen ? " sy-seen" : ""}` }, /* @__PURE__ */ React6.createElement("i", { className: "sy-cdot", style: { "--c": colour } }), /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-it-a" }, /* @__PURE__ */ React6.createElement("span", { className: "tt c1" }, item.title), /* @__PURE__ */ React6.createElement("span", { className: "meta c1", style: { whiteSpace: "normal" } }, catLabel ? `${catLabel} · ` : "", item.origin ?? "", " · ", relTime(item.publishedAt))), /* @__PURE__ */ React6.createElement(MatchChip, { item, interests: context.interests }), typeof item.score === "number" ? /* @__PURE__ */ React6.createElement("span", { className: "sy-sc" }, item.score) : null, /* @__PURE__ */ React6.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
 }
 function NewsLead({ item, context, big }) {
   const cover = coverOf(item);
-  return /* @__PURE__ */ React5.createElement("div", { className: `sy-lead sy-nl${item.state?.seen ? " sy-seen" : ""}` }, big && cover ? /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-nl-cover" }, /* @__PURE__ */ React5.createElement("img", { src: cover, alt: "" })) : null, /* @__PURE__ */ React5.createElement("div", { className: "sy-nl-t" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-nl-top" }, /* @__PURE__ */ React5.createElement(ScoreBadge, { item }), /* @__PURE__ */ React5.createElement(CategoryBadge, { item }), /* @__PURE__ */ React5.createElement(MatchChip, { item, interests: context.interests })), /* @__PURE__ */ React5.createElement(ItemLink, { item, className: `sy-lead-t ${big ? "lg" : ""} c${big ? 2 : 3}`.trim() }, item.title), big && item.reason ? /* @__PURE__ */ React5.createElement("div", { className: "sy-reason c2" }, item.reason) : null, /* @__PURE__ */ React5.createElement("span", { className: "meta c1", style: { whiteSpace: "normal" } }, item.origin ?? "", " · ", relTime(item.publishedAt))), /* @__PURE__ */ React5.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
+  return /* @__PURE__ */ React6.createElement("div", { className: `sy-lead sy-nl${item.state?.seen ? " sy-seen" : ""}` }, big && cover ? /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-nl-cover" }, /* @__PURE__ */ React6.createElement("img", { src: cover, alt: "" })) : null, /* @__PURE__ */ React6.createElement("div", { className: "sy-nl-t" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-nl-top" }, /* @__PURE__ */ React6.createElement(ScoreBadge, { item }), /* @__PURE__ */ React6.createElement(CategoryBadge, { item }), /* @__PURE__ */ React6.createElement(MatchChip, { item, interests: context.interests })), /* @__PURE__ */ React6.createElement(ItemLink, { item, className: `sy-lead-t ${big ? "lg" : ""} c${big ? 2 : 3}`.trim() }, item.title), big && item.reason ? /* @__PURE__ */ React6.createElement("div", { className: "sy-reason c2" }, item.reason) : null, /* @__PURE__ */ React6.createElement("span", { className: "meta c1", style: { whiteSpace: "normal" } }, item.origin ?? "", " · ", relTime(item.publishedAt))), /* @__PURE__ */ React6.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
 }
 function NewsCard({ item, context }) {
-  return /* @__PURE__ */ React5.createElement("div", { className: `sy-ncard${item.state?.seen ? " sy-seen" : ""}` }, /* @__PURE__ */ React5.createElement("div", { className: "sy-nl-top" }, /* @__PURE__ */ React5.createElement(ScoreBadge, { item }), /* @__PURE__ */ React5.createElement(CategoryBadge, { item }), /* @__PURE__ */ React5.createElement(MatchChip, { item, interests: context.interests })), /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-lead-t c3" }, item.title), item.reason ? /* @__PURE__ */ React5.createElement("div", { className: "sy-reason-plain c4" }, item.reason) : null, /* @__PURE__ */ React5.createElement("span", { className: "meta c1 foot", style: { whiteSpace: "normal" } }, item.origin ?? "", " · ", relTime(item.publishedAt)), /* @__PURE__ */ React5.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
+  return /* @__PURE__ */ React6.createElement("div", { className: `sy-ncard${item.state?.seen ? " sy-seen" : ""}` }, /* @__PURE__ */ React6.createElement("div", { className: "sy-nl-top" }, /* @__PURE__ */ React6.createElement(ScoreBadge, { item }), /* @__PURE__ */ React6.createElement(CategoryBadge, { item }), /* @__PURE__ */ React6.createElement(MatchChip, { item, interests: context.interests })), /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-lead-t c3" }, item.title), item.reason ? /* @__PURE__ */ React6.createElement("div", { className: "sy-reason-plain c4" }, item.reason) : null, /* @__PURE__ */ React6.createElement("span", { className: "meta c1 foot", style: { whiteSpace: "normal" } }, item.origin ?? "", " · ", relTime(item.publishedAt)), /* @__PURE__ */ React6.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
 }
 function RankRow({ item, index, max }) {
-  return /* @__PURE__ */ React5.createElement("div", { className: `sy-row sy-rk-row${item.state?.seen ? " sy-seen" : ""}` }, /* @__PURE__ */ React5.createElement("span", { className: `sy-rk-n${index < 3 ? " top" : ""}` }, item.metrics?.rank ?? index + 1), /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "grow c1 tt" }, item.title), item.metrics?.signalCount ? /* @__PURE__ */ React5.createElement("span", { className: "sy-heat", title: item.origin ?? "" }, /* @__PURE__ */ React5.createElement("i", { style: { width: `${Math.round(item.metrics.signalCount / max * 100)}%` } })) : null);
+  return /* @__PURE__ */ React6.createElement("div", { className: `sy-row sy-rk-row${item.state?.seen ? " sy-seen" : ""}` }, /* @__PURE__ */ React6.createElement("span", { className: `sy-rk-n${index < 3 ? " top" : ""}` }, item.metrics?.rank ?? index + 1), /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "grow c1 tt" }, item.title), item.metrics?.signalCount ? /* @__PURE__ */ React6.createElement("span", { className: "sy-heat", title: item.origin ?? "" }, /* @__PURE__ */ React6.createElement("i", { style: { width: `${Math.round(item.metrics.signalCount / max * 100)}%` } })) : null);
 }
 function ProdRow({ item, context }) {
-  return /* @__PURE__ */ React5.createElement("div", { className: "sy-row" }, /* @__PURE__ */ React5.createElement(MonoTile, { name: item.title }), /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-it-a" }, /* @__PURE__ */ React5.createElement("span", { className: "tt c1" }, item.title), /* @__PURE__ */ React5.createElement("span", { className: "meta c1", style: { whiteSpace: "normal" } }, item.summary ?? "")), /* @__PURE__ */ React5.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
+  return /* @__PURE__ */ React6.createElement("div", { className: "sy-row" }, /* @__PURE__ */ React6.createElement(MonoTile, { name: item.title }), /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-it-a" }, /* @__PURE__ */ React6.createElement("span", { className: "tt c1" }, item.title), /* @__PURE__ */ React6.createElement("span", { className: "meta c1", style: { whiteSpace: "normal" } }, item.summary ?? "")), /* @__PURE__ */ React6.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
 }
 function ProdCard({ item, context }) {
-  return /* @__PURE__ */ React5.createElement("div", { className: "sy-ncard" }, /* @__PURE__ */ React5.createElement(MonoTile, { name: item.title }), /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-lead-t c1" }, item.title), /* @__PURE__ */ React5.createElement("div", { className: "meta c3", style: { whiteSpace: "normal", lineHeight: 1.5 } }, item.summary ?? ""), /* @__PURE__ */ React5.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
+  return /* @__PURE__ */ React6.createElement("div", { className: "sy-ncard" }, /* @__PURE__ */ React6.createElement(MonoTile, { name: item.title }), /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-lead-t c1" }, item.title), /* @__PURE__ */ React6.createElement("div", { className: "meta c3", style: { whiteSpace: "normal", lineHeight: 1.5 } }, item.summary ?? ""), /* @__PURE__ */ React6.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
 }
 function PaperRow({
   item,
@@ -1811,32 +2263,32 @@ function PaperRow({
   withSummary,
   context
 }) {
-  return /* @__PURE__ */ React5.createElement("div", { className: `sy-row sy-pr${item.state?.seen ? " sy-seen" : ""}` }, /* @__PURE__ */ React5.createElement("span", { className: "sy-rk-n" }, index), /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-it-a" }, /* @__PURE__ */ React5.createElement("span", { className: "tt c1" }, item.title), withSummary ? /* @__PURE__ */ React5.createElement("span", { className: "meta c1", style: { whiteSpace: "normal" } }, item.tldr || authorsLine(item)) : null), /* @__PURE__ */ React5.createElement(MatchChip, { item, interests: context.interests }), /* @__PURE__ */ React5.createElement(UpvotesBadge, { item }), /* @__PURE__ */ React5.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
+  return /* @__PURE__ */ React6.createElement("div", { className: `sy-row sy-pr${item.state?.seen ? " sy-seen" : ""}` }, /* @__PURE__ */ React6.createElement("span", { className: "sy-rk-n" }, index), /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-it-a" }, /* @__PURE__ */ React6.createElement("span", { className: "tt c1" }, item.title), withSummary ? /* @__PURE__ */ React6.createElement("span", { className: "meta c1", style: { whiteSpace: "normal" } }, item.tldr || authorsLine(item)) : null), /* @__PURE__ */ React6.createElement(MatchChip, { item, interests: context.interests }), /* @__PURE__ */ React6.createElement(UpvotesBadge, { item }), /* @__PURE__ */ React6.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
 }
 function PaperLead({ item, context }) {
   const cover = coverOf(item);
-  return /* @__PURE__ */ React5.createElement("div", { className: "sy-lead sy-pl" }, cover ? /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-pl-fig" }, /* @__PURE__ */ React5.createElement("img", { src: cover, alt: "论文配图" })) : null, /* @__PURE__ */ React5.createElement("div", { className: "sy-pl-t" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-nl-top" }, /* @__PURE__ */ React5.createElement("span", { className: "mono-l" }, "#1 今日"), /* @__PURE__ */ React5.createElement(UpvotesBadge, { item }), /* @__PURE__ */ React5.createElement("span", { className: "meta" }, item.metrics?.comments ?? 0, " 条讨论 · ", authorsLine(item))), /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-lead-t lg c2" }, item.title), item.tldr ? /* @__PURE__ */ React5.createElement("div", { className: "sy-tldr c2" }, item.tldr) : null, /* @__PURE__ */ React5.createElement(KeywordChips, { item, count: 4, interests: context.interests }), /* @__PURE__ */ React5.createElement(PaperLinks, { item })), /* @__PURE__ */ React5.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
+  return /* @__PURE__ */ React6.createElement("div", { className: "sy-lead sy-pl" }, cover ? /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-pl-fig" }, /* @__PURE__ */ React6.createElement("img", { src: cover, alt: "论文配图" })) : null, /* @__PURE__ */ React6.createElement("div", { className: "sy-pl-t" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-nl-top" }, /* @__PURE__ */ React6.createElement("span", { className: "mono-l" }, "#1 今日"), /* @__PURE__ */ React6.createElement(UpvotesBadge, { item }), /* @__PURE__ */ React6.createElement("span", { className: "meta" }, item.metrics?.comments ?? 0, " 条讨论 · ", authorsLine(item))), /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-lead-t lg c2" }, item.title), item.tldr ? /* @__PURE__ */ React6.createElement("div", { className: "sy-tldr c2" }, item.tldr) : null, /* @__PURE__ */ React6.createElement(KeywordChips, { item, count: 4, interests: context.interests }), /* @__PURE__ */ React6.createElement(PaperLinks, { item })), /* @__PURE__ */ React6.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
 }
 function PaperCard({
   item,
   index,
   context
 }) {
-  return /* @__PURE__ */ React5.createElement("div", { className: "sy-ncard" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-nl-top" }, /* @__PURE__ */ React5.createElement("span", { className: "mono-l" }, "#", index + 1), /* @__PURE__ */ React5.createElement(UpvotesBadge, { item }), /* @__PURE__ */ React5.createElement("span", { className: "meta" }, item.metrics?.comments ?? 0, " 条讨论")), /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-lead-t c2" }, item.title), /* @__PURE__ */ React5.createElement("div", { className: "sy-reason-plain c4" }, item.tldr || item.summary), /* @__PURE__ */ React5.createElement("div", { className: "foot" }, /* @__PURE__ */ React5.createElement(KeywordChips, { item, count: 3, interests: context.interests })), /* @__PURE__ */ React5.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
+  return /* @__PURE__ */ React6.createElement("div", { className: "sy-ncard" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-nl-top" }, /* @__PURE__ */ React6.createElement("span", { className: "mono-l" }, "#", index + 1), /* @__PURE__ */ React6.createElement(UpvotesBadge, { item }), /* @__PURE__ */ React6.createElement("span", { className: "meta" }, item.metrics?.comments ?? 0, " 条讨论")), /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-lead-t c2" }, item.title), /* @__PURE__ */ React6.createElement("div", { className: "sy-reason-plain c4" }, item.tldr || item.summary), /* @__PURE__ */ React6.createElement("div", { className: "foot" }, /* @__PURE__ */ React6.createElement(KeywordChips, { item, count: 3, interests: context.interests })), /* @__PURE__ */ React6.createElement(ItemActions, { item, saved: context.saved.has(item.id) }));
 }
 function VideoImg({ item }) {
   const cover = coverOf(item);
-  if (cover) return /* @__PURE__ */ React5.createElement("img", { src: cover, alt: "", loading: "lazy" });
-  return /* @__PURE__ */ React5.createElement("div", { className: "sy-gen", style: { "--c": "var(--sy-t-subscription)" } }, item.sourceLabel ?? "");
+  if (cover) return /* @__PURE__ */ React6.createElement("img", { src: cover, alt: "", loading: "lazy" });
+  return /* @__PURE__ */ React6.createElement("div", { className: "sy-gen", style: { "--c": "var(--sy-t-subscription)" } }, item.sourceLabel ?? "");
 }
 function VideoThumb({ item, className = "" }) {
-  return /* @__PURE__ */ React5.createElement(ItemLink, { item, className: `sy-vt ${className}`.trim() }, /* @__PURE__ */ React5.createElement(VideoImg, { item }), /* @__PURE__ */ React5.createElement("span", { className: "sy-vplay" }, /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.play })), item.metrics?.views ? /* @__PURE__ */ React5.createElement("span", { className: "sy-vbadge" }, fmtCount(item.metrics.views), " 次观看") : null);
+  return /* @__PURE__ */ React6.createElement(ItemLink, { item, className: `sy-vt ${className}`.trim() }, /* @__PURE__ */ React6.createElement(VideoImg, { item }), /* @__PURE__ */ React6.createElement("span", { className: "sy-vplay" }, /* @__PURE__ */ React6.createElement(SvgIcon, { svg: I.play })), item.metrics?.views ? /* @__PURE__ */ React6.createElement("span", { className: "sy-vbadge" }, fmtCount(item.metrics.views), " 次观看") : null);
 }
 function ShortCard({ item }) {
-  return /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-s916" }, /* @__PURE__ */ React5.createElement(VideoImg, { item }), /* @__PURE__ */ React5.createElement("span", null, /* @__PURE__ */ React5.createElement("em", { className: "c2" }, item.title), /* @__PURE__ */ React5.createElement("b", null, fmtCount(item.metrics?.views ?? 0), " 次观看")));
+  return /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-s916" }, /* @__PURE__ */ React6.createElement(VideoImg, { item }), /* @__PURE__ */ React6.createElement("span", null, /* @__PURE__ */ React6.createElement("em", { className: "c2" }, item.title), /* @__PURE__ */ React6.createElement("b", null, fmtCount(item.metrics?.views ?? 0), " 次观看")));
 }
 function EpisodeCard({ item }) {
-  return /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-ep" }, /* @__PURE__ */ React5.createElement(VideoImg, { item }), /* @__PURE__ */ React5.createElement("span", { className: "sy-vplay" }, /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.play })), /* @__PURE__ */ React5.createElement("span", { className: "sy-ep-t" }, /* @__PURE__ */ React5.createElement("span", { className: "mono-l" }, isShort(item) ? "SHORTS" : "最新节目"), /* @__PURE__ */ React5.createElement("b", { className: "c2" }, item.title), /* @__PURE__ */ React5.createElement("span", null, videoMeta(item))));
+  return /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-ep" }, /* @__PURE__ */ React6.createElement(VideoImg, { item }), /* @__PURE__ */ React6.createElement("span", { className: "sy-vplay" }, /* @__PURE__ */ React6.createElement(SvgIcon, { svg: I.play })), /* @__PURE__ */ React6.createElement("span", { className: "sy-ep-t" }, /* @__PURE__ */ React6.createElement("span", { className: "mono-l" }, isShort(item) ? "SHORTS" : "最新节目"), /* @__PURE__ */ React6.createElement("b", { className: "c2" }, item.title), /* @__PURE__ */ React6.createElement("span", null, videoMeta(item))));
 }
 function CategoryTabs({ widget, context }) {
   const settings = widget.settings ?? {};
@@ -1852,7 +2304,7 @@ function CategoryTabs({ widget, context }) {
       all.filter((item) => item.category === v).length
     ])
   ];
-  return /* @__PURE__ */ React5.createElement("div", { className: "sy-tabs", role: "tablist" }, tabs.map(([key, label, count]) => /* @__PURE__ */ React5.createElement(
+  return /* @__PURE__ */ React6.createElement("div", { className: "sy-tabs", role: "tablist" }, tabs.map(([key, label, count]) => /* @__PURE__ */ React6.createElement(
     "button",
     {
       key,
@@ -1863,7 +2315,7 @@ function CategoryTabs({ widget, context }) {
       "aria-pressed": current === key
     },
     label,
-    /* @__PURE__ */ React5.createElement("span", null, count)
+    /* @__PURE__ */ React6.createElement("span", null, count)
   )));
 }
 function SubscriptionDeck({
@@ -1877,13 +2329,13 @@ function SubscriptionDeck({
   const vertical = size === "S";
   const max = heatMax(list);
   if (list.length === 0) {
-    return /* @__PURE__ */ React5.createElement(EmptyWidgetState, { widget, size, context });
+    return /* @__PURE__ */ React6.createElement(EmptyWidgetState, { widget, size, context });
   }
   const index = context.deckIndex[widget.id] ?? 0;
   const flipped = Boolean(context.deckFlipped[widget.id]);
   const at = Math.min(index, list.length - 1);
   const big = size !== "M";
-  return /* @__PURE__ */ React5.createElement(
+  return /* @__PURE__ */ React6.createElement(
     "div",
     {
       className: `sy-deck${vertical ? " v" : ""}`,
@@ -1893,12 +2345,12 @@ function SubscriptionDeck({
       "aria-roledescription": "卡片流",
       "aria-label": `${widgetTitle(widget, context)}，左右方向键切换`
     },
-    vertical ? /* @__PURE__ */ React5.createElement("div", { className: "sy-s-lab", style: { marginBottom: 8 } }, /* @__PURE__ */ React5.createElement(WidgetIcon, { type: "subscription", size: 16 }), widgetTitle(widget, context)) : null,
-    vertical ? /* @__PURE__ */ React5.createElement("div", { className: `sy-segs${settings.auto ? " auto" : ""}` }, list.map((_, i) => /* @__PURE__ */ React5.createElement("i", { key: i, className: i < at ? "done" : i === at ? "run" : "" }))) : null,
-    /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-stage" }, list.map((item, position) => {
+    vertical ? /* @__PURE__ */ React6.createElement("div", { className: "sy-s-lab", style: { marginBottom: 8 } }, /* @__PURE__ */ React6.createElement(WidgetIcon, { type: "subscription", size: 16 }), widgetTitle(widget, context)) : null,
+    vertical ? /* @__PURE__ */ React6.createElement("div", { className: `sy-segs${settings.auto ? " auto" : ""}` }, list.map((_, i) => /* @__PURE__ */ React6.createElement("i", { key: i, className: i < at ? "done" : i === at ? "run" : "" }))) : null,
+    /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-stage" }, list.map((item, position) => {
       const pos = position < at ? "past" : position === at ? "cur" : position === at + 1 ? "n1" : position === at + 2 ? "n2" : "hide";
       if (settings.pres === "论文") {
-        return /* @__PURE__ */ React5.createElement(
+        return /* @__PURE__ */ React6.createElement(
           "article",
           {
             key: item.id,
@@ -1907,11 +2359,11 @@ function SubscriptionDeck({
             "data-k": position,
             "data-item": item.id
           },
-          /* @__PURE__ */ React5.createElement("div", { className: "sy-flip" }, /* @__PURE__ */ React5.createElement("div", { className: "face front" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-art paper" }), /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-big" }, "#", position + 1), /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-in" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-top" }, /* @__PURE__ */ React5.createElement("span", { className: "sy-dk-src" }, "HF 论文 · #", position + 1), /* @__PURE__ */ React5.createElement(UpvotesBadge, { item }), /* @__PURE__ */ React5.createElement("span", { className: "sy-dk-time" }, item.metrics?.comments ?? 0, " 条讨论")), /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-main" }, /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-dk-title c2" }, item.title), item.tldr ? /* @__PURE__ */ React5.createElement("p", { className: "sy-dk-sum tl c3" }, item.tldr) : null, big ? /* @__PURE__ */ React5.createElement(KeywordChips, { item, count: 4, interests: context.interests }) : null, big ? /* @__PURE__ */ React5.createElement("span", { className: "sy-dk-hint" }, /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.reset }), " 点卡片翻面看摘要") : null))), /* @__PURE__ */ React5.createElement("div", { className: "face back" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-in" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-top" }, /* @__PURE__ */ React5.createElement("span", { className: "sy-dk-src" }, "摘要"), /* @__PURE__ */ React5.createElement("span", { className: "grow" }), /* @__PURE__ */ React5.createElement("span", { className: "sy-dk-time" }, authorsLine(item))), /* @__PURE__ */ React5.createElement("p", { className: "sy-dk-abs c8" }, item.summary || item.tldr || ""), big ? /* @__PURE__ */ React5.createElement(PaperLinks, { item }) : null)))
+          /* @__PURE__ */ React6.createElement("div", { className: "sy-flip" }, /* @__PURE__ */ React6.createElement("div", { className: "face front" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-art paper" }), /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-big" }, "#", position + 1), /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-in" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-top" }, /* @__PURE__ */ React6.createElement("span", { className: "sy-dk-src" }, "HF 论文 · #", position + 1), /* @__PURE__ */ React6.createElement(UpvotesBadge, { item }), /* @__PURE__ */ React6.createElement("span", { className: "sy-dk-time" }, item.metrics?.comments ?? 0, " 条讨论")), /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-main" }, /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-dk-title c2" }, item.title), item.tldr ? /* @__PURE__ */ React6.createElement("p", { className: "sy-dk-sum tl c3" }, item.tldr) : null, big ? /* @__PURE__ */ React6.createElement(KeywordChips, { item, count: 4, interests: context.interests }) : null, big ? /* @__PURE__ */ React6.createElement("span", { className: "sy-dk-hint" }, /* @__PURE__ */ React6.createElement(SvgIcon, { svg: I.reset }), " 点卡片翻面看摘要") : null))), /* @__PURE__ */ React6.createElement("div", { className: "face back" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-in" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-top" }, /* @__PURE__ */ React6.createElement("span", { className: "sy-dk-src" }, "摘要"), /* @__PURE__ */ React6.createElement("span", { className: "grow" }), /* @__PURE__ */ React6.createElement("span", { className: "sy-dk-time" }, authorsLine(item))), /* @__PURE__ */ React6.createElement("p", { className: "sy-dk-abs c8" }, item.summary || item.tldr || ""), big ? /* @__PURE__ */ React6.createElement(PaperLinks, { item }) : null)))
         );
       }
       if (vertical || settings.pres === "榜单") {
-        return /* @__PURE__ */ React5.createElement(
+        return /* @__PURE__ */ React6.createElement(
           "article",
           {
             key: item.id,
@@ -1920,12 +2372,12 @@ function SubscriptionDeck({
             "data-k": position,
             "data-item": item.id
           },
-          /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-in" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-hot-l" }, /* @__PURE__ */ React5.createElement("span", { className: "sy-hot-n" }, item.metrics?.rank ?? position + 1), /* @__PURE__ */ React5.createElement("span", { className: "sy-dk-time" }, relTime(item.publishedAt))), /* @__PURE__ */ React5.createElement(ItemLink, { item, className: "sy-dk-title c3" }, item.title), /* @__PURE__ */ React5.createElement("div", { className: "sy-hot-m" }, /* @__PURE__ */ React5.createElement("span", { className: "sy-heat wide" }, /* @__PURE__ */ React5.createElement("i", { style: { width: `${Math.round((item.metrics?.signalCount ?? 0) / max * 100)}%` } })), /* @__PURE__ */ React5.createElement("span", null, item.origin ?? "")))
+          /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-in" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-hot-l" }, /* @__PURE__ */ React6.createElement("span", { className: "sy-hot-n" }, item.metrics?.rank ?? position + 1), /* @__PURE__ */ React6.createElement("span", { className: "sy-dk-time" }, relTime(item.publishedAt))), /* @__PURE__ */ React6.createElement(ItemLink, { item, className: "sy-dk-title c3" }, item.title), /* @__PURE__ */ React6.createElement("div", { className: "sy-hot-m" }, /* @__PURE__ */ React6.createElement("span", { className: "sy-heat wide" }, /* @__PURE__ */ React6.createElement("i", { style: { width: `${Math.round((item.metrics?.signalCount ?? 0) / max * 100)}%` } })), /* @__PURE__ */ React6.createElement("span", null, item.origin ?? "")))
         );
       }
       const cover = coverOf(item);
       const colour = (item.category ? CATEGORY_COLOUR[item.category] : void 0) ?? "var(--sy-t-subscription)";
-      return /* @__PURE__ */ React5.createElement(
+      return /* @__PURE__ */ React6.createElement(
         "article",
         {
           key: item.id,
@@ -1935,11 +2387,11 @@ function SubscriptionDeck({
           "data-item": item.id,
           style: { "--c": colour }
         },
-        cover ? /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-bg" }, /* @__PURE__ */ React5.createElement("img", { src: cover, alt: "" })) : /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-art" }), typeof item.score === "number" ? /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-big" }, item.score) : null),
-        /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-in" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-top" }, /* @__PURE__ */ React5.createElement("span", { className: "sy-dk-src" }, item.sourceLabel ?? ""), /* @__PURE__ */ React5.createElement(CategoryBadge, { item }), /* @__PURE__ */ React5.createElement(MatchChip, { item, interests: context.interests }), /* @__PURE__ */ React5.createElement("span", { className: "grow" }), /* @__PURE__ */ React5.createElement("span", { className: "sy-dk-time" }, relTime(item.publishedAt))), /* @__PURE__ */ React5.createElement("div", { className: "sy-dk-main" }, big && cover ? /* @__PURE__ */ React5.createElement(ScoreBadge, { item }) : null, /* @__PURE__ */ React5.createElement(ItemLink, { item, className: `sy-dk-title c2${big ? " lg" : ""}` }, item.title), big && item.reason ? /* @__PURE__ */ React5.createElement("p", { className: "sy-dk-sum c2" }, item.reason) : null, big ? /* @__PURE__ */ React5.createElement("span", { className: "sy-dk-meta c1" }, item.origin ?? "") : null))
+        cover ? /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-bg" }, /* @__PURE__ */ React6.createElement("img", { src: cover, alt: "" })) : /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-art" }), typeof item.score === "number" ? /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-big" }, item.score) : null),
+        /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-in" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-top" }, /* @__PURE__ */ React6.createElement("span", { className: "sy-dk-src" }, item.sourceLabel ?? ""), /* @__PURE__ */ React6.createElement(CategoryBadge, { item }), /* @__PURE__ */ React6.createElement(MatchChip, { item, interests: context.interests }), /* @__PURE__ */ React6.createElement("span", { className: "grow" }), /* @__PURE__ */ React6.createElement("span", { className: "sy-dk-time" }, relTime(item.publishedAt))), /* @__PURE__ */ React6.createElement("div", { className: "sy-dk-main" }, big && cover ? /* @__PURE__ */ React6.createElement(ScoreBadge, { item }) : null, /* @__PURE__ */ React6.createElement(ItemLink, { item, className: `sy-dk-title c2${big ? " lg" : ""}` }, item.title), big && item.reason ? /* @__PURE__ */ React6.createElement("p", { className: "sy-dk-sum c2" }, item.reason) : null, big ? /* @__PURE__ */ React6.createElement("span", { className: "sy-dk-meta c1" }, item.origin ?? "") : null))
       );
-    }), size === "M" ? /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement("button", { className: "sy-dk-arrow l", "data-act": "dk-prev", "data-w": widget.id, "aria-label": "上一条" }, "‹"), /* @__PURE__ */ React5.createElement("button", { className: "sy-dk-arrow r", "data-act": "dk-next", "data-w": widget.id, "aria-label": "下一条" }, "›")) : null),
-    size === "L" || size === "Wide" ? /* @__PURE__ */ React5.createElement("div", { className: "sy-ctl" }, /* @__PURE__ */ React5.createElement("button", { className: "sy-nav", "data-act": "dk-prev", "data-w": widget.id, "aria-label": "上一条" }, "‹"), /* @__PURE__ */ React5.createElement("div", { className: "sy-dots" }, list.map((_, i) => /* @__PURE__ */ React5.createElement("i", { key: i, className: i === at ? "on" : i < at ? "done" : "" }))), /* @__PURE__ */ React5.createElement("button", { className: "sy-nav", "data-act": "dk-next", "data-w": widget.id, "aria-label": "下一条" }, "›"), /* @__PURE__ */ React5.createElement("span", { className: "sy-tip" }, "拖动卡片：右滑稍后读，左滑跳过"), /* @__PURE__ */ React5.createElement("span", { className: "grow" }), settings.pres === "论文" ? /* @__PURE__ */ React5.createElement("button", { className: "sy-dk-b", "data-act": "dk-flip", "data-w": widget.id }, /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.reset }), "翻面") : /* @__PURE__ */ React5.createElement("button", { className: "sy-dk-b", "data-act": "dk-task", "data-w": widget.id }, /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.toTask }), "转为任务"), /* @__PURE__ */ React5.createElement("button", { className: "sy-dk-b pri", "data-act": "dk-later", "data-w": widget.id }, /* @__PURE__ */ React5.createElement(SvgIcon, { svg: I.bookmark }), "稍后读")) : null
+    }), size === "M" ? /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("button", { className: "sy-dk-arrow l", "data-act": "dk-prev", "data-w": widget.id, "aria-label": "上一条" }, "‹"), /* @__PURE__ */ React6.createElement("button", { className: "sy-dk-arrow r", "data-act": "dk-next", "data-w": widget.id, "aria-label": "下一条" }, "›")) : null),
+    size === "L" || size === "Wide" ? /* @__PURE__ */ React6.createElement("div", { className: "sy-ctl" }, /* @__PURE__ */ React6.createElement("button", { className: "sy-nav", "data-act": "dk-prev", "data-w": widget.id, "aria-label": "上一条" }, "‹"), /* @__PURE__ */ React6.createElement("div", { className: "sy-dots" }, list.map((_, i) => /* @__PURE__ */ React6.createElement("i", { key: i, className: i === at ? "on" : i < at ? "done" : "" }))), /* @__PURE__ */ React6.createElement("button", { className: "sy-nav", "data-act": "dk-next", "data-w": widget.id, "aria-label": "下一条" }, "›"), /* @__PURE__ */ React6.createElement("span", { className: "sy-tip" }, "拖动卡片：右滑稍后读，左滑跳过"), /* @__PURE__ */ React6.createElement("span", { className: "grow" }), settings.pres === "论文" ? /* @__PURE__ */ React6.createElement("button", { className: "sy-dk-b", "data-act": "dk-flip", "data-w": widget.id }, /* @__PURE__ */ React6.createElement(SvgIcon, { svg: I.reset }), "翻面") : /* @__PURE__ */ React6.createElement("button", { className: "sy-dk-b", "data-act": "dk-task", "data-w": widget.id }, /* @__PURE__ */ React6.createElement(SvgIcon, { svg: I.toTask }), "转为任务"), /* @__PURE__ */ React6.createElement("button", { className: "sy-dk-b pri", "data-act": "dk-later", "data-w": widget.id }, /* @__PURE__ */ React6.createElement(SvgIcon, { svg: I.bookmark }), "稍后读")) : null
   );
 }
 function SubscriptionWidget({
@@ -1952,7 +2404,7 @@ function SubscriptionWidget({
   const pres = settings?.pres ?? "图文";
   const title = widgetTitle(widget, context);
   if (settings?.deck) {
-    return /* @__PURE__ */ React5.createElement(
+    return /* @__PURE__ */ React6.createElement(
       SubscriptionDeck,
       {
         widget: { ...widget, settings: { ...settings, pres } },
@@ -1963,7 +2415,7 @@ function SubscriptionWidget({
     );
   }
   if (items.length === 0) {
-    return /* @__PURE__ */ React5.createElement(EmptyWidgetState, { widget, size, context });
+    return /* @__PURE__ */ React6.createElement(EmptyWidgetState, { widget, size, context });
   }
   const max = heatMax(items);
   if (pres === "视频") {
@@ -1972,76 +2424,76 @@ function SubscriptionWidget({
     const lead2 = episodes[0] ?? items[0];
     const rest = shorts.filter((item) => item !== lead2);
     if (size === "S") {
-      return /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement("div", { className: "sy-s-lab" }, isShort(lead2) ? "Shorts" : "最新节目", " · ", title), /* @__PURE__ */ React5.createElement("div", null, /* @__PURE__ */ React5.createElement(ItemLink, { item: lead2, className: "sy-s-title c2" }, lead2.title), /* @__PURE__ */ React5.createElement("div", { className: "meta", style: { marginTop: 4 } }, videoMeta(lead2))), /* @__PURE__ */ React5.createElement(ItemActions, { item: lead2, saved: context.saved.has(lead2.id) }));
+      return /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("div", { className: "sy-s-lab" }, isShort(lead2) ? "Shorts" : "最新节目", " · ", title), /* @__PURE__ */ React6.createElement("div", null, /* @__PURE__ */ React6.createElement(ItemLink, { item: lead2, className: "sy-s-title c2" }, lead2.title), /* @__PURE__ */ React6.createElement("div", { className: "meta", style: { marginTop: 4 } }, videoMeta(lead2))), /* @__PURE__ */ React6.createElement(ItemActions, { item: lead2, saved: context.saved.has(lead2.id) }));
     }
     const description = cleanDesc(lead2.description || lead2.summary);
     if (size === "M") {
-      return /* @__PURE__ */ React5.createElement("div", { className: "sy-vm" }, /* @__PURE__ */ React5.createElement(VideoThumb, { item: lead2 }), /* @__PURE__ */ React5.createElement("div", { className: "sy-vm-t" }, /* @__PURE__ */ React5.createElement("span", { className: "mono-l" }, isShort(lead2) ? "SHORTS" : "最新节目", " · ", lead2.origin ?? ""), /* @__PURE__ */ React5.createElement(ItemLink, { item: lead2, className: "sy-lead-t c2" }, lead2.title), /* @__PURE__ */ React5.createElement("span", { className: "meta" }, videoMeta(lead2)), rest.length ? /* @__PURE__ */ React5.createElement("span", { className: "meta" }, "还有 ", rest.length, " 条 Shorts") : null));
+      return /* @__PURE__ */ React6.createElement("div", { className: "sy-vm" }, /* @__PURE__ */ React6.createElement(VideoThumb, { item: lead2 }), /* @__PURE__ */ React6.createElement("div", { className: "sy-vm-t" }, /* @__PURE__ */ React6.createElement("span", { className: "mono-l" }, isShort(lead2) ? "SHORTS" : "最新节目", " · ", lead2.origin ?? ""), /* @__PURE__ */ React6.createElement(ItemLink, { item: lead2, className: "sy-lead-t c2" }, lead2.title), /* @__PURE__ */ React6.createElement("span", { className: "meta" }, videoMeta(lead2)), rest.length ? /* @__PURE__ */ React6.createElement("span", { className: "meta" }, "还有 ", rest.length, " 条 Shorts") : null));
     }
     if (size === "Wide") {
-      return /* @__PURE__ */ React5.createElement("div", { className: "sy-fit-x sy-reel" }, /* @__PURE__ */ React5.createElement(EpisodeCard, { item: lead2 }), rest.map((item) => /* @__PURE__ */ React5.createElement(ShortCard, { key: item.id, item })));
+      return /* @__PURE__ */ React6.createElement("div", { className: "sy-fit-x sy-reel" }, /* @__PURE__ */ React6.createElement(EpisodeCard, { item: lead2 }), rest.map((item) => /* @__PURE__ */ React6.createElement(ShortCard, { key: item.id, item })));
     }
-    return /* @__PURE__ */ React5.createElement("div", { className: "sy-vL" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-vL-ep" }, /* @__PURE__ */ React5.createElement(VideoThumb, { item: lead2 }), /* @__PURE__ */ React5.createElement("div", { className: "sy-vm-t", style: { justifyContent: "flex-start" } }, /* @__PURE__ */ React5.createElement("span", { className: "mono-l" }, isShort(lead2) ? "SHORTS" : "最新节目", " · ", relTime(lead2.publishedAt)), /* @__PURE__ */ React5.createElement(ItemLink, { item: lead2, className: "sy-lead-t c2" }, lead2.title), description ? /* @__PURE__ */ React5.createElement("div", { className: "sy-reason-plain c2" }, description) : null)), rest.length ? /* @__PURE__ */ React5.createElement("div", { className: "sy-vL-sh" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-agenda-h", style: { paddingTop: 0 } }, "SHORTS · ", rest.length), /* @__PURE__ */ React5.createElement("div", { className: "sy-fit sy-reel2" }, rest.map((item) => /* @__PURE__ */ React5.createElement(ShortCard, { key: item.id, item })))) : null);
+    return /* @__PURE__ */ React6.createElement("div", { className: "sy-vL" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-vL-ep" }, /* @__PURE__ */ React6.createElement(VideoThumb, { item: lead2 }), /* @__PURE__ */ React6.createElement("div", { className: "sy-vm-t", style: { justifyContent: "flex-start" } }, /* @__PURE__ */ React6.createElement("span", { className: "mono-l" }, isShort(lead2) ? "SHORTS" : "最新节目", " · ", relTime(lead2.publishedAt)), /* @__PURE__ */ React6.createElement(ItemLink, { item: lead2, className: "sy-lead-t c2" }, lead2.title), description ? /* @__PURE__ */ React6.createElement("div", { className: "sy-reason-plain c2" }, description) : null)), rest.length ? /* @__PURE__ */ React6.createElement("div", { className: "sy-vL-sh" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-agenda-h", style: { paddingTop: 0 } }, "SHORTS · ", rest.length), /* @__PURE__ */ React6.createElement("div", { className: "sy-fit sy-reel2" }, rest.map((item) => /* @__PURE__ */ React6.createElement(ShortCard, { key: item.id, item })))) : null);
   }
   if (pres === "论文") {
     const lead2 = items[0];
     if (size === "S") {
-      return /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement("div", { className: "sy-s-lab" }, title, " · #1"), /* @__PURE__ */ React5.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, /* @__PURE__ */ React5.createElement(UpvotesBadge, { item: lead2, className: "big" }), /* @__PURE__ */ React5.createElement(ItemLink, { item: lead2, className: "sy-s-title c3" }, lead2.title)), /* @__PURE__ */ React5.createElement(KeywordChips, { item: lead2, count: 2, interests: context.interests }));
+      return /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("div", { className: "sy-s-lab" }, title, " · #1"), /* @__PURE__ */ React6.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, /* @__PURE__ */ React6.createElement(UpvotesBadge, { item: lead2, className: "big" }), /* @__PURE__ */ React6.createElement(ItemLink, { item: lead2, className: "sy-s-title c3" }, lead2.title)), /* @__PURE__ */ React6.createElement(KeywordChips, { item: lead2, count: 2, interests: context.interests }));
     }
     if (size === "M") {
-      return /* @__PURE__ */ React5.createElement("div", { className: "sy-m-split" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-lead" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-nl-top" }, /* @__PURE__ */ React5.createElement("span", { className: "mono-l" }, "#1 今日"), /* @__PURE__ */ React5.createElement(UpvotesBadge, { item: lead2 })), /* @__PURE__ */ React5.createElement(ItemLink, { item: lead2, className: "sy-lead-t c2" }, lead2.title), lead2.tldr ? /* @__PURE__ */ React5.createElement("div", { className: "meta c2", style: { whiteSpace: "normal", lineHeight: 1.45 } }, lead2.tldr) : null, /* @__PURE__ */ React5.createElement(ItemActions, { item: lead2, saved: context.saved.has(lead2.id) })), /* @__PURE__ */ React5.createElement("div", { className: "sy-list sy-fit" }, items.slice(1, 6).map((item, idx) => /* @__PURE__ */ React5.createElement(PaperRow, { key: item.id, item, index: idx + 2, withSummary: false, context }))));
+      return /* @__PURE__ */ React6.createElement("div", { className: "sy-m-split" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-lead" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-nl-top" }, /* @__PURE__ */ React6.createElement("span", { className: "mono-l" }, "#1 今日"), /* @__PURE__ */ React6.createElement(UpvotesBadge, { item: lead2 })), /* @__PURE__ */ React6.createElement(ItemLink, { item: lead2, className: "sy-lead-t c2" }, lead2.title), lead2.tldr ? /* @__PURE__ */ React6.createElement("div", { className: "meta c2", style: { whiteSpace: "normal", lineHeight: 1.45 } }, lead2.tldr) : null, /* @__PURE__ */ React6.createElement(ItemActions, { item: lead2, saved: context.saved.has(lead2.id) })), /* @__PURE__ */ React6.createElement("div", { className: "sy-list sy-fit" }, items.slice(1, 6).map((item, idx) => /* @__PURE__ */ React6.createElement(PaperRow, { key: item.id, item, index: idx + 2, withSummary: false, context }))));
     }
     if (size === "Wide") {
-      return /* @__PURE__ */ React5.createElement("div", { className: "sy-fit-x", style: { gap: 12 } }, items.slice(0, 8).map((item, idx) => /* @__PURE__ */ React5.createElement(PaperCard, { key: item.id, item, index: idx, context })));
+      return /* @__PURE__ */ React6.createElement("div", { className: "sy-fit-x", style: { gap: 12 } }, items.slice(0, 8).map((item, idx) => /* @__PURE__ */ React6.createElement(PaperCard, { key: item.id, item, index: idx, context })));
     }
-    return /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement(PaperLead, { item: lead2, context }), /* @__PURE__ */ React5.createElement("div", { className: "sy-list sy-fit" }, items.slice(1, 8).map((item, idx) => /* @__PURE__ */ React5.createElement(PaperRow, { key: item.id, item, index: idx + 2, withSummary: true, context }))));
+    return /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement(PaperLead, { item: lead2, context }), /* @__PURE__ */ React6.createElement("div", { className: "sy-list sy-fit" }, items.slice(1, 8).map((item, idx) => /* @__PURE__ */ React6.createElement(PaperRow, { key: item.id, item, index: idx + 2, withSummary: true, context }))));
   }
   if (pres === "榜单") {
     if (size === "S") {
-      return /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement("div", { className: "sy-s-lab" }, /* @__PURE__ */ React5.createElement(WidgetIcon, { type: "subscription", size: 16 }), title), /* @__PURE__ */ React5.createElement("div", { className: "sy-list sy-fit", style: { marginTop: 8 } }, items.slice(0, 5).map((item, idx) => /* @__PURE__ */ React5.createElement(RankRow, { key: item.id, item, index: idx, max }))));
+      return /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("div", { className: "sy-s-lab" }, /* @__PURE__ */ React6.createElement(WidgetIcon, { type: "subscription", size: 16 }), title), /* @__PURE__ */ React6.createElement("div", { className: "sy-list sy-fit", style: { marginTop: 8 } }, items.slice(0, 5).map((item, idx) => /* @__PURE__ */ React6.createElement(RankRow, { key: item.id, item, index: idx, max }))));
     }
     if (size === "M") {
-      return /* @__PURE__ */ React5.createElement("div", { className: "sy-grid2 r3" }, items.slice(0, 6).map((item, idx) => /* @__PURE__ */ React5.createElement(RankRow, { key: item.id, item, index: idx, max })));
+      return /* @__PURE__ */ React6.createElement("div", { className: "sy-grid2 r3" }, items.slice(0, 6).map((item, idx) => /* @__PURE__ */ React6.createElement(RankRow, { key: item.id, item, index: idx, max })));
     }
     if (size === "Wide") {
-      return /* @__PURE__ */ React5.createElement(
+      return /* @__PURE__ */ React6.createElement(
         "div",
         {
           className: "sy-grid2 r3",
           style: { gridTemplateColumns: "repeat(3,minmax(0,1fr))", gridTemplateRows: "repeat(4,auto)" }
         },
-        items.slice(0, 12).map((item, idx) => /* @__PURE__ */ React5.createElement(RankRow, { key: item.id, item, index: idx, max }))
+        items.slice(0, 12).map((item, idx) => /* @__PURE__ */ React6.createElement(RankRow, { key: item.id, item, index: idx, max }))
       );
     }
-    return /* @__PURE__ */ React5.createElement("div", { className: "sy-list sy-fit" }, items.slice(0, 10).map((item, idx) => /* @__PURE__ */ React5.createElement(RankRow, { key: item.id, item, index: idx, max })));
+    return /* @__PURE__ */ React6.createElement("div", { className: "sy-list sy-fit" }, items.slice(0, 10).map((item, idx) => /* @__PURE__ */ React6.createElement(RankRow, { key: item.id, item, index: idx, max })));
   }
   if (pres === "产品") {
     const lead2 = items[0];
     if (size === "S") {
-      return /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement("div", { className: "sy-s-lab" }, title), /* @__PURE__ */ React5.createElement("div", { className: "sy-s-narrow", style: { display: "flex", flexDirection: "column", gap: 6 } }, /* @__PURE__ */ React5.createElement(MonoTile, { name: lead2.title }), /* @__PURE__ */ React5.createElement(ItemLink, { item: lead2, className: "sy-s-title c1" }, lead2.title), /* @__PURE__ */ React5.createElement("div", { className: "meta c2", style: { whiteSpace: "normal" } }, lead2.summary ?? "")));
+      return /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("div", { className: "sy-s-lab" }, title), /* @__PURE__ */ React6.createElement("div", { className: "sy-s-narrow", style: { display: "flex", flexDirection: "column", gap: 6 } }, /* @__PURE__ */ React6.createElement(MonoTile, { name: lead2.title }), /* @__PURE__ */ React6.createElement(ItemLink, { item: lead2, className: "sy-s-title c1" }, lead2.title), /* @__PURE__ */ React6.createElement("div", { className: "meta c2", style: { whiteSpace: "normal" } }, lead2.summary ?? "")));
     }
     if (size === "M") {
-      return /* @__PURE__ */ React5.createElement("div", { className: "sy-grid2", style: { rowGap: 4 } }, items.slice(0, 4).map((item) => /* @__PURE__ */ React5.createElement(ProdRow, { key: item.id, item, context })));
+      return /* @__PURE__ */ React6.createElement("div", { className: "sy-grid2", style: { rowGap: 4 } }, items.slice(0, 4).map((item) => /* @__PURE__ */ React6.createElement(ProdRow, { key: item.id, item, context })));
     }
     if (size === "Wide") {
-      return /* @__PURE__ */ React5.createElement("div", { className: "sy-fit-x", style: { gap: 12 } }, items.slice(0, 8).map((item) => /* @__PURE__ */ React5.createElement(ProdCard, { key: item.id, item, context })));
+      return /* @__PURE__ */ React6.createElement("div", { className: "sy-fit-x", style: { gap: 12 } }, items.slice(0, 8).map((item) => /* @__PURE__ */ React6.createElement(ProdCard, { key: item.id, item, context })));
     }
-    return /* @__PURE__ */ React5.createElement("div", { className: "sy-list sy-fit" }, items.slice(0, 9).map((item) => /* @__PURE__ */ React5.createElement(ProdRow, { key: item.id, item, context })));
+    return /* @__PURE__ */ React6.createElement("div", { className: "sy-list sy-fit" }, items.slice(0, 9).map((item) => /* @__PURE__ */ React6.createElement(ProdRow, { key: item.id, item, context })));
   }
   const lead = items[0];
   if (size === "S") {
     if (coverOf(lead)) {
-      return /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement("div", { className: "sy-s-lab" }, title), /* @__PURE__ */ React5.createElement("div", null, /* @__PURE__ */ React5.createElement(ItemLink, { item: lead, className: "sy-s-title c3" }, lead.title), /* @__PURE__ */ React5.createElement("div", { className: "meta", style: { marginTop: 4 } }, metaLine(lead))), /* @__PURE__ */ React5.createElement(ItemActions, { item: lead, saved: context.saved.has(lead.id) }));
+      return /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("div", { className: "sy-s-lab" }, title), /* @__PURE__ */ React6.createElement("div", null, /* @__PURE__ */ React6.createElement(ItemLink, { item: lead, className: "sy-s-title c3" }, lead.title), /* @__PURE__ */ React6.createElement("div", { className: "meta", style: { marginTop: 4 } }, metaLine(lead))), /* @__PURE__ */ React6.createElement(ItemActions, { item: lead, saved: context.saved.has(lead.id) }));
     }
-    return /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement("div", { className: "sy-s-lab" }, title), /* @__PURE__ */ React5.createElement("div", { className: "sy-s-narrow" }, /* @__PURE__ */ React5.createElement("div", { className: "sy-nl-top", style: { marginBottom: 6 } }, /* @__PURE__ */ React5.createElement(ScoreBadge, { item: lead }), /* @__PURE__ */ React5.createElement(MatchChip, { item: lead, interests: context.interests })), /* @__PURE__ */ React5.createElement(ItemLink, { item: lead, className: "sy-s-title c3" }, lead.title)), /* @__PURE__ */ React5.createElement("div", { className: "meta" }, relTime(lead.publishedAt)));
+    return /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement("div", { className: "sy-s-lab" }, title), /* @__PURE__ */ React6.createElement("div", { className: "sy-s-narrow" }, /* @__PURE__ */ React6.createElement("div", { className: "sy-nl-top", style: { marginBottom: 6 } }, /* @__PURE__ */ React6.createElement(ScoreBadge, { item: lead }), /* @__PURE__ */ React6.createElement(MatchChip, { item: lead, interests: context.interests })), /* @__PURE__ */ React6.createElement(ItemLink, { item: lead, className: "sy-s-title c3" }, lead.title)), /* @__PURE__ */ React6.createElement("div", { className: "meta" }, relTime(lead.publishedAt)));
   }
   if (size === "M") {
-    return /* @__PURE__ */ React5.createElement("div", { className: "sy-m-split" }, /* @__PURE__ */ React5.createElement(NewsLead, { item: lead, context, big: false }), /* @__PURE__ */ React5.createElement("div", { className: "sy-list sy-fit" }, items.slice(1, 6).map((item) => /* @__PURE__ */ React5.createElement(NewsRow, { key: item.id, item, context }))));
+    return /* @__PURE__ */ React6.createElement("div", { className: "sy-m-split" }, /* @__PURE__ */ React6.createElement(NewsLead, { item: lead, context, big: false }), /* @__PURE__ */ React6.createElement("div", { className: "sy-list sy-fit" }, items.slice(1, 6).map((item) => /* @__PURE__ */ React6.createElement(NewsRow, { key: item.id, item, context }))));
   }
   if (size === "Wide") {
-    return /* @__PURE__ */ React5.createElement("div", { className: "sy-fit-x", style: { gap: 12 } }, items.slice(0, 8).map((item) => /* @__PURE__ */ React5.createElement(NewsCard, { key: item.id, item, context })));
+    return /* @__PURE__ */ React6.createElement("div", { className: "sy-fit-x", style: { gap: 12 } }, items.slice(0, 8).map((item) => /* @__PURE__ */ React6.createElement(NewsCard, { key: item.id, item, context })));
   }
-  return /* @__PURE__ */ React5.createElement(React5.Fragment, null, /* @__PURE__ */ React5.createElement(CategoryTabs, { widget, context }), /* @__PURE__ */ React5.createElement(NewsLead, { item: lead, context, big: true }), /* @__PURE__ */ React5.createElement("div", { className: "sy-list sy-fit" }, items.slice(1, 10).map((item) => /* @__PURE__ */ React5.createElement(NewsRow, { key: item.id, item, context }))));
+  return /* @__PURE__ */ React6.createElement(React6.Fragment, null, /* @__PURE__ */ React6.createElement(CategoryTabs, { widget, context }), /* @__PURE__ */ React6.createElement(NewsLead, { item: lead, context, big: true }), /* @__PURE__ */ React6.createElement("div", { className: "sy-list sy-fit" }, items.slice(1, 10).map((item) => /* @__PURE__ */ React6.createElement(NewsRow, { key: item.id, item, context }))));
 }
 var subscriptionWidgetDefinition = {
   type: "subscription",
@@ -2093,7 +2545,7 @@ var subscriptionWidgetDefinition = {
         const cover = coverOf(lead2);
         return {
           cls: cover ? "sy-w--photo" : "",
-          bg: cover ? /* @__PURE__ */ React5.createElement("div", { className: "bgimg" }, /* @__PURE__ */ React5.createElement("img", { src: cover, alt: "" })) : void 0
+          bg: cover ? /* @__PURE__ */ React6.createElement("div", { className: "bgimg" }, /* @__PURE__ */ React6.createElement("img", { src: cover, alt: "" })) : void 0
         };
       }
       return { sub };
@@ -2112,7 +2564,7 @@ var subscriptionWidgetDefinition = {
       if (cover) {
         return {
           cls: "sy-w--photo",
-          bg: /* @__PURE__ */ React5.createElement("div", { className: "bgimg" }, /* @__PURE__ */ React5.createElement("img", { src: cover, alt: "" }))
+          bg: /* @__PURE__ */ React6.createElement("div", { className: "bgimg" }, /* @__PURE__ */ React6.createElement("img", { src: cover, alt: "" }))
         };
       }
       return { deco: "subscription" };
@@ -2122,15 +2574,15 @@ var subscriptionWidgetDefinition = {
 };
 
 // src/client/widgets/capture/CaptureWidget.tsx
-var React6 = __toESM(require("react"), 1);
+var React7 = __toESM(require("react"), 1);
 function CaptureWidget({ widget, size, context }) {
-  const form = /* @__PURE__ */ React6.createElement("form", { className: "sy-cap", "data-form": "capture", "data-w": widget.id }, /* @__PURE__ */ React6.createElement("input", { name: "t", placeholder: "记下一个想法…", autoComplete: "off", "aria-label": "快速记录" }), /* @__PURE__ */ React6.createElement("kbd", null, "↵"));
-  const hint = /* @__PURE__ */ React6.createElement("div", { className: "sy-cap-hint" }, "回车存进收件箱 · 以 ", /* @__PURE__ */ React6.createElement("code", null, "#note"), " 开头存为 Note");
-  const recent = context.notes.slice(0, 6).map((note) => /* @__PURE__ */ React6.createElement("div", { key: note.id, className: "sy-row", style: { minHeight: 28 } }, /* @__PURE__ */ React6.createElement("span", { className: "sy-kind note" }, "Note"), /* @__PURE__ */ React6.createElement("span", { className: "c1 grow", style: { fontSize: 13 } }, note.text), /* @__PURE__ */ React6.createElement("span", { className: "meta" }, relTime(note.createdAt)), /* @__PURE__ */ React6.createElement("button", { className: "sy-mini", "data-act": "note-remove", "data-note": note.id, "aria-label": "删除", title: "删除" }, /* @__PURE__ */ React6.createElement(SvgIcon, { svg: I.x }))));
+  const form = /* @__PURE__ */ React7.createElement("form", { className: "sy-cap", "data-form": "capture", "data-w": widget.id }, /* @__PURE__ */ React7.createElement("input", { name: "t", placeholder: "记下一个想法…", autoComplete: "off", "aria-label": "快速记录" }), /* @__PURE__ */ React7.createElement("kbd", null, "↵"));
+  const hint = /* @__PURE__ */ React7.createElement("div", { className: "sy-cap-hint" }, "回车存进收件箱 · 以 ", /* @__PURE__ */ React7.createElement("code", null, "#note"), " 开头存为 Note");
+  const recent = context.notes.slice(0, 6).map((note) => /* @__PURE__ */ React7.createElement("div", { key: note.id, className: "sy-row", style: { minHeight: 28 } }, /* @__PURE__ */ React7.createElement("span", { className: "sy-kind note" }, "Note"), /* @__PURE__ */ React7.createElement("span", { className: "c1 grow", style: { fontSize: 13 } }, note.text), /* @__PURE__ */ React7.createElement("span", { className: "meta" }, relTime(note.createdAt)), /* @__PURE__ */ React7.createElement("button", { className: "sy-mini", "data-act": "note-remove", "data-note": note.id, "aria-label": "删除", title: "删除" }, /* @__PURE__ */ React7.createElement(SvgIcon, { svg: I.x }))));
   if (size === "Wide") {
-    return /* @__PURE__ */ React6.createElement("div", { className: "sy-cap-wide" }, /* @__PURE__ */ React6.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, form, hint), /* @__PURE__ */ React6.createElement("div", { className: "sy-list sy-fit", style: { alignSelf: "stretch" } }, recent));
+    return /* @__PURE__ */ React7.createElement("div", { className: "sy-cap-wide" }, /* @__PURE__ */ React7.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, form, hint), /* @__PURE__ */ React7.createElement("div", { className: "sy-list sy-fit", style: { alignSelf: "stretch" } }, recent));
   }
-  return /* @__PURE__ */ React6.createElement(React6.Fragment, null, form, /* @__PURE__ */ React6.createElement("div", { className: "sy-list sy-fit" }, recent));
+  return /* @__PURE__ */ React7.createElement(React7.Fragment, null, form, /* @__PURE__ */ React7.createElement("div", { className: "sy-list sy-fit" }, recent));
 }
 var captureWidgetDefinition = {
   type: "capture",
@@ -2150,17 +2602,17 @@ var captureWidgetDefinition = {
 };
 
 // src/client/widgets/notes/NoteWidget.tsx
-var React7 = __toESM(require("react"), 1);
+var React8 = __toESM(require("react"), 1);
 function NoteWidget({ widget, size, context }) {
   const notes = context.notes ?? [];
   if (notes.length === 0) {
-    return /* @__PURE__ */ React7.createElement(EmptyWidgetState, { widget, size, context });
+    return /* @__PURE__ */ React8.createElement(EmptyWidgetState, { widget, size, context });
   }
   if (size === "S") {
     const first = notes[0];
-    return /* @__PURE__ */ React7.createElement(React7.Fragment, null, /* @__PURE__ */ React7.createElement("div", { className: "sy-s-lab" }, "随手记"), /* @__PURE__ */ React7.createElement("div", { className: "sy-s-main" }, /* @__PURE__ */ React7.createElement("div", { className: "sy-s-big" }, notes.length), /* @__PURE__ */ React7.createElement("div", { className: "sy-s-sub" }, "条笔记")), /* @__PURE__ */ React7.createElement("div", { className: "sy-s-narrow" }, /* @__PURE__ */ React7.createElement("span", { className: "c1", style: { fontSize: 13 } }, first.text)));
+    return /* @__PURE__ */ React8.createElement(React8.Fragment, null, /* @__PURE__ */ React8.createElement("div", { className: "sy-s-lab" }, "随手记"), /* @__PURE__ */ React8.createElement("div", { className: "sy-s-main" }, /* @__PURE__ */ React8.createElement("div", { className: "sy-s-big" }, notes.length), /* @__PURE__ */ React8.createElement("div", { className: "sy-s-sub" }, "条笔记")), /* @__PURE__ */ React8.createElement("div", { className: "sy-s-narrow" }, /* @__PURE__ */ React8.createElement("span", { className: "c1", style: { fontSize: 13 } }, first.text)));
   }
-  return /* @__PURE__ */ React7.createElement("div", { className: "sy-list sy-fit", style: { gap: 4 } }, notes.slice(0, size === "L" ? 10 : 5).map((note) => /* @__PURE__ */ React7.createElement("div", { key: note.id, className: "sy-row" }, /* @__PURE__ */ React7.createElement("span", { className: "sy-kind note" }, "Note"), /* @__PURE__ */ React7.createElement("span", { className: "c1 grow", style: { fontSize: 13.5 } }, note.text), note.origin?.url ? /* @__PURE__ */ React7.createElement(
+  return /* @__PURE__ */ React8.createElement("div", { className: "sy-list sy-fit", style: { gap: 4 } }, notes.slice(0, size === "L" ? 10 : 5).map((note) => /* @__PURE__ */ React8.createElement("div", { key: note.id, className: "sy-row" }, /* @__PURE__ */ React8.createElement("span", { className: "sy-kind note" }, "Note"), /* @__PURE__ */ React8.createElement("span", { className: "c1 grow", style: { fontSize: 13.5 } }, note.text), note.origin?.url ? /* @__PURE__ */ React8.createElement(
     "a",
     {
       className: "sy-chip",
@@ -2170,7 +2622,7 @@ function NoteWidget({ widget, size, context }) {
       title: `来自 ${note.origin.source ?? ""}`
     },
     note.origin.source ?? "原文"
-  ) : null, /* @__PURE__ */ React7.createElement("span", { className: "meta" }, relTime(note.createdAt)), /* @__PURE__ */ React7.createElement("button", { className: "sy-mini", "data-act": "note-remove", "data-note": note.id, "aria-label": "删除", title: "删除" }, /* @__PURE__ */ React7.createElement(SvgIcon, { svg: I.x })))));
+  ) : null, /* @__PURE__ */ React8.createElement("span", { className: "meta" }, relTime(note.createdAt)), /* @__PURE__ */ React8.createElement("button", { className: "sy-mini", "data-act": "note-remove", "data-note": note.id, "aria-label": "删除", title: "删除" }, /* @__PURE__ */ React8.createElement(SvgIcon, { svg: I.x })))));
 }
 var noteWidgetDefinition = {
   type: "notes",
@@ -2189,14 +2641,14 @@ var noteWidgetDefinition = {
 };
 
 // src/client/widgets/bookmarks/BookmarksWidget.tsx
-var React8 = __toESM(require("react"), 1);
+var React9 = __toESM(require("react"), 1);
 function BookmarksWidget({ widget, size, context }) {
   const rows = context.bookmarks ?? [];
   if (rows.length === 0) {
-    return /* @__PURE__ */ React8.createElement(EmptyWidgetState, { widget, size, context });
+    return /* @__PURE__ */ React9.createElement(EmptyWidgetState, { widget, size, context });
   }
   if (size === "S") {
-    return /* @__PURE__ */ React8.createElement("div", { className: "sy-bm-s" }, rows.slice(0, 6).map((entry) => /* @__PURE__ */ React8.createElement(
+    return /* @__PURE__ */ React9.createElement("div", { className: "sy-bm-s" }, rows.slice(0, 6).map((entry) => /* @__PURE__ */ React9.createElement(
       "a",
       {
         key: `${entry.name}:${entry.url}`,
@@ -2205,14 +2657,14 @@ function BookmarksWidget({ widget, size, context }) {
         target: "_blank",
         rel: "noopener noreferrer"
       },
-      /* @__PURE__ */ React8.createElement(MonoTile, { name: entry.name }),
-      /* @__PURE__ */ React8.createElement("span", null, entry.name)
+      /* @__PURE__ */ React9.createElement(MonoTile, { name: entry.name }),
+      /* @__PURE__ */ React9.createElement("span", null, entry.name)
     )));
   }
   const count = size === "Wide" ? context.cols >= 12 ? 12 : 8 : 8;
   const columns = size === "Wide" ? context.cols >= 12 ? 6 : 4 : context.cols >= 6 ? 4 : 2;
   const limit = context.cols <= 4 ? 4 : count;
-  return /* @__PURE__ */ React8.createElement("div", { className: "sy-bm-grid", style: { gridTemplateColumns: `repeat(${columns},minmax(0,1fr))` } }, rows.slice(0, limit).map((entry) => /* @__PURE__ */ React8.createElement(
+  return /* @__PURE__ */ React9.createElement("div", { className: "sy-bm-grid", style: { gridTemplateColumns: `repeat(${columns},minmax(0,1fr))` } }, rows.slice(0, limit).map((entry) => /* @__PURE__ */ React9.createElement(
     "a",
     {
       key: `${entry.name}:${entry.url}`,
@@ -2221,8 +2673,8 @@ function BookmarksWidget({ widget, size, context }) {
       target: "_blank",
       rel: "noopener noreferrer"
     },
-    /* @__PURE__ */ React8.createElement(MonoTile, { name: entry.name }),
-    /* @__PURE__ */ React8.createElement("span", null, entry.name)
+    /* @__PURE__ */ React9.createElement(MonoTile, { name: entry.name }),
+    /* @__PURE__ */ React9.createElement("span", null, entry.name)
   )));
 }
 var bookmarksWidgetDefinition = {
@@ -2244,16 +2696,16 @@ var bookmarksWidgetDefinition = {
 };
 
 // src/client/widgets/project/ProjectWidget.tsx
-var React9 = __toESM(require("react"), 1);
+var React10 = __toESM(require("react"), 1);
 var colourOf = (name) => ["var(--sy-t-project)", "var(--sy-t-task)", "var(--sy-t-bookmarks)", "var(--sy-t-habit)"][hueOf(name) % 4];
 function ProjectWidget({ widget, size, context }) {
   const projects = projectsOf(context.tasks);
   if (projects.length === 0) {
-    return /* @__PURE__ */ React9.createElement(EmptyWidgetState, { widget, size, context });
+    return /* @__PURE__ */ React10.createElement(EmptyWidgetState, { widget, size, context });
   }
   if (size === "S") {
     const project = projects[0];
-    return /* @__PURE__ */ React9.createElement(React9.Fragment, null, /* @__PURE__ */ React9.createElement("div", { className: "sy-s-lab" }, /* @__PURE__ */ React9.createElement(WidgetIcon, { type: "project", size: 16 }), "项目"), /* @__PURE__ */ React9.createElement("div", { className: "sy-pj-s" }, /* @__PURE__ */ React9.createElement(
+    return /* @__PURE__ */ React10.createElement(React10.Fragment, null, /* @__PURE__ */ React10.createElement("div", { className: "sy-s-lab" }, /* @__PURE__ */ React10.createElement(WidgetIcon, { type: "project", size: 16 }), "项目"), /* @__PURE__ */ React10.createElement("div", { className: "sy-pj-s" }, /* @__PURE__ */ React10.createElement(
       ProgressRing,
       {
         pct: project.progress,
@@ -2262,13 +2714,13 @@ function ProjectWidget({ widget, size, context }) {
         colour: colourOf(project.name),
         label: `${Math.round(project.progress * 100)}%`
       }
-    ), /* @__PURE__ */ React9.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React9.createElement("div", { style: { fontWeight: 600, fontSize: 15 }, className: "c1" }, project.name), /* @__PURE__ */ React9.createElement("div", { className: "meta" }, project.open, " 件待办"))), /* @__PURE__ */ React9.createElement("div", { className: "meta c1", style: { whiteSpace: "normal" } }, projects.length, " 个项目在推进"));
+    ), /* @__PURE__ */ React10.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React10.createElement("div", { style: { fontWeight: 600, fontSize: 15 }, className: "c1" }, project.name), /* @__PURE__ */ React10.createElement("div", { className: "meta" }, project.open, " 件待办"))), /* @__PURE__ */ React10.createElement("div", { className: "meta c1", style: { whiteSpace: "normal" } }, projects.length, " 个项目在推进"));
   }
-  const rows = projects.map((project) => /* @__PURE__ */ React9.createElement("div", { key: project.name, className: "sy-pj-row" }, /* @__PURE__ */ React9.createElement("div", { className: "sy-pj-h" }, /* @__PURE__ */ React9.createElement("span", { className: "sy-pj-dot", style: { "--c": colourOf(project.name) } }), /* @__PURE__ */ React9.createElement("b", { className: "c1" }, project.name), /* @__PURE__ */ React9.createElement("span", { className: "grow" }), /* @__PURE__ */ React9.createElement("span", { className: "meta" }, Math.round(project.progress * 100), "% · ", project.open, " 件待办")), /* @__PURE__ */ React9.createElement(ProgressBar, { pct: project.progress, colour: colourOf(project.name) })));
+  const rows = projects.map((project) => /* @__PURE__ */ React10.createElement("div", { key: project.name, className: "sy-pj-row" }, /* @__PURE__ */ React10.createElement("div", { className: "sy-pj-h" }, /* @__PURE__ */ React10.createElement("span", { className: "sy-pj-dot", style: { "--c": colourOf(project.name) } }), /* @__PURE__ */ React10.createElement("b", { className: "c1" }, project.name), /* @__PURE__ */ React10.createElement("span", { className: "grow" }), /* @__PURE__ */ React10.createElement("span", { className: "meta" }, Math.round(project.progress * 100), "% · ", project.open, " 件待办")), /* @__PURE__ */ React10.createElement(ProgressBar, { pct: project.progress, colour: colourOf(project.name) })));
   if (size === "M") {
-    return /* @__PURE__ */ React9.createElement("div", { className: "sy-list sy-fit", style: { gap: 9 } }, rows);
+    return /* @__PURE__ */ React10.createElement("div", { className: "sy-list sy-fit", style: { gap: 9 } }, rows);
   }
-  return /* @__PURE__ */ React9.createElement(React9.Fragment, null, /* @__PURE__ */ React9.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 11, flex: "none" } }, rows), /* @__PURE__ */ React9.createElement("div", { className: "sy-agenda-h" }, "最近完成"), /* @__PURE__ */ React9.createElement("div", { className: "sy-list sy-fit", style: { gap: 3 } }, context.tasks.filter((task) => task.done).slice(0, 6).map((task) => /* @__PURE__ */ React9.createElement("div", { key: task.id, className: "sy-row", style: { minHeight: 28 } }, /* @__PURE__ */ React9.createElement("span", { className: "sy-chk sy-done" }, /* @__PURE__ */ React9.createElement(SvgIcon, { svg: I.check })), /* @__PURE__ */ React9.createElement("span", { className: "tt c1 grow" }, task.title), /* @__PURE__ */ React9.createElement("span", { className: "meta" }, task.project ?? "")))));
+  return /* @__PURE__ */ React10.createElement(React10.Fragment, null, /* @__PURE__ */ React10.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 11, flex: "none" } }, rows), /* @__PURE__ */ React10.createElement("div", { className: "sy-agenda-h" }, "最近完成"), /* @__PURE__ */ React10.createElement("div", { className: "sy-list sy-fit", style: { gap: 3 } }, context.tasks.filter((task) => task.done).slice(0, 6).map((task) => /* @__PURE__ */ React10.createElement("div", { key: task.id, className: "sy-row", style: { minHeight: 28 } }, /* @__PURE__ */ React10.createElement("span", { className: "sy-chk sy-done" }, /* @__PURE__ */ React10.createElement(SvgIcon, { svg: I.check })), /* @__PURE__ */ React10.createElement("span", { className: "tt c1 grow" }, task.title), /* @__PURE__ */ React10.createElement("span", { className: "meta" }, task.project ?? "")))));
 }
 var projectWidgetDefinition = {
   type: "project",
@@ -2290,26 +2742,26 @@ var projectWidgetDefinition = {
 };
 
 // src/client/widgets/readlater/ReadLaterWidget.tsx
-var React10 = __toESM(require("react"), 1);
+var React11 = __toESM(require("react"), 1);
 function resolveReadLaterItems(context) {
   return context.readLater.map((id) => context.byId.get(id) ?? context.readLaterEntries?.[id]).filter((item) => Boolean(item));
 }
 function ReadLaterActions({ item }) {
-  return /* @__PURE__ */ React10.createElement("span", { className: "sy-acts" }, /* @__PURE__ */ React10.createElement("button", { "data-act": "rl-note", "data-item": item.id, title: "转为 Note", "aria-label": "转为 Note" }, /* @__PURE__ */ React10.createElement(SvgIcon, { svg: I.note })), /* @__PURE__ */ React10.createElement("button", { "data-act": "item-task", "data-item": item.id, title: "转为任务", "aria-label": "转为任务" }, /* @__PURE__ */ React10.createElement(SvgIcon, { svg: I.toTask })), /* @__PURE__ */ React10.createElement("button", { "data-act": "item-later", "data-item": item.id, "data-off": "1", title: "移出稍后读", "aria-label": "移出稍后读" }, /* @__PURE__ */ React10.createElement(SvgIcon, { svg: I.x })));
+  return /* @__PURE__ */ React11.createElement("span", { className: "sy-acts" }, /* @__PURE__ */ React11.createElement("button", { "data-act": "rl-note", "data-item": item.id, title: "转为 Note", "aria-label": "转为 Note" }, /* @__PURE__ */ React11.createElement(SvgIcon, { svg: I.note })), /* @__PURE__ */ React11.createElement("button", { "data-act": "item-task", "data-item": item.id, title: "转为任务", "aria-label": "转为任务" }, /* @__PURE__ */ React11.createElement(SvgIcon, { svg: I.toTask })), /* @__PURE__ */ React11.createElement("button", { "data-act": "item-later", "data-item": item.id, "data-off": "1", title: "移出稍后读", "aria-label": "移出稍后读" }, /* @__PURE__ */ React11.createElement(SvgIcon, { svg: I.x })));
 }
 function ReadLaterWidget({ widget, size, context }) {
   const items = resolveReadLaterItems(context);
   if (items.length === 0) {
-    return /* @__PURE__ */ React10.createElement(EmptyWidgetState, { widget, size, context });
+    return /* @__PURE__ */ React11.createElement(EmptyWidgetState, { widget, size, context });
   }
   const first = items[0];
   if (size === "S") {
-    return /* @__PURE__ */ React10.createElement(React10.Fragment, null, /* @__PURE__ */ React10.createElement("div", { className: "sy-s-lab" }, "稍后读"), /* @__PURE__ */ React10.createElement("div", { className: "sy-s-main" }, /* @__PURE__ */ React10.createElement("div", { className: "sy-s-big" }, items.length), /* @__PURE__ */ React10.createElement("div", { className: "sy-s-sub" }, "篇等你读")), /* @__PURE__ */ React10.createElement("div", { className: "sy-s-narrow" }, /* @__PURE__ */ React10.createElement(ItemLink, { item: first, className: "c1" }, /* @__PURE__ */ React10.createElement("span", { style: { fontSize: 13 } }, first.title))));
+    return /* @__PURE__ */ React11.createElement(React11.Fragment, null, /* @__PURE__ */ React11.createElement("div", { className: "sy-s-lab" }, "稍后读"), /* @__PURE__ */ React11.createElement("div", { className: "sy-s-main" }, /* @__PURE__ */ React11.createElement("div", { className: "sy-s-big" }, items.length), /* @__PURE__ */ React11.createElement("div", { className: "sy-s-sub" }, "篇等你读")), /* @__PURE__ */ React11.createElement("div", { className: "sy-s-narrow" }, /* @__PURE__ */ React11.createElement(ItemLink, { item: first, className: "c1" }, /* @__PURE__ */ React11.createElement("span", { style: { fontSize: 13 } }, first.title))));
   }
   if (size === "M") {
-    return /* @__PURE__ */ React10.createElement("div", { className: "sy-list sy-fit" }, items.map((item) => /* @__PURE__ */ React10.createElement("div", { key: item.id, className: "sy-row" }, /* @__PURE__ */ React10.createElement(ItemLink, { item, className: "sy-it-a" }, /* @__PURE__ */ React10.createElement("span", { className: "tt c1" }, item.title), /* @__PURE__ */ React10.createElement("span", { className: "meta" }, item.sourceLabel ?? "", " · ", relTime(item.publishedAt))), /* @__PURE__ */ React10.createElement(ReadLaterActions, { item }))));
+    return /* @__PURE__ */ React11.createElement("div", { className: "sy-list sy-fit" }, items.map((item) => /* @__PURE__ */ React11.createElement("div", { key: item.id, className: "sy-row" }, /* @__PURE__ */ React11.createElement(ItemLink, { item, className: "sy-it-a" }, /* @__PURE__ */ React11.createElement("span", { className: "tt c1" }, item.title), /* @__PURE__ */ React11.createElement("span", { className: "meta" }, item.sourceLabel ?? "", " · ", relTime(item.publishedAt))), /* @__PURE__ */ React11.createElement(ReadLaterActions, { item }))));
   }
-  return /* @__PURE__ */ React10.createElement(React10.Fragment, null, /* @__PURE__ */ React10.createElement("div", { className: "sy-list sy-fit", style: { gap: 3 } }, items.map((item) => /* @__PURE__ */ React10.createElement("div", { key: item.id, className: "sy-row", style: { gap: 12 } }, /* @__PURE__ */ React10.createElement("div", { className: "sy-thumb", style: { width: 68, height: 42 } }, /* @__PURE__ */ React10.createElement(ThumbBox, { item, label: item.sourceLabel ?? void 0 })), /* @__PURE__ */ React10.createElement(ItemLink, { item, className: "sy-it-a" }, /* @__PURE__ */ React10.createElement("span", { className: "tt c2" }, item.title), /* @__PURE__ */ React10.createElement("span", { className: "meta" }, item.sourceLabel ?? "", " · ", relTime(item.publishedAt))), /* @__PURE__ */ React10.createElement(ReadLaterActions, { item })))), /* @__PURE__ */ React10.createElement("div", { className: "meta", style: { flex: "none" } }, "在订阅里点书签图标，文章就会存到这里"));
+  return /* @__PURE__ */ React11.createElement(React11.Fragment, null, /* @__PURE__ */ React11.createElement("div", { className: "sy-list sy-fit", style: { gap: 3 } }, items.map((item) => /* @__PURE__ */ React11.createElement("div", { key: item.id, className: "sy-row", style: { gap: 12 } }, /* @__PURE__ */ React11.createElement("div", { className: "sy-thumb", style: { width: 68, height: 42 } }, /* @__PURE__ */ React11.createElement(ThumbBox, { item, label: item.sourceLabel ?? void 0 })), /* @__PURE__ */ React11.createElement(ItemLink, { item, className: "sy-it-a" }, /* @__PURE__ */ React11.createElement("span", { className: "tt c2" }, item.title), /* @__PURE__ */ React11.createElement("span", { className: "meta" }, item.sourceLabel ?? "", " · ", relTime(item.publishedAt))), /* @__PURE__ */ React11.createElement(ReadLaterActions, { item })))), /* @__PURE__ */ React11.createElement("div", { className: "meta", style: { flex: "none" } }, "在订阅里点书签图标，文章就会存到这里"));
 }
 var readLaterWidgetDefinition = {
   type: "readlater",
@@ -2331,12 +2783,12 @@ var readLaterWidgetDefinition = {
 };
 
 // src/client/widgets/habit/HabitWidget.tsx
-var React11 = __toESM(require("react"), 1);
+var React12 = __toESM(require("react"), 1);
 function Dots7({ habit }) {
   const week = habit.week ?? [0, 0, 0, 0, 0, 0, 0];
   const todayIndex = dayIdx();
-  return /* @__PURE__ */ React11.createElement("div", { className: "sy-dots7" }, week.map(
-    (value, index) => index === todayIndex ? /* @__PURE__ */ React11.createElement(
+  return /* @__PURE__ */ React12.createElement("div", { className: "sy-dots7" }, week.map(
+    (value, index) => index === todayIndex ? /* @__PURE__ */ React12.createElement(
       "button",
       {
         key: index,
@@ -2345,8 +2797,8 @@ function Dots7({ habit }) {
         "data-habit": habit.id,
         "aria-label": `今天${value ? "已打卡，点击取消" : "打卡"}：${habit.name}`
       },
-      value ? /* @__PURE__ */ React11.createElement(SvgIcon, { svg: I.check }) : null
-    ) : /* @__PURE__ */ React11.createElement(
+      value ? /* @__PURE__ */ React12.createElement(SvgIcon, { svg: I.check }) : null
+    ) : /* @__PURE__ */ React12.createElement(
       "span",
       {
         key: index,
@@ -2360,13 +2812,13 @@ function Dots7({ habit }) {
 function HabitWidget({ widget, size, context }) {
   const habits = context.habits ?? [];
   if (habits.length === 0) {
-    return /* @__PURE__ */ React11.createElement(EmptyWidgetState, { widget, size, context });
+    return /* @__PURE__ */ React12.createElement(EmptyWidgetState, { widget, size, context });
   }
   if (size === "S") {
     const habit = habits[0];
-    return /* @__PURE__ */ React11.createElement(React11.Fragment, null, /* @__PURE__ */ React11.createElement("div", { className: "sy-s-lab" }, /* @__PURE__ */ React11.createElement(WidgetIcon, { type: "habit", size: 16 }), habit.name), /* @__PURE__ */ React11.createElement("div", { className: "sy-s-main" }, /* @__PURE__ */ React11.createElement("div", { className: "sy-s-big" }, habit.streak ?? 0, /* @__PURE__ */ React11.createElement("small", null, "天")), /* @__PURE__ */ React11.createElement("div", { className: "sy-s-sub" }, "连续打卡")), /* @__PURE__ */ React11.createElement(Dots7, { habit }));
+    return /* @__PURE__ */ React12.createElement(React12.Fragment, null, /* @__PURE__ */ React12.createElement("div", { className: "sy-s-lab" }, /* @__PURE__ */ React12.createElement(WidgetIcon, { type: "habit", size: 16 }), habit.name), /* @__PURE__ */ React12.createElement("div", { className: "sy-s-main" }, /* @__PURE__ */ React12.createElement("div", { className: "sy-s-big" }, habit.streak ?? 0, /* @__PURE__ */ React12.createElement("small", null, "天")), /* @__PURE__ */ React12.createElement("div", { className: "sy-s-sub" }, "连续打卡")), /* @__PURE__ */ React12.createElement(Dots7, { habit }));
   }
-  return /* @__PURE__ */ React11.createElement("div", { className: "sy-list sy-fit", style: { gap: 3 } }, habits.map((habit) => /* @__PURE__ */ React11.createElement("div", { key: habit.id, className: "sy-hb-row" }, /* @__PURE__ */ React11.createElement("span", { className: "c1 grow", style: { fontSize: 13.5, fontWeight: 500 } }, habit.name), /* @__PURE__ */ React11.createElement("span", { className: "meta" }, habit.streak ?? 0, " 天"), /* @__PURE__ */ React11.createElement(Dots7, { habit }))));
+  return /* @__PURE__ */ React12.createElement("div", { className: "sy-list sy-fit", style: { gap: 3 } }, habits.map((habit) => /* @__PURE__ */ React12.createElement("div", { key: habit.id, className: "sy-hb-row" }, /* @__PURE__ */ React12.createElement("span", { className: "c1 grow", style: { fontSize: 13.5, fontWeight: 500 } }, habit.name), /* @__PURE__ */ React12.createElement("span", { className: "meta" }, habit.streak ?? 0, " 天"), /* @__PURE__ */ React12.createElement(Dots7, { habit }))));
 }
 var habitWidgetDefinition = {
   type: "habit",
@@ -2389,24 +2841,24 @@ var habitWidgetDefinition = {
 };
 
 // src/client/widgets/focus/FocusWidget.tsx
-var React12 = __toESM(require("react"), 1);
+var React13 = __toESM(require("react"), 1);
 var fmtClock = (seconds) => `${pad2(Math.floor(seconds / 60))}:${pad2(seconds % 60)}`;
 function FocusWidget({ size, context }) {
   const focus = context.focus ?? { total: 1500, left: 1500, running: false, sessions: 0, task: null };
   const task = context.tasks.find((entry) => entry.id === focus.task);
-  const button = /* @__PURE__ */ React12.createElement(
+  const button = /* @__PURE__ */ React13.createElement(
     "button",
     {
       className: "sy-play-btn",
       "data-act": "focus-toggle",
       "aria-label": focus.running ? "暂停" : "开始专注"
     },
-    /* @__PURE__ */ React12.createElement(SvgIcon, { svg: focus.running ? I.pause : I.play })
+    /* @__PURE__ */ React13.createElement(SvgIcon, { svg: focus.running ? I.pause : I.play })
   );
   if (size === "S") {
-    return /* @__PURE__ */ React12.createElement(React12.Fragment, null, /* @__PURE__ */ React12.createElement("div", { className: "sy-s-lab" }, "专注 · 第 ", (focus.sessions ?? 0) + 1, " 个番茄"), /* @__PURE__ */ React12.createElement("div", { className: "sy-fx" }, /* @__PURE__ */ React12.createElement("span", { className: "sy-fd" }, fmtClock(focus.left)), button), /* @__PURE__ */ React12.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, /* @__PURE__ */ React12.createElement(ProgressBar, { pct: 1 - focus.left / focus.total, colour: "var(--sy-t-focus)" }), /* @__PURE__ */ React12.createElement("div", { className: "meta c1", style: { whiteSpace: "normal" } }, task ? task.title : "没有关联任务")));
+    return /* @__PURE__ */ React13.createElement(React13.Fragment, null, /* @__PURE__ */ React13.createElement("div", { className: "sy-s-lab" }, "专注 · 第 ", (focus.sessions ?? 0) + 1, " 个番茄"), /* @__PURE__ */ React13.createElement("div", { className: "sy-fx" }, /* @__PURE__ */ React13.createElement("span", { className: "sy-fd" }, fmtClock(focus.left)), button), /* @__PURE__ */ React13.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, /* @__PURE__ */ React13.createElement(ProgressBar, { pct: 1 - focus.left / focus.total, colour: "var(--sy-t-focus)" }), /* @__PURE__ */ React13.createElement("div", { className: "meta c1", style: { whiteSpace: "normal" } }, task ? task.title : "没有关联任务")));
   }
-  return /* @__PURE__ */ React12.createElement("div", { className: "sy-fm" }, /* @__PURE__ */ React12.createElement(
+  return /* @__PURE__ */ React13.createElement("div", { className: "sy-fm" }, /* @__PURE__ */ React13.createElement(
     ProgressRing,
     {
       pct: 1 - focus.left / focus.total,
@@ -2415,7 +2867,7 @@ function FocusWidget({ size, context }) {
       colour: "var(--sy-t-focus)",
       label: fmtClock(focus.left)
     }
-  ), /* @__PURE__ */ React12.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, minWidth: 0 } }, /* @__PURE__ */ React12.createElement("div", { className: "meta" }, "当前任务"), /* @__PURE__ */ React12.createElement(
+  ), /* @__PURE__ */ React13.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, minWidth: 0 } }, /* @__PURE__ */ React13.createElement("div", { className: "meta" }, "当前任务"), /* @__PURE__ */ React13.createElement(
     "button",
     {
       className: "c1",
@@ -2425,8 +2877,8 @@ function FocusWidget({ size, context }) {
     },
     task ? task.title : "选择一个任务",
     " ",
-    /* @__PURE__ */ React12.createElement("span", { className: "meta" }, "↻")
-  ), /* @__PURE__ */ React12.createElement("div", { className: "sy-sess" }, [0, 1, 2, 3].map((index) => /* @__PURE__ */ React12.createElement("i", { key: index, className: index < (focus.sessions ?? 0) ? "on" : "" }))), /* @__PURE__ */ React12.createElement("div", { style: { display: "flex", gap: 8 } }, button, /* @__PURE__ */ React12.createElement("button", { className: "sy-play-btn ghost", "data-act": "focus-reset", "aria-label": "重置" }, /* @__PURE__ */ React12.createElement(SvgIcon, { svg: I.reset })))));
+    /* @__PURE__ */ React13.createElement("span", { className: "meta" }, "↻")
+  ), /* @__PURE__ */ React13.createElement("div", { className: "sy-sess" }, [0, 1, 2, 3].map((index) => /* @__PURE__ */ React13.createElement("i", { key: index, className: index < (focus.sessions ?? 0) ? "on" : "" }))), /* @__PURE__ */ React13.createElement("div", { style: { display: "flex", gap: 8 } }, button, /* @__PURE__ */ React13.createElement("button", { className: "sy-play-btn ghost", "data-act": "focus-reset", "aria-label": "重置" }, /* @__PURE__ */ React13.createElement(SvgIcon, { svg: I.reset })))));
 }
 var focusWidgetDefinition = {
   type: "focus",
@@ -2447,9 +2899,9 @@ var focusWidgetDefinition = {
 };
 
 // src/client/widgets/agent-inbox/AgentInboxWidget.tsx
-var React13 = __toESM(require("react"), 1);
+var React14 = __toESM(require("react"), 1);
 function ProposalRow({ proposal, actionable }) {
-  return /* @__PURE__ */ React13.createElement(
+  return /* @__PURE__ */ React14.createElement(
     "div",
     {
       className: "sy-row",
@@ -2461,14 +2913,14 @@ function ProposalRow({ proposal, actionable }) {
         borderBottom: "1px solid var(--sy-line)"
       }
     },
-    /* @__PURE__ */ React13.createElement("div", { className: "grow", style: { minWidth: 0, display: "flex", flexDirection: "column", gap: 4 } }, /* @__PURE__ */ React13.createElement("span", { className: "c2", style: { fontSize: 13.5, fontWeight: 520 } }, proposal.reason), /* @__PURE__ */ React13.createElement("span", { style: { display: "flex", gap: 5, flexWrap: "wrap" } }, (proposal.operations ?? []).map((operation, idx) => /* @__PURE__ */ React13.createElement("span", { key: idx, className: "sy-chip", title: operation.name }, OPERATION_LABELS[operation.name] ?? operation.name))), /* @__PURE__ */ React13.createElement("span", { className: "meta" }, relTime(proposal.createdAt), (proposal.evidenceRefs ?? []).length ? ` · ${proposal.evidenceRefs.length} 条证据` : "", (proposal.preview?.diff ?? []).length ? ` · ${proposal.preview?.diff?.length ?? 0} 处变更` : "")),
-    actionable ? /* @__PURE__ */ React13.createElement(
+    /* @__PURE__ */ React14.createElement("div", { className: "grow", style: { minWidth: 0, display: "flex", flexDirection: "column", gap: 4 } }, /* @__PURE__ */ React14.createElement("span", { className: "c2", style: { fontSize: 13.5, fontWeight: 520 } }, proposal.reason), /* @__PURE__ */ React14.createElement("span", { style: { display: "flex", gap: 5, flexWrap: "wrap" } }, (proposal.operations ?? []).map((operation, idx) => /* @__PURE__ */ React14.createElement("span", { key: idx, className: "sy-chip", title: operation.name }, OPERATION_LABELS[operation.name] ?? operation.name))), /* @__PURE__ */ React14.createElement("span", { className: "meta" }, relTime(proposal.createdAt), (proposal.evidenceRefs ?? []).length ? ` · ${proposal.evidenceRefs.length} 条证据` : "", (proposal.preview?.diff ?? []).length ? ` · ${proposal.preview?.diff?.length ?? 0} 处变更` : "")),
+    actionable ? /* @__PURE__ */ React14.createElement(
       "span",
       {
         className: "sy-acts",
         style: { flex: "none", display: "flex", position: "static", transform: "none", alignItems: "center" }
       },
-      proposal.status === "pending" ? /* @__PURE__ */ React13.createElement(React13.Fragment, null, /* @__PURE__ */ React13.createElement(
+      proposal.status === "pending" ? /* @__PURE__ */ React14.createElement(React14.Fragment, null, /* @__PURE__ */ React14.createElement(
         "button",
         {
           "data-act": "proposal-approve",
@@ -2476,8 +2928,8 @@ function ProposalRow({ proposal, actionable }) {
           title: "批准并执行",
           "aria-label": "批准并执行"
         },
-        /* @__PURE__ */ React13.createElement(SvgIcon, { svg: I.check })
-      ), /* @__PURE__ */ React13.createElement("button", { "data-act": "proposal-reject", "data-proposal": proposal.id, title: "拒绝", "aria-label": "拒绝" }, /* @__PURE__ */ React13.createElement(SvgIcon, { svg: I.x }))) : proposal.status === "applied" ? /* @__PURE__ */ React13.createElement(React13.Fragment, null, /* @__PURE__ */ React13.createElement("span", { className: "meta" }, STATUS_LABELS[proposal.status] ?? proposal.status), /* @__PURE__ */ React13.createElement(
+        /* @__PURE__ */ React14.createElement(SvgIcon, { svg: I.check })
+      ), /* @__PURE__ */ React14.createElement("button", { "data-act": "proposal-reject", "data-proposal": proposal.id, title: "拒绝", "aria-label": "拒绝" }, /* @__PURE__ */ React14.createElement(SvgIcon, { svg: I.x }))) : proposal.status === "applied" ? /* @__PURE__ */ React14.createElement(React14.Fragment, null, /* @__PURE__ */ React14.createElement("span", { className: "meta" }, STATUS_LABELS[proposal.status] ?? proposal.status), /* @__PURE__ */ React14.createElement(
         "button",
         {
           "data-act": "proposal-rollback",
@@ -2485,8 +2937,8 @@ function ProposalRow({ proposal, actionable }) {
           title: "撤销改动",
           "aria-label": "撤销改动"
         },
-        /* @__PURE__ */ React13.createElement(SvgIcon, { svg: I.reset })
-      )) : /* @__PURE__ */ React13.createElement("span", { className: "meta" }, STATUS_LABELS[proposal.status] ?? proposal.status)
+        /* @__PURE__ */ React14.createElement(SvgIcon, { svg: I.reset })
+      )) : /* @__PURE__ */ React14.createElement("span", { className: "meta" }, STATUS_LABELS[proposal.status] ?? proposal.status)
     ) : null
   );
 }
@@ -2497,16 +2949,16 @@ function AgentInboxWidget({ widget, size, context }) {
     (entry) => entry.status === "applied" || entry.status === "rejected" || entry.status === "rolled_back"
   );
   if (all.length === 0) {
-    return /* @__PURE__ */ React13.createElement(EmptyWidgetState, { widget, size, context });
+    return /* @__PURE__ */ React14.createElement(EmptyWidgetState, { widget, size, context });
   }
   if (size === "S") {
     const first = pending[0] ?? decided[0];
-    return /* @__PURE__ */ React13.createElement(React13.Fragment, null, /* @__PURE__ */ React13.createElement("div", { className: "sy-s-lab" }, /* @__PURE__ */ React13.createElement(WidgetIcon, { type: "agentInbox", size: 16 }), "待批建议"), /* @__PURE__ */ React13.createElement("div", { className: "sy-s-main" }, /* @__PURE__ */ React13.createElement("div", { className: "sy-s-big" }, pending.length), /* @__PURE__ */ React13.createElement("div", { className: "sy-s-sub" }, pending.length ? "条等你决定" : "都处理完了")), first ? /* @__PURE__ */ React13.createElement("div", { className: "sy-s-narrow" }, /* @__PURE__ */ React13.createElement("span", { className: "c1", style: { fontSize: 13 } }, first.reason)) : null);
+    return /* @__PURE__ */ React14.createElement(React14.Fragment, null, /* @__PURE__ */ React14.createElement("div", { className: "sy-s-lab" }, /* @__PURE__ */ React14.createElement(WidgetIcon, { type: "agentInbox", size: 16 }), "待批建议"), /* @__PURE__ */ React14.createElement("div", { className: "sy-s-main" }, /* @__PURE__ */ React14.createElement("div", { className: "sy-s-big" }, pending.length), /* @__PURE__ */ React14.createElement("div", { className: "sy-s-sub" }, pending.length ? "条等你决定" : "都处理完了")), first ? /* @__PURE__ */ React14.createElement("div", { className: "sy-s-narrow" }, /* @__PURE__ */ React14.createElement("span", { className: "c1", style: { fontSize: 13 } }, first.reason)) : null);
   }
   if (size === "M") {
-    return /* @__PURE__ */ React13.createElement(React13.Fragment, null, /* @__PURE__ */ React13.createElement("div", { className: "sy-list sy-fit", style: { gap: 0 } }, (pending.length ? pending : decided).slice(0, 4).map((proposal) => /* @__PURE__ */ React13.createElement(ProposalRow, { key: proposal.id, proposal, actionable: true }))), /* @__PURE__ */ React13.createElement("div", { className: "meta", style: { flex: "none" } }, pending.length, " 条待批 · ", decided.length, " 条已处理"));
+    return /* @__PURE__ */ React14.createElement(React14.Fragment, null, /* @__PURE__ */ React14.createElement("div", { className: "sy-list sy-fit", style: { gap: 0 } }, (pending.length ? pending : decided).slice(0, 4).map((proposal) => /* @__PURE__ */ React14.createElement(ProposalRow, { key: proposal.id, proposal, actionable: true }))), /* @__PURE__ */ React14.createElement("div", { className: "meta", style: { flex: "none" } }, pending.length, " 条待批 · ", decided.length, " 条已处理"));
   }
-  return /* @__PURE__ */ React13.createElement(React13.Fragment, null, /* @__PURE__ */ React13.createElement("div", { className: "sy-list sy-fit", style: { gap: 0 } }, (pending.length ? pending : decided).slice(0, 6).map((proposal) => /* @__PURE__ */ React13.createElement(ProposalRow, { key: proposal.id, proposal, actionable: true }))), /* @__PURE__ */ React13.createElement("div", { className: "meta", style: { flex: "none" } }, "审批只在", /* @__PURE__ */ React13.createElement("b", null, "这台设备"), "上发生：Agent 不能自己批准自己的建议。批准后按条执行，失败的会标记为 failed。"));
+  return /* @__PURE__ */ React14.createElement(React14.Fragment, null, /* @__PURE__ */ React14.createElement("div", { className: "sy-list sy-fit", style: { gap: 0 } }, (pending.length ? pending : decided).slice(0, 6).map((proposal) => /* @__PURE__ */ React14.createElement(ProposalRow, { key: proposal.id, proposal, actionable: true }))), /* @__PURE__ */ React14.createElement("div", { className: "meta", style: { flex: "none" } }, "审批只在", /* @__PURE__ */ React14.createElement("b", null, "这台设备"), "上发生：Agent 不能自己批准自己的建议。批准后按条执行，失败的会标记为 failed。"));
 }
 var agentInboxWidgetDefinition = {
   type: "agentInbox",
@@ -2529,10 +2981,10 @@ var agentInboxWidgetDefinition = {
 
 // src/client/widgets/registry.ts
 function UnknownWidgetFallback({ widget }) {
-  return React14.createElement(
+  return React15.createElement(
     "div",
     { className: "sy-empty", style: { padding: "12px 6px" } },
-    React14.createElement(
+    React15.createElement(
       "div",
       { className: "meta" },
       `暂不支持的组件类型 (${widget.type ?? "unknown"})，配置已完整保留`
@@ -2541,7 +2993,7 @@ function UnknownWidgetFallback({ widget }) {
 }
 function SoonWidgetFallback({ widget, context }) {
   const label = widget?.title || context?.types?.[widget?.type]?.name || "这个 Widget";
-  return React14.createElement(
+  return React15.createElement(
     "div",
     { className: "sy-soon" },
     `${label}需要一个数据来源，还没接上。这个 Widget 暂时只占位。`
@@ -2599,7 +3051,7 @@ function computeWidgetCardView(widget, size, context, options = {}) {
   const meta = definition?.computeLayoutMeta ? definition.computeLayoutMeta(renderProps) : { sub: "暂不支持" };
   const Component = definition ? definition.Component : UnknownWidgetFallback;
   const titleText = widgetTitle(widget, context);
-  const menu = options.preview ? null : /* @__PURE__ */ React15.createElement(
+  const menu = options.preview ? null : /* @__PURE__ */ React16.createElement(
     "button",
     {
       className: `sy-w-m${size === "S" || meta.noHeader ? " abs" : ""}`,
@@ -2608,10 +3060,10 @@ function computeWidgetCardView(widget, size, context, options = {}) {
       "aria-label": `${titleText}：更多操作`,
       "aria-haspopup": "menu"
     },
-    /* @__PURE__ */ React15.createElement(SvgIcon, { svg: I.dots })
+    /* @__PURE__ */ React16.createElement(SvgIcon, { svg: I.dots })
   );
-  const header = size !== "S" && !meta.noHeader ? /* @__PURE__ */ React15.createElement("header", { className: "sy-w-h" }, /* @__PURE__ */ React15.createElement(WidgetIcon, { type }), /* @__PURE__ */ React15.createElement("div", { className: "sy-w-t" }, /* @__PURE__ */ React15.createElement("b", null, titleText), meta.sub ? /* @__PURE__ */ React15.createElement("span", null, meta.sub) : null), menu) : menu;
-  const edit = options.preview ? null : /* @__PURE__ */ React15.createElement(React15.Fragment, null, /* @__PURE__ */ React15.createElement("div", { className: "sy-e-bar" }, (context.sizesOf(type) ?? []).map((entry) => /* @__PURE__ */ React15.createElement(
+  const header = size !== "S" && !meta.noHeader ? /* @__PURE__ */ React16.createElement("header", { className: "sy-w-h" }, /* @__PURE__ */ React16.createElement(WidgetIcon, { type }), /* @__PURE__ */ React16.createElement("div", { className: "sy-w-t" }, /* @__PURE__ */ React16.createElement("b", null, titleText), meta.sub ? /* @__PURE__ */ React16.createElement("span", null, meta.sub) : null), menu) : menu;
+  const edit = options.preview ? null : /* @__PURE__ */ React16.createElement(React16.Fragment, null, /* @__PURE__ */ React16.createElement("div", { className: "sy-e-bar" }, (context.sizesOf(type) ?? []).map((entry) => /* @__PURE__ */ React16.createElement(
     "button",
     {
       key: entry,
@@ -2622,9 +3074,9 @@ function computeWidgetCardView(widget, size, context, options = {}) {
       title: `尺寸 ${entry}`
     },
     entry === "Wide" ? "W" : entry
-  )), /* @__PURE__ */ React15.createElement("span", { className: "sep" }), /* @__PURE__ */ React15.createElement("button", { "data-act": "w-dup", "data-w": widget.id, title: "复制", "aria-label": "复制" }, /* @__PURE__ */ React15.createElement(SvgIcon, { svg: I.copy })), /* @__PURE__ */ React15.createElement("button", { className: "del", "data-act": "w-remove", "data-w": widget.id, title: "移除", "aria-label": "移除" }, /* @__PURE__ */ React15.createElement(SvgIcon, { svg: I.x }))), /* @__PURE__ */ React15.createElement("div", { className: "sy-e-rz", "data-rz": widget.id, title: "拖动改尺寸" }, /* @__PURE__ */ React15.createElement(SvgIcon, { svg: I.resize })));
+  )), /* @__PURE__ */ React16.createElement("span", { className: "sep" }), /* @__PURE__ */ React16.createElement("button", { "data-act": "w-dup", "data-w": widget.id, title: "复制", "aria-label": "复制" }, /* @__PURE__ */ React16.createElement(SvgIcon, { svg: I.copy })), /* @__PURE__ */ React16.createElement("button", { className: "del", "data-act": "w-remove", "data-w": widget.id, title: "移除", "aria-label": "移除" }, /* @__PURE__ */ React16.createElement(SvgIcon, { svg: I.x }))), /* @__PURE__ */ React16.createElement("div", { className: "sy-e-rz", "data-rz": widget.id, title: "拖动改尺寸" }, /* @__PURE__ */ React16.createElement(SvgIcon, { svg: I.resize })));
   const cls = `sy-w sy-w--${size === "S" ? "s" : String(size).toLowerCase()} ${meta.cls ?? ""}`.trim();
-  const content = /* @__PURE__ */ React15.createElement(React15.Fragment, null, meta.bg ?? null, meta.deco ? /* @__PURE__ */ React15.createElement(DecoImg, { name: meta.deco }) : null, header, /* @__PURE__ */ React15.createElement("div", { className: "sy-w-b" }, /* @__PURE__ */ React15.createElement(Component, { ...renderProps })), edit);
+  const content = /* @__PURE__ */ React16.createElement(React16.Fragment, null, meta.bg ?? null, meta.deco ? /* @__PURE__ */ React16.createElement(DecoImg, { name: meta.deco }) : null, header, /* @__PURE__ */ React16.createElement("div", { className: "sy-w-b" }, /* @__PURE__ */ React16.createElement(Component, { ...renderProps })), edit);
   return { cls, content };
 }
 function WidgetFrame({
@@ -2633,14 +3085,14 @@ function WidgetFrame({
   position,
   context
 }) {
-  const ref = React15.useRef(null);
+  const ref = React16.useRef(null);
   const { cls, content } = computeWidgetCardView(widget, size, context);
-  React15.useLayoutEffect(() => {
+  React16.useLayoutEffect(() => {
     if (ref.current) {
       fitDom(ref.current);
     }
   });
-  return /* @__PURE__ */ React15.createElement(
+  return /* @__PURE__ */ React16.createElement(
     "section",
     {
       ref,
@@ -2666,7 +3118,7 @@ function MenuLayer({
     top: Math.min(menu.rect.bottom + 6, (window.innerHeight || 800) - 320)
   };
   if (menu.kind === "board-new") {
-    return /* @__PURE__ */ React15.createElement("div", { className: "sy-pop", style, role: "dialog", "aria-label": "新建 Board" }, /* @__PURE__ */ React15.createElement("div", { className: "sy-pop-h" }, "新建 Board"), /* @__PURE__ */ React15.createElement("form", { className: "sy-mi", "data-form": "board-new", style: { cursor: "default" } }, /* @__PURE__ */ React15.createElement(
+    return /* @__PURE__ */ React16.createElement("div", { className: "sy-pop", style, role: "dialog", "aria-label": "新建 Board" }, /* @__PURE__ */ React16.createElement("div", { className: "sy-pop-h" }, "新建 Board"), /* @__PURE__ */ React16.createElement("form", { className: "sy-mi", "data-form": "board-new", style: { cursor: "default" } }, /* @__PURE__ */ React16.createElement(
       "input",
       {
         name: "name",
@@ -2675,12 +3127,12 @@ function MenuLayer({
         "aria-label": "Board 名称",
         autoFocus: true
       }
-    ), /* @__PURE__ */ React15.createElement("button", { className: "sy-btn sy-btn-ink", style: { height: 30 } }, "创建")), /* @__PURE__ */ React15.createElement("div", { className: "meta", style: { padding: "2px 10px 8px", whiteSpace: "normal" } }, "新 Board 是空的，和其它 Board 共用同一份任务和订阅。"));
+    ), /* @__PURE__ */ React16.createElement("button", { className: "sy-btn sy-btn-ink", style: { height: 30 } }, "创建")), /* @__PURE__ */ React16.createElement("div", { className: "meta", style: { padding: "2px 10px 8px", whiteSpace: "normal" } }, "新 Board 是空的，和其它 Board 共用同一份任务和订阅。"));
   }
   const widget = menu.id ? widgets[menu.id] : void 0;
   if (!widget) return null;
   const currentSize = (menu.id ? context.layoutSizes?.[menu.id] : void 0) ?? "M";
-  return /* @__PURE__ */ React15.createElement("div", { className: "sy-pop", style, role: "menu" }, /* @__PURE__ */ React15.createElement("div", { className: "sy-pop-h" }, /* @__PURE__ */ React15.createElement("span", null, "尺寸"), /* @__PURE__ */ React15.createElement("span", { className: "meta" }, context.cols, " 列布局")), /* @__PURE__ */ React15.createElement("div", { className: "sizes" }, sizeOrder.map((entry) => /* @__PURE__ */ React15.createElement(
+  return /* @__PURE__ */ React16.createElement("div", { className: "sy-pop", style, role: "menu" }, /* @__PURE__ */ React16.createElement("div", { className: "sy-pop-h" }, /* @__PURE__ */ React16.createElement("span", null, "尺寸"), /* @__PURE__ */ React16.createElement("span", { className: "meta" }, context.cols, " 列布局")), /* @__PURE__ */ React16.createElement("div", { className: "sizes" }, sizeOrder.map((entry) => /* @__PURE__ */ React16.createElement(
     "button",
     {
       key: entry,
@@ -2693,13 +3145,13 @@ function MenuLayer({
       title: types[widget.type]?.sizes?.[entry] ? `尺寸 ${entry}` : "这个 Widget 没有这个尺寸"
     },
     entry
-  ))), /* @__PURE__ */ React15.createElement("hr", null), /* @__PURE__ */ React15.createElement("button", { className: "sy-mi", "data-act": "w-refresh", "data-w": menu.id }, "刷新"), /* @__PURE__ */ React15.createElement("button", { className: "sy-mi", "data-act": "w-settings", "data-w": menu.id }, "设置…"), /* @__PURE__ */ React15.createElement("button", { className: "sy-mi", "data-act": "w-dup", "data-w": menu.id }, "复制"), /* @__PURE__ */ React15.createElement("button", { className: "sy-mi danger", "data-act": "w-remove", "data-w": menu.id }, "移除"), /* @__PURE__ */ React15.createElement("button", { className: "sy-mi", onClick: onClose }, "关闭"));
+  ))), /* @__PURE__ */ React16.createElement("hr", null), /* @__PURE__ */ React16.createElement("button", { className: "sy-mi", "data-act": "w-refresh", "data-w": menu.id }, "刷新"), /* @__PURE__ */ React16.createElement("button", { className: "sy-mi", "data-act": "w-settings", "data-w": menu.id }, "设置…"), /* @__PURE__ */ React16.createElement("button", { className: "sy-mi", "data-act": "w-dup", "data-w": menu.id }, "复制"), /* @__PURE__ */ React16.createElement("button", { className: "sy-mi danger", "data-act": "w-remove", "data-w": menu.id }, "移除"), /* @__PURE__ */ React16.createElement("button", { className: "sy-mi", onClick: onClose }, "关闭"));
 }
 
 // src/client/shell/WidgetGrid.tsx
-var React16 = __toESM(require("react"), 1);
+var React17 = __toESM(require("react"), 1);
 function WidgetGrid({ gridRef, cols, layout, widgets, positions, context }) {
-  return /* @__PURE__ */ React16.createElement(
+  return /* @__PURE__ */ React17.createElement(
     "div",
     {
       className: "sy-grid",
@@ -2710,7 +3162,7 @@ function WidgetGrid({ gridRef, cols, layout, widgets, positions, context }) {
       const widget = widgets[entry.id];
       const position = positions[entry.id];
       if (!widget || !position) return null;
-      return /* @__PURE__ */ React16.createElement(
+      return /* @__PURE__ */ React17.createElement(
         WidgetFrame,
         {
           key: entry.id,
@@ -2721,21 +3173,21 @@ function WidgetGrid({ gridRef, cols, layout, widgets, positions, context }) {
         }
       );
     }),
-    layout.length === 0 ? /* @__PURE__ */ React16.createElement("div", { className: "sy-grid-empty" }, /* @__PURE__ */ React16.createElement("div", null, /* @__PURE__ */ React16.createElement("b", { style: { fontSize: 16, color: "var(--sy-ink)", display: "block" } }, "这个 Board 还是空的"), /* @__PURE__ */ React16.createElement("div", { className: "meta", style: { marginTop: 4, whiteSpace: "normal" } }, "从 Widget 库里挑几个。")), /* @__PURE__ */ React16.createElement("div", { className: "row-btns" }, /* @__PURE__ */ React16.createElement("button", { className: "sy-btn sy-btn-ink", "data-act": "gallery-open" }, "添加 Widget"))) : null
+    layout.length === 0 ? /* @__PURE__ */ React17.createElement("div", { className: "sy-grid-empty" }, /* @__PURE__ */ React17.createElement("div", null, /* @__PURE__ */ React17.createElement("b", { style: { fontSize: 16, color: "var(--sy-ink)", display: "block" } }, "这个 Board 还是空的"), /* @__PURE__ */ React17.createElement("div", { className: "meta", style: { marginTop: 4, whiteSpace: "normal" } }, "从 Widget 库里挑几个。")), /* @__PURE__ */ React17.createElement("div", { className: "row-btns" }, /* @__PURE__ */ React17.createElement("button", { className: "sy-btn sy-btn-ink", "data-act": "gallery-open" }, "添加 Widget"))) : null
   );
 }
 
 // src/client/shell/WidgetSettings.tsx
-var React18 = __toESM(require("react"), 1);
+var React19 = __toESM(require("react"), 1);
 
 // src/client/shell/WidgetGallery.tsx
-var React17 = __toESM(require("react"), 1);
-var { useState: useState3 } = React17;
+var React18 = __toESM(require("react"), 1);
+var { useState: useState4 } = React18;
 function GallerySheet({ initial, types, context, board, onAdd, onClose }) {
-  const [type, setType] = useState3(types[initial.type] ? initial.type : "subscription");
-  const [size, setSize] = useState3(initial.size ?? "M");
-  const [sources, setSources] = useState3(initial.sources ?? ["aihot"]);
-  const [pres, setPres] = useState3(initial.pres ?? null);
+  const [type, setType] = useState4(types[initial.type] ? initial.type : "subscription");
+  const [size, setSize] = useState4(initial.size ?? "M");
+  const [sources, setSources] = useState4(initial.sources ?? ["aihot"]);
+  const [pres, setPres] = useState4(initial.pres ?? null);
   const definition = types[type] ?? { name: type, desc: "", sizes: {}, actions: [] };
   const available = sizeOrder.filter((entry) => definition.sizes?.[entry]);
   const activeSize = available.includes(size) ? size : available[0] ?? "M";
@@ -2758,9 +3210,9 @@ function GallerySheet({ initial, types, context, board, onAdd, onClose }) {
     ["P1", "更多"],
     ["P2", "即将推出"]
   ];
-  return /* @__PURE__ */ React17.createElement("div", { className: "sy-scrim", "data-act": "scrim" }, /* @__PURE__ */ React17.createElement("div", { className: "sy-sheet", role: "dialog", "aria-modal": true, "aria-label": "Widget 库" }, /* @__PURE__ */ React17.createElement("header", { className: "sy-sh-h" }, /* @__PURE__ */ React17.createElement("h2", null, "Widget 库"), /* @__PURE__ */ React17.createElement("span", { className: "meta" }, "加到「", board?.name ?? "", "」"), /* @__PURE__ */ React17.createElement("button", { className: "sy-icon-btn", "data-act": "modal-close", "aria-label": "关闭" }, /* @__PURE__ */ React17.createElement(SvgIcon, { svg: I.x }))), /* @__PURE__ */ React17.createElement("div", { className: "sy-gal" }, /* @__PURE__ */ React17.createElement("div", { className: "sy-gal-l" }, groups.map(([priority, heading]) => /* @__PURE__ */ React17.createElement(React17.Fragment, { key: priority }, /* @__PURE__ */ React17.createElement("h3", null, heading), Object.entries(types).filter(
+  return /* @__PURE__ */ React18.createElement("div", { className: "sy-scrim", "data-act": "scrim" }, /* @__PURE__ */ React18.createElement("div", { className: "sy-sheet", role: "dialog", "aria-modal": true, "aria-label": "Widget 库" }, /* @__PURE__ */ React18.createElement("header", { className: "sy-sh-h" }, /* @__PURE__ */ React18.createElement("h2", null, "Widget 库"), /* @__PURE__ */ React18.createElement("span", { className: "meta" }, "加到「", board?.name ?? "", "」"), /* @__PURE__ */ React18.createElement("button", { className: "sy-icon-btn", "data-act": "modal-close", "aria-label": "关闭" }, /* @__PURE__ */ React18.createElement(SvgIcon, { svg: I.x }))), /* @__PURE__ */ React18.createElement("div", { className: "sy-gal" }, /* @__PURE__ */ React18.createElement("div", { className: "sy-gal-l" }, groups.map(([priority, heading]) => /* @__PURE__ */ React18.createElement(React18.Fragment, { key: priority }, /* @__PURE__ */ React18.createElement("h3", null, heading), Object.entries(types).filter(
     ([, value]) => priority === "P2" ? value.soon : !value.soon && (value.pri ?? "P0") === priority
-  ).map(([key, value]) => /* @__PURE__ */ React17.createElement(
+  ).map(([key, value]) => /* @__PURE__ */ React18.createElement(
     "button",
     {
       key,
@@ -2772,17 +3224,17 @@ function GallerySheet({ initial, types, context, board, onAdd, onClose }) {
         setSize((current) => next.includes(current) ? current : next[0] ?? "M");
       }
     },
-    /* @__PURE__ */ React17.createElement(WidgetIcon, { type: key, size: 32 }),
-    /* @__PURE__ */ React17.createElement("span", { style: { minWidth: 0 } }, /* @__PURE__ */ React17.createElement("b", null, value.name), /* @__PURE__ */ React17.createElement("small", null, value.desc)),
-    value.soon ? /* @__PURE__ */ React17.createElement("span", { className: "soon-b" }, "SOON") : null
-  ))))), /* @__PURE__ */ React17.createElement("div", { className: "sy-gal-r" }, /* @__PURE__ */ React17.createElement("div", { className: "sy-pv" }, /* @__PURE__ */ React17.createElement(
+    /* @__PURE__ */ React18.createElement(WidgetIcon, { type: key, size: 32 }),
+    /* @__PURE__ */ React18.createElement("span", { style: { minWidth: 0 } }, /* @__PURE__ */ React18.createElement("b", null, value.name), /* @__PURE__ */ React18.createElement("small", null, value.desc)),
+    value.soon ? /* @__PURE__ */ React18.createElement("span", { className: "soon-b" }, "SOON") : null
+  ))))), /* @__PURE__ */ React18.createElement("div", { className: "sy-gal-r" }, /* @__PURE__ */ React18.createElement("div", { className: "sy-pv" }, /* @__PURE__ */ React18.createElement(
     "div",
     {
       className: "sy-pv-in",
       style: { transform: `translate(-50%, -50%) scale(${scale.toFixed(3)})` }
     },
-    /* @__PURE__ */ React17.createElement("section", { className: preview.cls, style: { width: previewWidth, height: previewHeight } }, preview.content)
-  ), /* @__PURE__ */ React17.createElement("span", { className: "sy-pv-cap" }, activeSize, " · ", gridCols, "×", gridRows, " 格（桌面）")), /* @__PURE__ */ React17.createElement("div", { className: "sy-gal-meta" }, /* @__PURE__ */ React17.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React17.createElement("span", null, "尺寸"), /* @__PURE__ */ React17.createElement("div", { className: "sy-seg sm" }, sizeOrder.map((entry) => /* @__PURE__ */ React17.createElement(
+    /* @__PURE__ */ React18.createElement("section", { className: preview.cls, style: { width: previewWidth, height: previewHeight } }, preview.content)
+  ), /* @__PURE__ */ React18.createElement("span", { className: "sy-pv-cap" }, activeSize, " · ", gridCols, "×", gridRows, " 格（桌面）")), /* @__PURE__ */ React18.createElement("div", { className: "sy-gal-meta" }, /* @__PURE__ */ React18.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React18.createElement("span", null, "尺寸"), /* @__PURE__ */ React18.createElement("div", { className: "sy-seg sm" }, sizeOrder.map((entry) => /* @__PURE__ */ React18.createElement(
     "button",
     {
       key: entry,
@@ -2792,7 +3244,7 @@ function GallerySheet({ initial, types, context, board, onAdd, onClose }) {
       onClick: () => setSize(entry)
     },
     entry
-  )))), type === "subscription" ? /* @__PURE__ */ React17.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React17.createElement("span", null, "来源"), /* @__PURE__ */ React17.createElement("div", { className: "sy-chips" }, (context.sources ?? []).map((source) => /* @__PURE__ */ React17.createElement(
+  )))), type === "subscription" ? /* @__PURE__ */ React18.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React18.createElement("span", null, "来源"), /* @__PURE__ */ React18.createElement("div", { className: "sy-chips" }, (context.sources ?? []).map((source) => /* @__PURE__ */ React18.createElement(
     "button",
     {
       key: source.id,
@@ -2806,7 +3258,7 @@ function GallerySheet({ initial, types, context, board, onAdd, onClose }) {
       }
     },
     source.label
-  )))) : null, type === "subscription" ? /* @__PURE__ */ React17.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React17.createElement("span", null, "呈现"), /* @__PURE__ */ React17.createElement("div", { className: "sy-seg sm" }, ["图文", "榜单", "论文", "产品", "视频"].map((entry) => /* @__PURE__ */ React17.createElement(
+  )))) : null, type === "subscription" ? /* @__PURE__ */ React18.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React18.createElement("span", null, "呈现"), /* @__PURE__ */ React18.createElement("div", { className: "sy-seg sm" }, ["图文", "榜单", "论文", "产品", "视频"].map((entry) => /* @__PURE__ */ React18.createElement(
     "button",
     {
       key: entry,
@@ -2814,7 +3266,7 @@ function GallerySheet({ initial, types, context, board, onAdd, onClose }) {
       onClick: () => setPres(entry)
     },
     entry
-  )))) : null), /* @__PURE__ */ React17.createElement("div", { className: "sy-gal-acts" }, (definition.actions ?? []).length ? `能直接做：${definition.actions.join(" · ")}` : "只展示，不需要操作。"), /* @__PURE__ */ React17.createElement(
+  )))) : null), /* @__PURE__ */ React18.createElement("div", { className: "sy-gal-acts" }, (definition.actions ?? []).length ? `能直接做：${definition.actions.join(" · ")}` : "只展示，不需要操作。"), /* @__PURE__ */ React18.createElement(
     "button",
     {
       className: "sy-btn sy-btn-wide",
@@ -2841,7 +3293,7 @@ function ModalLayer({
   onRun
 }) {
   if (modal.kind === "gallery") {
-    return /* @__PURE__ */ React18.createElement(
+    return /* @__PURE__ */ React19.createElement(
       GallerySheet,
       {
         initial: modal,
@@ -2857,7 +3309,7 @@ function ModalLayer({
     const widget = widgets[modal.id];
     if (!widget) return null;
     const settings = widget.settings ?? {};
-    return /* @__PURE__ */ React18.createElement("div", { className: "sy-scrim", "data-act": "scrim" }, /* @__PURE__ */ React18.createElement("div", { className: "sy-sheet sm", role: "dialog", "aria-modal": true, "aria-label": "Widget 设置" }, /* @__PURE__ */ React18.createElement("header", { className: "sy-sh-h" }, /* @__PURE__ */ React18.createElement(WidgetIcon, { type: widget.type, size: 26 }), /* @__PURE__ */ React18.createElement("h2", null, types[widget.type]?.name ?? "", "设置"), /* @__PURE__ */ React18.createElement("button", { className: "sy-icon-btn", "data-act": "modal-close", "aria-label": "关闭" }, /* @__PURE__ */ React18.createElement(SvgIcon, { svg: I.x }))), /* @__PURE__ */ React18.createElement("div", { className: "sy-sh-b" }, widget.type === "subscription" ? /* @__PURE__ */ React18.createElement(React18.Fragment, null, /* @__PURE__ */ React18.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React18.createElement("span", null, "标题"), /* @__PURE__ */ React18.createElement(
+    return /* @__PURE__ */ React19.createElement("div", { className: "sy-scrim", "data-act": "scrim" }, /* @__PURE__ */ React19.createElement("div", { className: "sy-sheet sm", role: "dialog", "aria-modal": true, "aria-label": "Widget 设置" }, /* @__PURE__ */ React19.createElement("header", { className: "sy-sh-h" }, /* @__PURE__ */ React19.createElement(WidgetIcon, { type: widget.type, size: 26 }), /* @__PURE__ */ React19.createElement("h2", null, types[widget.type]?.name ?? "", "设置"), /* @__PURE__ */ React19.createElement("button", { className: "sy-icon-btn", "data-act": "modal-close", "aria-label": "关闭" }, /* @__PURE__ */ React19.createElement(SvgIcon, { svg: I.x }))), /* @__PURE__ */ React19.createElement("div", { className: "sy-sh-b" }, widget.type === "subscription" ? /* @__PURE__ */ React19.createElement(React19.Fragment, null, /* @__PURE__ */ React19.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React19.createElement("span", null, "标题"), /* @__PURE__ */ React19.createElement(
       "input",
       {
         type: "text",
@@ -2865,7 +3317,7 @@ function ModalLayer({
         defaultValue: widget.title ?? "",
         placeholder: widgetTitle(widget, context)
       }
-    )), /* @__PURE__ */ React18.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React18.createElement("span", null, "来源（可多选）"), /* @__PURE__ */ React18.createElement("div", { className: "sy-chips" }, (context.sources ?? []).map((source) => /* @__PURE__ */ React18.createElement(
+    )), /* @__PURE__ */ React19.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React19.createElement("span", null, "来源（可多选）"), /* @__PURE__ */ React19.createElement("div", { className: "sy-chips" }, (context.sources ?? []).map((source) => /* @__PURE__ */ React19.createElement(
       "button",
       {
         key: source.id,
@@ -2878,7 +3330,7 @@ function ModalLayer({
         }
       },
       source.label
-    )))), /* @__PURE__ */ React18.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React18.createElement("span", null, "呈现"), /* @__PURE__ */ React18.createElement("div", { className: "sy-seg sm" }, ["图文", "榜单", "论文", "产品", "视频"].map((entry) => /* @__PURE__ */ React18.createElement(
+    )))), /* @__PURE__ */ React19.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React19.createElement("span", null, "呈现"), /* @__PURE__ */ React19.createElement("div", { className: "sy-seg sm" }, ["图文", "榜单", "论文", "产品", "视频"].map((entry) => /* @__PURE__ */ React19.createElement(
       "button",
       {
         key: entry,
@@ -2886,21 +3338,21 @@ function ModalLayer({
         onClick: () => void onRun("widget.update", { id: widget.id, settings: { ...settings, pres: entry } })
       },
       entry
-    )))), /* @__PURE__ */ React18.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React18.createElement("span", null, "布局"), /* @__PURE__ */ React18.createElement("div", { className: "sy-seg sm" }, /* @__PURE__ */ React18.createElement(
+    )))), /* @__PURE__ */ React19.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React19.createElement("span", null, "布局"), /* @__PURE__ */ React19.createElement("div", { className: "sy-seg sm" }, /* @__PURE__ */ React19.createElement(
       "button",
       {
         "aria-pressed": !settings.deck,
         onClick: () => void onRun("widget.update", { id: widget.id, settings: { ...settings, deck: false } })
       },
       "列表"
-    ), /* @__PURE__ */ React18.createElement(
+    ), /* @__PURE__ */ React19.createElement(
       "button",
       {
         "aria-pressed": Boolean(settings.deck),
         onClick: () => void onRun("widget.update", { id: widget.id, settings: { ...settings, deck: true } })
       },
       "卡片流 · 一次一条"
-    ))), /* @__PURE__ */ React18.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React18.createElement("span", null, "排序"), /* @__PURE__ */ React18.createElement("div", { className: "sy-seg sm" }, SUB_SORTS.map(([key, label]) => /* @__PURE__ */ React18.createElement(
+    ))), /* @__PURE__ */ React19.createElement("div", { className: "sy-fld" }, /* @__PURE__ */ React19.createElement("span", null, "排序"), /* @__PURE__ */ React19.createElement("div", { className: "sy-seg sm" }, SUB_SORTS.map(([key, label]) => /* @__PURE__ */ React19.createElement(
       "button",
       {
         key,
@@ -2908,7 +3360,7 @@ function ModalLayer({
         onClick: () => void onRun("widget.update", { id: widget.id, settings: { ...settings, sort: key } })
       },
       label
-    )))), /* @__PURE__ */ React18.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React18.createElement("span", null, "关注词（逗号分隔，所有订阅共用）"), /* @__PURE__ */ React18.createElement(
+    )))), /* @__PURE__ */ React19.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React19.createElement("span", null, "关注词（逗号分隔，所有订阅共用）"), /* @__PURE__ */ React19.createElement(
       "input",
       {
         type: "text",
@@ -2916,17 +3368,17 @@ function ModalLayer({
         defaultValue: (context.interests ?? []).join("，"),
         onBlur: (event) => void onRun("interests.set", { text: event.target.value })
       }
-    ), /* @__PURE__ */ React18.createElement("span", { className: "meta", style: { whiteSpace: "normal" } }, "命中的条目会带上标记；排序选「关注优先」时排在前面。"))) : /* @__PURE__ */ React18.createElement("p", { style: { margin: 0, fontSize: 13, color: "var(--sy-ink2)", whiteSpace: "normal" } }, "「", types[widget.type]?.name ?? "", "」目前没有可配置项。尺寸在卡片菜单里改。")), /* @__PURE__ */ React18.createElement("footer", { className: "sy-sh-f" }, /* @__PURE__ */ React18.createElement("button", { className: "sy-btn sy-btn-ink", "data-act": "modal-close" }, "完成"))));
+    ), /* @__PURE__ */ React19.createElement("span", { className: "meta", style: { whiteSpace: "normal" } }, "命中的条目会带上标记；排序选「关注优先」时排在前面。"))) : /* @__PURE__ */ React19.createElement("p", { style: { margin: 0, fontSize: 13, color: "var(--sy-ink2)", whiteSpace: "normal" } }, "「", types[widget.type]?.name ?? "", "」目前没有可配置项。尺寸在卡片菜单里改。")), /* @__PURE__ */ React19.createElement("footer", { className: "sy-sh-f" }, /* @__PURE__ */ React19.createElement("button", { className: "sy-btn sy-btn-ink", "data-act": "modal-close" }, "完成"))));
   }
   return null;
 }
 
 // src/client/views/Cards.tsx
-var React20 = __toESM(require("react"), 1);
+var React21 = __toESM(require("react"), 1);
 
 // src/client/views/Stamps.tsx
-var React19 = __toESM(require("react"), 1);
-var { useMemo } = React19;
+var React20 = __toESM(require("react"), 1);
+var { useMemo } = React20;
 function toDayKey(input) {
   if (!input) return "";
   if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}/.test(input)) {
@@ -3030,7 +3482,7 @@ function Stamp({
   onCaptureToday
 }) {
   if (!list || list.length === 0) {
-    return /* @__PURE__ */ React19.createElement(
+    return /* @__PURE__ */ React20.createElement(
       "button",
       {
         type: "button",
@@ -3040,13 +3492,13 @@ function Stamp({
         onClick: today ? onCaptureToday : void 0,
         disabled: !today
       },
-      today ? /* @__PURE__ */ React19.createElement("span", null, "+") : null
+      today ? /* @__PURE__ */ React20.createElement("span", null, "+") : null
     );
   }
   const cover = list.find((item) => Boolean(item.thumbnail)) ?? list[0];
   const tone = hashCode(cover.id) % 6;
   const glyph = (cover.title || "记").replace(/^[#*\s]+/, "").slice(0, 1) || "记";
-  return /* @__PURE__ */ React19.createElement(
+  return /* @__PURE__ */ React20.createElement(
     "button",
     {
       type: "button",
@@ -3055,8 +3507,8 @@ function Stamp({
       title: `${label}：${cover.title}（共 ${list.length} 条记录）`,
       onClick: onOpen
     },
-    cover.thumbnail ? /* @__PURE__ */ React19.createElement("img", { src: cover.thumbnail, alt: "", loading: "lazy", draggable: false, referrerPolicy: "no-referrer" }) : /* @__PURE__ */ React19.createElement("span", null, glyph),
-    list.length > 1 ? /* @__PURE__ */ React19.createElement("i", null, list.length) : null
+    cover.thumbnail ? /* @__PURE__ */ React20.createElement("img", { src: cover.thumbnail, alt: "", loading: "lazy", draggable: false, referrerPolicy: "no-referrer" }) : /* @__PURE__ */ React20.createElement("span", null, glyph),
+    list.length > 1 ? /* @__PURE__ */ React20.createElement("i", null, list.length) : null
   );
 }
 function MiniStamps({
@@ -3076,11 +3528,11 @@ function MiniStamps({
     }
     return out;
   }, []);
-  return /* @__PURE__ */ React19.createElement("div", { className: "sy-ministamps", "aria-label": `最近 10 天活动邮票，已连续记录 ${streak} 天` }, /* @__PURE__ */ React19.createElement("div", { className: "sy-ministamps-row" }, cells.map((d) => {
+  return /* @__PURE__ */ React20.createElement("div", { className: "sy-ministamps", "aria-label": `最近 10 天活动邮票，已连续记录 ${streak} 天` }, /* @__PURE__ */ React20.createElement("div", { className: "sy-ministamps-row" }, cells.map((d) => {
     const key = toDayKey(d);
     const list = dayMap.get(key);
     const label = `${d.getMonth() + 1}月${d.getDate()}日`;
-    return /* @__PURE__ */ React19.createElement(
+    return /* @__PURE__ */ React20.createElement(
       Stamp,
       {
         key,
@@ -3091,7 +3543,7 @@ function MiniStamps({
         onOpen: () => onOpenSchedule(key)
       }
     );
-  })), /* @__PURE__ */ React19.createElement(
+  })), /* @__PURE__ */ React20.createElement(
     "button",
     {
       type: "button",
@@ -3100,13 +3552,13 @@ function MiniStamps({
       title: `打开排期日历（已连续记录 ${streak} 天）`,
       "aria-label": `打开排期日历，已连续记录 ${streak} 天`
     },
-    /* @__PURE__ */ React19.createElement("span", null, streak, "天"),
-    /* @__PURE__ */ React19.createElement("span", { "aria-hidden": "true" }, "↗")
+    /* @__PURE__ */ React20.createElement("span", null, streak, "天"),
+    /* @__PURE__ */ React20.createElement("span", { "aria-hidden": "true" }, "↗")
   ));
 }
 
 // src/client/views/Cards.tsx
-var { useState: useState4, useEffect: useEffect2 } = React20;
+var { useState: useState5, useEffect: useEffect3 } = React21;
 var KIND_FILTER_OPTIONS = [
   { value: "all", label: "全部" },
   { value: "note", label: "速记备忘" },
@@ -3268,14 +3720,14 @@ function MediaCollectionCard({
   onQuickSaveFeed,
   onQuickTask
 }) {
-  const [imgBroken, setImgBroken] = useState4(false);
+  const [imgBroken, setImgBroken] = useState5(false);
   const showMedia = Boolean(entry.thumbnail) && !imgBroken;
   const tone = hashCode(entry.id) % 6;
   const stars = entry.meta?.stars ?? entry.meta?.upvotes ?? null;
   const language = entry.meta?.language ?? null;
   const author = entry.meta?.author ?? entry.meta?.artist ?? null;
   const duration = entry.meta?.duration ?? null;
-  return /* @__PURE__ */ React20.createElement(
+  return /* @__PURE__ */ React21.createElement(
     "article",
     {
       className: `sy-mcard kind-${entry.kind} status-${entry.status}${relatedHighlight ? " is-related" : ""}`,
@@ -3293,7 +3745,7 @@ function MediaCollectionCard({
         }
       }
     },
-    showMedia ? /* @__PURE__ */ React20.createElement("div", { className: "sy-mcard-media" }, /* @__PURE__ */ React20.createElement(
+    showMedia ? /* @__PURE__ */ React21.createElement("div", { className: "sy-mcard-media" }, /* @__PURE__ */ React21.createElement(
       "img",
       {
         src: entry.thumbnail,
@@ -3303,9 +3755,9 @@ function MediaCollectionCard({
         referrerPolicy: "no-referrer",
         onError: () => setImgBroken(true)
       }
-    ), entry.kind === "video" ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-badge" }, "▶ ", duration || "视频") : null, entry.kind === "music" ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-badge" }, "♪ ", duration || "音乐") : null, entry.kind === "image" ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-badge" }, "图片") : null) : entry.kind === "music" || entry.kind === "image" || entry.kind === "video" ? /* @__PURE__ */ React20.createElement("div", { className: `sy-mcard-fallback tone-${tone}` }, /* @__PURE__ */ React20.createElement("span", null, entry.kind === "music" ? "♪" : entry.kind === "video" ? "▶" : "▨"), /* @__PURE__ */ React20.createElement("small", null, KIND_BADGE_LABELS[entry.kind])) : null,
-    /* @__PURE__ */ React20.createElement("div", { className: "sy-mcard-body" }, /* @__PURE__ */ React20.createElement("div", { className: "sy-mcard-top" }, /* @__PURE__ */ React20.createElement("span", { className: `sy-mcard-pill kind-${entry.kind}` }, KIND_BADGE_LABELS[entry.kind] ?? entry.kind), language ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-meta-tag" }, language) : null, stars !== null && stars !== void 0 ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-meta-tag" }, "★ ", stars) : null, author ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-meta-tag" }, "@", String(author).replace(/^@/, "")) : null, entry.externalUrl ? /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-feishu", title: "已关联外部文档（如飞书）" }, "飞书/外链 ↗") : null), /* @__PURE__ */ React20.createElement("h3", { className: "sy-mcard-title" }, entry.title), entry.body ? /* @__PURE__ */ React20.createElement("p", { className: "sy-mcard-desc" }, entry.body) : null, entry.tags.length > 0 ? /* @__PURE__ */ React20.createElement("div", { className: "sy-mcard-tags" }, entry.tags.slice(0, 4).map((tag) => /* @__PURE__ */ React20.createElement("span", { key: tag, className: "sy-mcard-tag" }, "#", tag.replace(/^#/, "")))) : null),
-    /* @__PURE__ */ React20.createElement("footer", { className: "sy-mcard-foot", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React20.createElement("span", { className: `sy-mcard-dot status-${entry.status}` }), /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-source" }, entry.sourceLabel), /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-time" }, relativeTimeShort(entry.createdAt)), /* @__PURE__ */ React20.createElement("span", { className: "sy-mcard-acts" }, entry.entryType === "feed" && onQuickSaveFeed ? /* @__PURE__ */ React20.createElement(
+    ), entry.kind === "video" ? /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-badge" }, "▶ ", duration || "视频") : null, entry.kind === "music" ? /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-badge" }, "♪ ", duration || "音乐") : null, entry.kind === "image" ? /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-badge" }, "图片") : null) : entry.kind === "music" || entry.kind === "image" || entry.kind === "video" ? /* @__PURE__ */ React21.createElement("div", { className: `sy-mcard-fallback tone-${tone}` }, /* @__PURE__ */ React21.createElement("span", null, entry.kind === "music" ? "♪" : entry.kind === "video" ? "▶" : "▨"), /* @__PURE__ */ React21.createElement("small", null, KIND_BADGE_LABELS[entry.kind])) : null,
+    /* @__PURE__ */ React21.createElement("div", { className: "sy-mcard-body" }, /* @__PURE__ */ React21.createElement("div", { className: "sy-mcard-top" }, /* @__PURE__ */ React21.createElement("span", { className: `sy-mcard-pill kind-${entry.kind}` }, KIND_BADGE_LABELS[entry.kind] ?? entry.kind), language ? /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-meta-tag" }, language) : null, stars !== null && stars !== void 0 ? /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-meta-tag" }, "★ ", stars) : null, author ? /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-meta-tag" }, "@", String(author).replace(/^@/, "")) : null, entry.externalUrl ? /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-feishu", title: "已关联外部文档（如飞书）" }, "飞书/外链 ↗") : null), /* @__PURE__ */ React21.createElement("h3", { className: "sy-mcard-title" }, entry.title), entry.body ? /* @__PURE__ */ React21.createElement("p", { className: "sy-mcard-desc" }, entry.body) : null, entry.tags.length > 0 ? /* @__PURE__ */ React21.createElement("div", { className: "sy-mcard-tags" }, entry.tags.slice(0, 4).map((tag) => /* @__PURE__ */ React21.createElement("span", { key: tag, className: "sy-mcard-tag" }, "#", tag.replace(/^#/, "")))) : null),
+    /* @__PURE__ */ React21.createElement("footer", { className: "sy-mcard-foot", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React21.createElement("span", { className: `sy-mcard-dot status-${entry.status}` }), /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-source" }, entry.sourceLabel), /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-time" }, relativeTimeShort(entry.createdAt)), /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-acts" }, entry.entryType === "feed" && onQuickSaveFeed ? /* @__PURE__ */ React21.createElement(
       "button",
       {
         type: "button",
@@ -3314,7 +3766,7 @@ function MediaCollectionCard({
         onClick: () => onQuickSaveFeed(entry)
       },
       "+收藏"
-    ) : null, onQuickTask ? /* @__PURE__ */ React20.createElement(
+    ) : null, onQuickTask ? /* @__PURE__ */ React21.createElement(
       "button",
       {
         type: "button",
@@ -3323,7 +3775,7 @@ function MediaCollectionCard({
         onClick: () => onQuickTask(entry)
       },
       "+待办"
-    ) : null, entry.url ? /* @__PURE__ */ React20.createElement(
+    ) : null, entry.url ? /* @__PURE__ */ React21.createElement(
       "a",
       {
         className: "sy-mini-act",
@@ -3341,21 +3793,21 @@ function CaptureModal({
   onClose,
   onRun
 }) {
-  const [tab, setTab] = useState4(initialTab);
-  const [text, setText] = useState4("");
-  const [title, setTitle] = useState4("");
-  const [url, setUrl] = useState4("");
-  const [externalUrl, setExternalUrl] = useState4("");
-  const [thumbnail, setThumbnail] = useState4("");
-  const [kind, setKind] = useState4("github");
-  const [tagsText, setTagsText] = useState4("");
-  const [due, setDue] = useState4("");
-  const [priority, setPriority] = useState4("medium");
-  const [project, setProject] = useState4("");
-  const [metaExtra, setMetaExtra] = useState4("");
-  const [batchJson, setBatchJson] = useState4("");
-  const [busy, setBusy] = useState4(false);
-  useEffect2(() => {
+  const [tab, setTab] = useState5(initialTab);
+  const [text, setText] = useState5("");
+  const [title, setTitle] = useState5("");
+  const [url, setUrl] = useState5("");
+  const [externalUrl, setExternalUrl] = useState5("");
+  const [thumbnail, setThumbnail] = useState5("");
+  const [kind, setKind] = useState5("github");
+  const [tagsText, setTagsText] = useState5("");
+  const [due, setDue] = useState5("");
+  const [priority, setPriority] = useState5("medium");
+  const [project, setProject] = useState5("");
+  const [metaExtra, setMetaExtra] = useState5("");
+  const [batchJson, setBatchJson] = useState5("");
+  const [busy, setBusy] = useState5(false);
+  useEffect3(() => {
     if (url.trim()) {
       setKind(detectKindFromUrl(url.trim(), kind));
     }
@@ -3443,14 +3895,14 @@ function CaptureModal({
       setBusy(false);
     }
   };
-  return /* @__PURE__ */ React20.createElement("div", { className: "sy-scrim", "data-act": "scrim", onClick: (e) => {
+  return /* @__PURE__ */ React21.createElement("div", { className: "sy-scrim", "data-act": "scrim", onClick: (e) => {
     if (e.target === e.currentTarget) onClose();
-  } }, /* @__PURE__ */ React20.createElement("div", { className: "sy-modal sy-capture-modal", role: "dialog", "aria-label": "快速记录与收藏入库" }, /* @__PURE__ */ React20.createElement("div", { className: "sy-modal-h" }, /* @__PURE__ */ React20.createElement("div", null, /* @__PURE__ */ React20.createElement("b", null, "快速记录 · 收藏入库"), /* @__PURE__ */ React20.createElement("div", { className: "meta" }, "只存轻量备忘与多媒介元信息（缩略图、标题、说明、外链），长文可关联飞书文档")), /* @__PURE__ */ React20.createElement("button", { type: "button", className: "sy-icon-btn", onClick: onClose, "aria-label": "关闭" }, "✕")), /* @__PURE__ */ React20.createElement("div", { className: "sy-capture-tabs", role: "tablist" }, [
+  } }, /* @__PURE__ */ React21.createElement("div", { className: "sy-modal sy-capture-modal", role: "dialog", "aria-label": "快速记录与收藏入库" }, /* @__PURE__ */ React21.createElement("div", { className: "sy-modal-h" }, /* @__PURE__ */ React21.createElement("div", null, /* @__PURE__ */ React21.createElement("b", null, "快速记录 · 收藏入库"), /* @__PURE__ */ React21.createElement("div", { className: "meta" }, "只存轻量备忘与多媒介元信息（缩略图、标题、说明、外链），长文可关联飞书文档")), /* @__PURE__ */ React21.createElement("button", { type: "button", className: "sy-icon-btn", onClick: onClose, "aria-label": "关闭" }, "✕")), /* @__PURE__ */ React21.createElement("div", { className: "sy-capture-tabs", role: "tablist" }, [
     ["note", "速记 / 灵感"],
     ["collection", "偏好收藏 (GitHub/X/图音视)"],
     ["task", "排期任务 (Todo)"],
     ["batch", "批量导入 (JSON/CSV)"]
-  ].map(([id, label]) => /* @__PURE__ */ React20.createElement(
+  ].map(([id, label]) => /* @__PURE__ */ React21.createElement(
     "button",
     {
       key: id,
@@ -3461,7 +3913,7 @@ function CaptureModal({
       onClick: () => setTab(id)
     },
     label
-  ))), /* @__PURE__ */ React20.createElement("form", { className: "sy-modal-b sy-form-stack", onSubmit: handleSubmit }, tab === "note" ? /* @__PURE__ */ React20.createElement(React20.Fragment, null, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "备忘 / 灵感闪念 *"), /* @__PURE__ */ React20.createElement(
+  ))), /* @__PURE__ */ React21.createElement("form", { className: "sy-modal-b sy-form-stack", onSubmit: handleSubmit }, tab === "note" ? /* @__PURE__ */ React21.createElement(React21.Fragment, null, /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "备忘 / 灵感闪念 *"), /* @__PURE__ */ React21.createElement(
     "textarea",
     {
       rows: 3,
@@ -3470,7 +3922,7 @@ function CaptureModal({
       onChange: (e) => setText(e.target.value),
       placeholder: "随手记下一句话、一个灵感或备忘要点……"
     }
-  )), /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "短标题（可选）"), /* @__PURE__ */ React20.createElement("input", { value: title, onChange: (e) => setTitle(e.target.value), placeholder: "默认取第一句" })), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "标签（逗号或空格分隔）"), /* @__PURE__ */ React20.createElement("input", { value: tagsText, onChange: (e) => setTagsText(e.target.value), placeholder: "如：灵感, 架构, 生活" }))), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "关联飞书 / 外部深度文档链接（可选）"), /* @__PURE__ */ React20.createElement(
+  )), /* @__PURE__ */ React21.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "短标题（可选）"), /* @__PURE__ */ React21.createElement("input", { value: title, onChange: (e) => setTitle(e.target.value), placeholder: "默认取第一句" })), /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "标签（逗号或空格分隔）"), /* @__PURE__ */ React21.createElement("input", { value: tagsText, onChange: (e) => setTagsText(e.target.value), placeholder: "如：灵感, 架构, 生活" }))), /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "关联飞书 / 外部深度文档链接（可选）"), /* @__PURE__ */ React21.createElement(
     "input",
     {
       type: "url",
@@ -3478,7 +3930,7 @@ function CaptureModal({
       onChange: (e) => setExternalUrl(e.target.value),
       placeholder: "https://xxx.feishu.cn/docx/..."
     }
-  ))) : null, tab === "collection" ? /* @__PURE__ */ React20.createElement(React20.Fragment, null, /* @__PURE__ */ React20.createElement("div", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "收藏类别"), /* @__PURE__ */ React20.createElement("div", { className: "sy-kind-pills" }, ["github", "x", "web", "image", "music", "video"].map((k) => /* @__PURE__ */ React20.createElement(
+  ))) : null, tab === "collection" ? /* @__PURE__ */ React21.createElement(React21.Fragment, null, /* @__PURE__ */ React21.createElement("div", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "收藏类别"), /* @__PURE__ */ React21.createElement("div", { className: "sy-kind-pills" }, ["github", "x", "web", "image", "music", "video"].map((k) => /* @__PURE__ */ React21.createElement(
     "button",
     {
       type: "button",
@@ -3487,7 +3939,7 @@ function CaptureModal({
       onClick: () => setKind(k)
     },
     KIND_BADGE_LABELS[k]
-  )))), /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "标题 / 名称 *"), /* @__PURE__ */ React20.createElement(
+  )))), /* @__PURE__ */ React21.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "标题 / 名称 *"), /* @__PURE__ */ React21.createElement(
     "input",
     {
       required: true,
@@ -3495,7 +3947,7 @@ function CaptureModal({
       onChange: (e) => setTitle(e.target.value),
       placeholder: kind === "github" ? "owner/repo 仓库名或简介" : "收藏标题"
     }
-  )), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "原始链接 URL"), /* @__PURE__ */ React20.createElement(
+  )), /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "原始链接 URL"), /* @__PURE__ */ React21.createElement(
     "input",
     {
       type: "url",
@@ -3503,7 +3955,7 @@ function CaptureModal({
       onChange: (e) => setUrl(e.target.value),
       placeholder: "https://..."
     }
-  ))), /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "缩略图 / 封面图 URL（仅存元信息）"), /* @__PURE__ */ React20.createElement(
+  ))), /* @__PURE__ */ React21.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "缩略图 / 封面图 URL（仅存元信息）"), /* @__PURE__ */ React21.createElement(
     "input",
     {
       type: "url",
@@ -3511,14 +3963,14 @@ function CaptureModal({
       onChange: (e) => setThumbnail(e.target.value),
       placeholder: "https://.../cover.webp"
     }
-  )), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, kind === "github" ? "主要语言 (如 TypeScript)" : kind === "x" ? "作者 (@handle)" : "时长 / 创作者"), /* @__PURE__ */ React20.createElement(
+  )), /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, kind === "github" ? "主要语言 (如 TypeScript)" : kind === "x" ? "作者 (@handle)" : "时长 / 创作者"), /* @__PURE__ */ React21.createElement(
     "input",
     {
       value: metaExtra,
       onChange: (e) => setMetaExtra(e.target.value),
       placeholder: kind === "github" ? "Rust / TypeScript" : kind === "x" ? "@karpathy" : "04:32"
     }
-  ))), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "说明信息 / 为什么收藏"), /* @__PURE__ */ React20.createElement(
+  ))), /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "说明信息 / 为什么收藏"), /* @__PURE__ */ React21.createElement(
     "textarea",
     {
       rows: 2,
@@ -3526,7 +3978,7 @@ function CaptureModal({
       onChange: (e) => setText(e.target.value),
       placeholder: "记录一句你的评价、用途或关键信息……"
     }
-  )), /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "标签"), /* @__PURE__ */ React20.createElement("input", { value: tagsText, onChange: (e) => setTagsText(e.target.value), placeholder: "Agent, UI, 必看" })), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "关联飞书笔记链接（可选）"), /* @__PURE__ */ React20.createElement(
+  )), /* @__PURE__ */ React21.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "标签"), /* @__PURE__ */ React21.createElement("input", { value: tagsText, onChange: (e) => setTagsText(e.target.value), placeholder: "Agent, UI, 必看" })), /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "关联飞书笔记链接（可选）"), /* @__PURE__ */ React21.createElement(
     "input",
     {
       type: "url",
@@ -3534,7 +3986,7 @@ function CaptureModal({
       onChange: (e) => setExternalUrl(e.target.value),
       placeholder: "https://xxx.feishu.cn/..."
     }
-  )))) : null, tab === "task" ? /* @__PURE__ */ React20.createElement(React20.Fragment, null, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "待办事项标题 *"), /* @__PURE__ */ React20.createElement(
+  )))) : null, tab === "task" ? /* @__PURE__ */ React21.createElement(React21.Fragment, null, /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "待办事项标题 *"), /* @__PURE__ */ React21.createElement(
     "input",
     {
       required: true,
@@ -3542,7 +3994,7 @@ function CaptureModal({
       onChange: (e) => setTitle(e.target.value),
       placeholder: "要做什么事？"
     }
-  )), /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row3" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "排期日期（留空进待排期 Inbox）"), /* @__PURE__ */ React20.createElement("input", { type: "date", value: due, onChange: (e) => setDue(e.target.value) })), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "优先级"), /* @__PURE__ */ React20.createElement("select", { value: priority, onChange: (e) => setPriority(e.target.value) }, /* @__PURE__ */ React20.createElement("option", { value: "high" }, "高优先级 (High)"), /* @__PURE__ */ React20.createElement("option", { value: "medium" }, "中优先级 (Medium)"), /* @__PURE__ */ React20.createElement("option", { value: "low" }, "低优先级 (Low)"))), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "所属项目 (Project)"), /* @__PURE__ */ React20.createElement("input", { value: project, onChange: (e) => setProject(e.target.value), placeholder: "如：核心研发" }))), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "任务备注说明"), /* @__PURE__ */ React20.createElement("textarea", { rows: 2, value: text, onChange: (e) => setText(e.target.value), placeholder: "补充上下文或验收标准……" }))) : null, tab === "batch" ? /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "粘贴 JSON 数组，或每行一条 CSV（格式：类型,标题,链接,缩略图URL,说明）"), /* @__PURE__ */ React20.createElement(
+  )), /* @__PURE__ */ React21.createElement("div", { className: "sy-form-row3" }, /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "排期日期（留空进待排期 Inbox）"), /* @__PURE__ */ React21.createElement("input", { type: "date", value: due, onChange: (e) => setDue(e.target.value) })), /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "优先级"), /* @__PURE__ */ React21.createElement("select", { value: priority, onChange: (e) => setPriority(e.target.value) }, /* @__PURE__ */ React21.createElement("option", { value: "high" }, "高优先级 (High)"), /* @__PURE__ */ React21.createElement("option", { value: "medium" }, "中优先级 (Medium)"), /* @__PURE__ */ React21.createElement("option", { value: "low" }, "低优先级 (Low)"))), /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "所属项目 (Project)"), /* @__PURE__ */ React21.createElement("input", { value: project, onChange: (e) => setProject(e.target.value), placeholder: "如：核心研发" }))), /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "任务备注说明"), /* @__PURE__ */ React21.createElement("textarea", { rows: 2, value: text, onChange: (e) => setText(e.target.value), placeholder: "补充上下文或验收标准……" }))) : null, tab === "batch" ? /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "粘贴 JSON 数组，或每行一条 CSV（格式：类型,标题,链接,缩略图URL,说明）"), /* @__PURE__ */ React21.createElement(
     "textarea",
     {
       rows: 6,
@@ -3554,20 +4006,20 @@ function CaptureModal({
   { "kind": "video", "title": "Bento UI 设计拆解", "url": "https://www.bilibili.com/video/BV1xx", "thumbnail": "https://example.com/cover.jpg", "summary": "卡片排版参考" }
 ]`
     }
-  )) : null, /* @__PURE__ */ React20.createElement("div", { className: "sy-modal-f" }, /* @__PURE__ */ React20.createElement("span", { className: "grow" }), /* @__PURE__ */ React20.createElement("button", { type: "button", className: "sy-btn", onClick: onClose }, "取消"), /* @__PURE__ */ React20.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink", disabled: busy }, busy ? "保存中…" : "保存入库")))));
+  )) : null, /* @__PURE__ */ React21.createElement("div", { className: "sy-modal-f" }, /* @__PURE__ */ React21.createElement("span", { className: "grow" }), /* @__PURE__ */ React21.createElement("button", { type: "button", className: "sy-btn", onClick: onClose }, "取消"), /* @__PURE__ */ React21.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink", disabled: busy }, busy ? "保存中…" : "保存入库")))));
 }
 function EntryDetailModal({
   entry,
   onClose,
   onRun
 }) {
-  const [title, setTitle] = useState4(entry.title);
-  const [body, setBody] = useState4(entry.body || (entry.rawNote?.text ?? ""));
-  const [thumbnail, setThumbnail] = useState4(entry.thumbnail ?? "");
-  const [externalUrl, setExternalUrl] = useState4(entry.externalUrl ?? "");
-  const [status, setStatus] = useState4(entry.status || "inbox");
-  const [tagsText, setTagsText] = useState4(entry.tags.join(", "));
-  const [kind, setKind] = useState4(entry.kind === "note" ? "web" : entry.kind);
+  const [title, setTitle] = useState5(entry.title);
+  const [body, setBody] = useState5(entry.body || (entry.rawNote?.text ?? ""));
+  const [thumbnail, setThumbnail] = useState5(entry.thumbnail ?? "");
+  const [externalUrl, setExternalUrl] = useState5(entry.externalUrl ?? "");
+  const [status, setStatus] = useState5(entry.status || "inbox");
+  const [tagsText, setTagsText] = useState5(entry.tags.join(", "));
+  const [kind, setKind] = useState5(entry.kind === "note" ? "web" : entry.kind);
   const handleSave = async (e) => {
     e.preventDefault();
     const tags = tagsText.split(/[,，、\s#]+/).map((s) => s.trim()).filter(Boolean).slice(0, 12);
@@ -3629,9 +4081,9 @@ function EntryDetailModal({
     );
     onClose();
   };
-  return /* @__PURE__ */ React20.createElement("div", { className: "sy-scrim", "data-act": "scrim", onClick: (e) => {
+  return /* @__PURE__ */ React21.createElement("div", { className: "sy-scrim", "data-act": "scrim", onClick: (e) => {
     if (e.target === e.currentTarget) onClose();
-  } }, /* @__PURE__ */ React20.createElement("div", { className: "sy-modal sy-capture-modal", role: "dialog", "aria-label": "条目元信息详情" }, /* @__PURE__ */ React20.createElement("div", { className: "sy-modal-h" }, /* @__PURE__ */ React20.createElement("div", null, /* @__PURE__ */ React20.createElement("b", null, KIND_BADGE_LABELS[entry.kind] ?? "元信息", " · 详情与整理"), /* @__PURE__ */ React20.createElement("div", { className: "meta" }, entry.sourceLabel, " ", entry.createdAt ? `· ${relativeTimeShort(entry.createdAt)}` : "")), /* @__PURE__ */ React20.createElement("button", { type: "button", className: "sy-icon-btn", onClick: onClose, "aria-label": "关闭" }, "✕")), /* @__PURE__ */ React20.createElement("form", { className: "sy-modal-b sy-form-stack", onSubmit: handleSave }, thumbnail ? /* @__PURE__ */ React20.createElement("div", { className: "sy-detail-preview" }, /* @__PURE__ */ React20.createElement("img", { src: thumbnail, alt: "", referrerPolicy: "no-referrer" })) : null, /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "标题"), /* @__PURE__ */ React20.createElement("input", { value: title, onChange: (e) => setTitle(e.target.value), required: true })), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "整理状态"), /* @__PURE__ */ React20.createElement("select", { value: status, onChange: (e) => setStatus(e.target.value) }, STATUS_OPTIONS.map((opt) => /* @__PURE__ */ React20.createElement("option", { key: opt.value, value: opt.value }, opt.label))))), entry.entryType !== "note" ? /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "媒介类型"), /* @__PURE__ */ React20.createElement("select", { value: kind, onChange: (e) => setKind(e.target.value) }, ["github", "x", "web", "image", "music", "video", "article"].map((k) => /* @__PURE__ */ React20.createElement("option", { key: k, value: k }, KIND_BADGE_LABELS[k])))), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "缩略图 URL"), /* @__PURE__ */ React20.createElement(
+  } }, /* @__PURE__ */ React21.createElement("div", { className: "sy-modal sy-capture-modal", role: "dialog", "aria-label": "条目元信息详情" }, /* @__PURE__ */ React21.createElement("div", { className: "sy-modal-h" }, /* @__PURE__ */ React21.createElement("div", null, /* @__PURE__ */ React21.createElement("b", null, KIND_BADGE_LABELS[entry.kind] ?? "元信息", " · 详情与整理"), /* @__PURE__ */ React21.createElement("div", { className: "meta" }, entry.sourceLabel, " ", entry.createdAt ? `· ${relativeTimeShort(entry.createdAt)}` : "")), /* @__PURE__ */ React21.createElement("button", { type: "button", className: "sy-icon-btn", onClick: onClose, "aria-label": "关闭" }, "✕")), /* @__PURE__ */ React21.createElement("form", { className: "sy-modal-b sy-form-stack", onSubmit: handleSave }, thumbnail ? /* @__PURE__ */ React21.createElement("div", { className: "sy-detail-preview" }, /* @__PURE__ */ React21.createElement("img", { src: thumbnail, alt: "", referrerPolicy: "no-referrer" })) : null, /* @__PURE__ */ React21.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "标题"), /* @__PURE__ */ React21.createElement("input", { value: title, onChange: (e) => setTitle(e.target.value), required: true })), /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "整理状态"), /* @__PURE__ */ React21.createElement("select", { value: status, onChange: (e) => setStatus(e.target.value) }, STATUS_OPTIONS.map((opt) => /* @__PURE__ */ React21.createElement("option", { key: opt.value, value: opt.value }, opt.label))))), entry.entryType !== "note" ? /* @__PURE__ */ React21.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "媒介类型"), /* @__PURE__ */ React21.createElement("select", { value: kind, onChange: (e) => setKind(e.target.value) }, ["github", "x", "web", "image", "music", "video", "article"].map((k) => /* @__PURE__ */ React21.createElement("option", { key: k, value: k }, KIND_BADGE_LABELS[k])))), /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "缩略图 URL"), /* @__PURE__ */ React21.createElement(
     "input",
     {
       type: "url",
@@ -3639,7 +4091,7 @@ function EntryDetailModal({
       onChange: (e) => setThumbnail(e.target.value),
       placeholder: "https://..."
     }
-  ))) : null, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, entry.entryType === "note" ? "速记内容" : "说明信息 / 摘要备注"), /* @__PURE__ */ React20.createElement("textarea", { rows: 3, value: body, onChange: (e) => setBody(e.target.value) })), /* @__PURE__ */ React20.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "标签（逗号分隔）"), /* @__PURE__ */ React20.createElement("input", { value: tagsText, onChange: (e) => setTagsText(e.target.value) })), /* @__PURE__ */ React20.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React20.createElement("span", null, "关联飞书 / 深度笔记链接"), /* @__PURE__ */ React20.createElement(
+  ))) : null, /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, entry.entryType === "note" ? "速记内容" : "说明信息 / 摘要备注"), /* @__PURE__ */ React21.createElement("textarea", { rows: 3, value: body, onChange: (e) => setBody(e.target.value) })), /* @__PURE__ */ React21.createElement("div", { className: "sy-form-row2" }, /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "标签（逗号分隔）"), /* @__PURE__ */ React21.createElement("input", { value: tagsText, onChange: (e) => setTagsText(e.target.value) })), /* @__PURE__ */ React21.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React21.createElement("span", null, "关联飞书 / 深度笔记链接"), /* @__PURE__ */ React21.createElement(
     "input",
     {
       type: "url",
@@ -3647,7 +4099,7 @@ function EntryDetailModal({
       onChange: (e) => setExternalUrl(e.target.value),
       placeholder: "https://xxx.feishu.cn/..."
     }
-  ))), /* @__PURE__ */ React20.createElement("div", { className: "sy-modal-f" }, entry.entryType !== "feed" ? /* @__PURE__ */ React20.createElement("button", { type: "button", className: "sy-btn", onClick: handleDelete }, "删除") : null, /* @__PURE__ */ React20.createElement("button", { type: "button", className: "sy-btn", onClick: handleToTask }, "转为排期任务"), entry.url ? /* @__PURE__ */ React20.createElement(
+  ))), /* @__PURE__ */ React21.createElement("div", { className: "sy-modal-f" }, entry.entryType !== "feed" ? /* @__PURE__ */ React21.createElement("button", { type: "button", className: "sy-btn", onClick: handleDelete }, "删除") : null, /* @__PURE__ */ React21.createElement("button", { type: "button", className: "sy-btn", onClick: handleToTask }, "转为排期任务"), entry.url ? /* @__PURE__ */ React21.createElement(
     "a",
     {
       className: "sy-btn",
@@ -3656,7 +4108,7 @@ function EntryDetailModal({
       rel: "noopener noreferrer"
     },
     "打开原链接 ↗"
-  ) : null, externalUrl ? /* @__PURE__ */ React20.createElement(
+  ) : null, externalUrl ? /* @__PURE__ */ React21.createElement(
     "a",
     {
       className: "sy-btn",
@@ -3665,12 +4117,12 @@ function EntryDetailModal({
       rel: "noopener noreferrer"
     },
     "打开飞书文档 ↗"
-  ) : null, /* @__PURE__ */ React20.createElement("span", { className: "grow" }), /* @__PURE__ */ React20.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink" }, "保存修改")))));
+  ) : null, /* @__PURE__ */ React21.createElement("span", { className: "grow" }), /* @__PURE__ */ React21.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink" }, "保存修改")))));
 }
 
 // src/client/views/ContentView.tsx
-var React21 = __toESM(require("react"), 1);
-var { useState: useState5, useMemo: useMemo2 } = React21;
+var React22 = __toESM(require("react"), 1);
+var { useState: useState6, useMemo: useMemo2 } = React22;
 function ContentView({
   notes,
   readLaterEntries,
@@ -3680,12 +4132,12 @@ function ContentView({
   onOpenCapture,
   onRun
 }) {
-  const [mode, setMode] = useState5("board");
-  const [boardGroup, setBoardGroup] = useState5("kind");
-  const [kindFilter, setKindFilter] = useState5("all");
-  const [search, setSearch] = useState5("");
-  const [dragOverCol, setDragOverCol] = useState5(null);
-  const [sort, setSort] = useState5({
+  const [mode, setMode] = useState6("board");
+  const [boardGroup, setBoardGroup] = useState6("kind");
+  const [kindFilter, setKindFilter] = useState6("all");
+  const [search, setSearch] = useState6("");
+  const [dragOverCol, setDragOverCol] = useState6(null);
+  const [sort, setSort] = useState6({
     key: "createdAt",
     dir: -1
   });
@@ -3779,7 +4231,7 @@ function ContentView({
       return av.localeCompare(bv) * sort.dir;
     });
   }, [filtered, sort]);
-  return /* @__PURE__ */ React21.createElement("div", { className: "sy-app-page", "data-view": "content" }, /* @__PURE__ */ React21.createElement("header", { className: "sy-view-head" }, /* @__PURE__ */ React21.createElement("div", null, /* @__PURE__ */ React21.createElement("h1", { className: "sy-view-title" }, "内容 · 收藏与速记库"), /* @__PURE__ */ React21.createElement("p", { className: "sy-view-sub" }, `共 ${allEntries.length} 条记录 · ${noteCount} 条速记备忘 · ${colCount} 条多媒介收藏 · ${curatedCount} 条精选常看`)), /* @__PURE__ */ React21.createElement("div", { className: "sy-view-controls" }, /* @__PURE__ */ React21.createElement("label", { className: "sy-search-pill" }, /* @__PURE__ */ React21.createElement("span", null, "⌕"), /* @__PURE__ */ React21.createElement(
+  return /* @__PURE__ */ React22.createElement("div", { className: "sy-app-page", "data-view": "content" }, /* @__PURE__ */ React22.createElement("header", { className: "sy-view-head" }, /* @__PURE__ */ React22.createElement("div", null, /* @__PURE__ */ React22.createElement("h1", { className: "sy-view-title" }, "内容 · 收藏与速记库"), /* @__PURE__ */ React22.createElement("p", { className: "sy-view-sub" }, `共 ${allEntries.length} 条记录 · ${noteCount} 条速记备忘 · ${colCount} 条多媒介收藏 · ${curatedCount} 条精选常看`)), /* @__PURE__ */ React22.createElement("div", { className: "sy-view-controls" }, /* @__PURE__ */ React22.createElement("label", { className: "sy-search-pill" }, /* @__PURE__ */ React22.createElement("span", null, "⌕"), /* @__PURE__ */ React22.createElement(
     "input",
     {
       value: search,
@@ -3787,7 +4239,7 @@ function ContentView({
       placeholder: "搜索标题、说明、标签、GitHub/X…",
       "aria-label": "搜索内容"
     }
-  )), /* @__PURE__ */ React21.createElement("div", { className: "sy-seg" }, /* @__PURE__ */ React21.createElement(
+  )), /* @__PURE__ */ React22.createElement("div", { className: "sy-seg" }, /* @__PURE__ */ React22.createElement(
     "button",
     {
       type: "button",
@@ -3795,7 +4247,7 @@ function ContentView({
       onClick: () => setMode("board")
     },
     "看板"
-  ), /* @__PURE__ */ React21.createElement(
+  ), /* @__PURE__ */ React22.createElement(
     "button",
     {
       type: "button",
@@ -3803,7 +4255,7 @@ function ContentView({
       onClick: () => setMode("table")
     },
     "表格"
-  )), mode === "board" ? /* @__PURE__ */ React21.createElement("div", { className: "sy-seg" }, /* @__PURE__ */ React21.createElement(
+  )), mode === "board" ? /* @__PURE__ */ React22.createElement("div", { className: "sy-seg" }, /* @__PURE__ */ React22.createElement(
     "button",
     {
       type: "button",
@@ -3811,7 +4263,7 @@ function ContentView({
       onClick: () => setBoardGroup("kind")
     },
     "按媒介"
-  ), /* @__PURE__ */ React21.createElement(
+  ), /* @__PURE__ */ React22.createElement(
     "button",
     {
       type: "button",
@@ -3819,7 +4271,7 @@ function ContentView({
       onClick: () => setBoardGroup("status")
     },
     "按状态"
-  )) : null, /* @__PURE__ */ React21.createElement(
+  )) : null, /* @__PURE__ */ React22.createElement(
     "button",
     {
       type: "button",
@@ -3827,7 +4279,7 @@ function ContentView({
       onClick: () => onOpenCapture("batch")
     },
     "批量导入"
-  ), /* @__PURE__ */ React21.createElement(
+  ), /* @__PURE__ */ React22.createElement(
     "button",
     {
       type: "button",
@@ -3835,7 +4287,7 @@ function ContentView({
       onClick: () => onOpenCapture("collection")
     },
     "+ 录入收藏 / 速记"
-  ))), /* @__PURE__ */ React21.createElement("div", { className: "sy-filter-bar", role: "toolbar", "aria-label": "按媒介类型筛选" }, KIND_FILTER_OPTIONS.map((opt) => /* @__PURE__ */ React21.createElement(
+  ))), /* @__PURE__ */ React22.createElement("div", { className: "sy-filter-bar", role: "toolbar", "aria-label": "按媒介类型筛选" }, KIND_FILTER_OPTIONS.map((opt) => /* @__PURE__ */ React22.createElement(
     "button",
     {
       type: "button",
@@ -3844,9 +4296,9 @@ function ContentView({
       onClick: () => setKindFilter(opt.value)
     },
     opt.label
-  ))), filtered.length === 0 ? /* @__PURE__ */ React21.createElement("div", { className: "sy-empty-box" }, /* @__PURE__ */ React21.createElement("b", null, search ? "没有匹配的收藏或速记" : "还没有收藏或速记记录"), /* @__PURE__ */ React21.createElement("p", null, "在首页一句话记下备忘灵感，或把你的 GitHub Stars、X 收藏、网站、图片、音视频元信息存进来。"), /* @__PURE__ */ React21.createElement("div", { className: "row", style: { justifyContent: "center", marginTop: 10 } }, /* @__PURE__ */ React21.createElement("button", { type: "button", className: "sy-btn sy-btn-ink", onClick: () => onOpenCapture("collection") }, "+ 录入第一条收藏"), /* @__PURE__ */ React21.createElement("button", { type: "button", className: "sy-btn", onClick: () => onOpenCapture("batch") }, "粘贴 JSON/CSV 批量入库"))) : mode === "board" ? boardGroup === "status" ? /* @__PURE__ */ React21.createElement("div", { className: "sy-kanban-board", "data-cols": "3" }, STATUS_OPTIONS.map((col) => {
+  ))), filtered.length === 0 ? /* @__PURE__ */ React22.createElement("div", { className: "sy-empty-box" }, /* @__PURE__ */ React22.createElement("b", null, search ? "没有匹配的收藏或速记" : "还没有收藏或速记记录"), /* @__PURE__ */ React22.createElement("p", null, "在首页一句话记下备忘灵感，或把你的 GitHub Stars、X 收藏、网站、图片、音视频元信息存进来。"), /* @__PURE__ */ React22.createElement("div", { className: "row", style: { justifyContent: "center", marginTop: 10 } }, /* @__PURE__ */ React22.createElement("button", { type: "button", className: "sy-btn sy-btn-ink", onClick: () => onOpenCapture("collection") }, "+ 录入第一条收藏"), /* @__PURE__ */ React22.createElement("button", { type: "button", className: "sy-btn", onClick: () => onOpenCapture("batch") }, "粘贴 JSON/CSV 批量入库"))) : mode === "board" ? boardGroup === "status" ? /* @__PURE__ */ React22.createElement("div", { className: "sy-kanban-board", "data-cols": "3" }, STATUS_OPTIONS.map((col) => {
     const rows = filtered.filter((e) => e.status === col.value);
-    return /* @__PURE__ */ React21.createElement(
+    return /* @__PURE__ */ React22.createElement(
       "section",
       {
         key: col.value,
@@ -3860,8 +4312,8 @@ function ContentView({
         },
         onDrop: (e) => void handleDropStatus(col.value, e)
       },
-      /* @__PURE__ */ React21.createElement("header", { className: "sy-kanban-head" }, /* @__PURE__ */ React21.createElement("span", { className: `sy-mcard-dot status-${col.value}` }), /* @__PURE__ */ React21.createElement("h3", null, col.label), /* @__PURE__ */ React21.createElement("span", { className: "meta" }, rows.length)),
-      /* @__PURE__ */ React21.createElement("div", { className: "sy-kanban-list" }, rows.map((entry) => /* @__PURE__ */ React21.createElement(
+      /* @__PURE__ */ React22.createElement("header", { className: "sy-kanban-head" }, /* @__PURE__ */ React22.createElement("span", { className: `sy-mcard-dot status-${col.value}` }), /* @__PURE__ */ React22.createElement("h3", null, col.label), /* @__PURE__ */ React22.createElement("span", { className: "meta" }, rows.length)),
+      /* @__PURE__ */ React22.createElement("div", { className: "sy-kanban-list" }, rows.map((entry) => /* @__PURE__ */ React22.createElement(
         MediaCollectionCard,
         {
           key: entry.id,
@@ -3873,7 +4325,7 @@ function ContentView({
         }
       )))
     );
-  })) : /* @__PURE__ */ React21.createElement("div", { className: "sy-kanban-board", "data-cols": "4" }, kindColumns.map((col) => /* @__PURE__ */ React21.createElement("section", { key: col.id, className: "sy-kanban-col" }, /* @__PURE__ */ React21.createElement("header", { className: "sy-kanban-head" }, /* @__PURE__ */ React21.createElement("span", { className: `sy-mcard-dot kind-${col.dot}` }), /* @__PURE__ */ React21.createElement("h3", null, col.title), /* @__PURE__ */ React21.createElement("span", { className: "meta" }, col.rows.length)), /* @__PURE__ */ React21.createElement("div", { className: "sy-kanban-list" }, col.rows.map((entry) => /* @__PURE__ */ React21.createElement(
+  })) : /* @__PURE__ */ React22.createElement("div", { className: "sy-kanban-board", "data-cols": "4" }, kindColumns.map((col) => /* @__PURE__ */ React22.createElement("section", { key: col.id, className: "sy-kanban-col" }, /* @__PURE__ */ React22.createElement("header", { className: "sy-kanban-head" }, /* @__PURE__ */ React22.createElement("span", { className: `sy-mcard-dot kind-${col.dot}` }), /* @__PURE__ */ React22.createElement("h3", null, col.title), /* @__PURE__ */ React22.createElement("span", { className: "meta" }, col.rows.length)), /* @__PURE__ */ React22.createElement("div", { className: "sy-kanban-list" }, col.rows.map((entry) => /* @__PURE__ */ React22.createElement(
     MediaCollectionCard,
     {
       key: entry.id,
@@ -3881,35 +4333,35 @@ function ContentView({
       onOpen: onOpenEntry,
       onQuickTask: handleQuickTask
     }
-  )))))) : /* @__PURE__ */ React21.createElement("div", { className: "sy-table-wrap" }, /* @__PURE__ */ React21.createElement("table", { className: "sy-data-table" }, /* @__PURE__ */ React21.createElement("thead", null, /* @__PURE__ */ React21.createElement("tr", null, /* @__PURE__ */ React21.createElement("th", null, /* @__PURE__ */ React21.createElement(
+  )))))) : /* @__PURE__ */ React22.createElement("div", { className: "sy-table-wrap" }, /* @__PURE__ */ React22.createElement("table", { className: "sy-data-table" }, /* @__PURE__ */ React22.createElement("thead", null, /* @__PURE__ */ React22.createElement("tr", null, /* @__PURE__ */ React22.createElement("th", null, /* @__PURE__ */ React22.createElement(
     "button",
     {
       type: "button",
       onClick: () => setSort((s) => ({ key: "title", dir: s.key === "title" ? s.dir === 1 ? -1 : 1 : 1 }))
     },
     "标题与说明"
-  )), /* @__PURE__ */ React21.createElement("th", null, /* @__PURE__ */ React21.createElement(
+  )), /* @__PURE__ */ React22.createElement("th", null, /* @__PURE__ */ React22.createElement(
     "button",
     {
       type: "button",
       onClick: () => setSort((s) => ({ key: "kind", dir: s.key === "kind" ? s.dir === 1 ? -1 : 1 : 1 }))
     },
     "类别 / 来源"
-  )), /* @__PURE__ */ React21.createElement("th", null, /* @__PURE__ */ React21.createElement(
+  )), /* @__PURE__ */ React22.createElement("th", null, /* @__PURE__ */ React22.createElement(
     "button",
     {
       type: "button",
       onClick: () => setSort((s) => ({ key: "status", dir: s.key === "status" ? s.dir === 1 ? -1 : 1 : 1 }))
     },
     "状态"
-  )), /* @__PURE__ */ React21.createElement("th", null, "标签 / 元信息"), /* @__PURE__ */ React21.createElement("th", null, "链接 / 飞书"), /* @__PURE__ */ React21.createElement("th", null, /* @__PURE__ */ React21.createElement(
+  )), /* @__PURE__ */ React22.createElement("th", null, "标签 / 元信息"), /* @__PURE__ */ React22.createElement("th", null, "链接 / 飞书"), /* @__PURE__ */ React22.createElement("th", null, /* @__PURE__ */ React22.createElement(
     "button",
     {
       type: "button",
       onClick: () => setSort((s) => ({ key: "createdAt", dir: s.key === "createdAt" ? s.dir === 1 ? -1 : 1 : -1 }))
     },
     "记录于"
-  )))), /* @__PURE__ */ React21.createElement("tbody", null, sortedTable.map((entry) => /* @__PURE__ */ React21.createElement("tr", { key: entry.id, onClick: () => onOpenEntry(entry), tabIndex: 0 }, /* @__PURE__ */ React21.createElement("td", { className: "sy-td-main" }, /* @__PURE__ */ React21.createElement("span", { className: "sy-td-thumb" }, entry.thumbnail ? /* @__PURE__ */ React21.createElement("img", { src: entry.thumbnail, alt: "", loading: "lazy", referrerPolicy: "no-referrer" }) : /* @__PURE__ */ React21.createElement("span", null, entry.title.slice(0, 1))), /* @__PURE__ */ React21.createElement("div", null, /* @__PURE__ */ React21.createElement("strong", null, entry.title), entry.body ? /* @__PURE__ */ React21.createElement("small", null, entry.body.slice(0, 90)) : null)), /* @__PURE__ */ React21.createElement("td", null, /* @__PURE__ */ React21.createElement("span", { className: `sy-mcard-pill kind-${entry.kind}` }, KIND_BADGE_LABELS[entry.kind] ?? entry.kind), /* @__PURE__ */ React21.createElement("div", { className: "meta" }, entry.sourceLabel)), /* @__PURE__ */ React21.createElement("td", null, /* @__PURE__ */ React21.createElement("span", { className: `sy-status-pill status-${entry.status}` }, STATUS_OPTIONS.find((s) => s.value === entry.status)?.label ?? entry.status)), /* @__PURE__ */ React21.createElement("td", null, /* @__PURE__ */ React21.createElement("div", { className: "sy-mcard-tags" }, entry.tags.map((t) => /* @__PURE__ */ React21.createElement("span", { key: t, className: "sy-mcard-tag" }, "#", t)), entry.meta?.language ? /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-meta-tag" }, entry.meta.language) : null, entry.meta?.stars ? /* @__PURE__ */ React21.createElement("span", { className: "sy-mcard-meta-tag" }, "★ ", entry.meta.stars) : null)), /* @__PURE__ */ React21.createElement("td", { onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React21.createElement("div", { className: "row" }, entry.url ? /* @__PURE__ */ React21.createElement("a", { className: "sy-mini-act", href: safeUrl(entry.url), target: "_blank", rel: "noopener noreferrer" }, "源链 ↗") : null, entry.externalUrl ? /* @__PURE__ */ React21.createElement(
+  )))), /* @__PURE__ */ React22.createElement("tbody", null, sortedTable.map((entry) => /* @__PURE__ */ React22.createElement("tr", { key: entry.id, onClick: () => onOpenEntry(entry), tabIndex: 0 }, /* @__PURE__ */ React22.createElement("td", { className: "sy-td-main" }, /* @__PURE__ */ React22.createElement("span", { className: "sy-td-thumb" }, entry.thumbnail ? /* @__PURE__ */ React22.createElement("img", { src: entry.thumbnail, alt: "", loading: "lazy", referrerPolicy: "no-referrer" }) : /* @__PURE__ */ React22.createElement("span", null, entry.title.slice(0, 1))), /* @__PURE__ */ React22.createElement("div", null, /* @__PURE__ */ React22.createElement("strong", null, entry.title), entry.body ? /* @__PURE__ */ React22.createElement("small", null, entry.body.slice(0, 90)) : null)), /* @__PURE__ */ React22.createElement("td", null, /* @__PURE__ */ React22.createElement("span", { className: `sy-mcard-pill kind-${entry.kind}` }, KIND_BADGE_LABELS[entry.kind] ?? entry.kind), /* @__PURE__ */ React22.createElement("div", { className: "meta" }, entry.sourceLabel)), /* @__PURE__ */ React22.createElement("td", null, /* @__PURE__ */ React22.createElement("span", { className: `sy-status-pill status-${entry.status}` }, STATUS_OPTIONS.find((s) => s.value === entry.status)?.label ?? entry.status)), /* @__PURE__ */ React22.createElement("td", null, /* @__PURE__ */ React22.createElement("div", { className: "sy-mcard-tags" }, entry.tags.map((t) => /* @__PURE__ */ React22.createElement("span", { key: t, className: "sy-mcard-tag" }, "#", t)), entry.meta?.language ? /* @__PURE__ */ React22.createElement("span", { className: "sy-mcard-meta-tag" }, entry.meta.language) : null, entry.meta?.stars ? /* @__PURE__ */ React22.createElement("span", { className: "sy-mcard-meta-tag" }, "★ ", entry.meta.stars) : null)), /* @__PURE__ */ React22.createElement("td", { onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React22.createElement("div", { className: "row" }, entry.url ? /* @__PURE__ */ React22.createElement("a", { className: "sy-mini-act", href: safeUrl(entry.url), target: "_blank", rel: "noopener noreferrer" }, "源链 ↗") : null, entry.externalUrl ? /* @__PURE__ */ React22.createElement(
     "a",
     {
       className: "sy-mini-act",
@@ -3918,12 +4370,12 @@ function ContentView({
       rel: "noopener noreferrer"
     },
     "飞书 ↗"
-  ) : null)), /* @__PURE__ */ React21.createElement("td", { className: "meta" }, relativeTimeShort(entry.createdAt) || "—")))))));
+  ) : null)), /* @__PURE__ */ React22.createElement("td", { className: "meta" }, relativeTimeShort(entry.createdAt) || "—")))))));
 }
 
 // src/client/views/RetroView.tsx
-var React22 = __toESM(require("react"), 1);
-var { useState: useState6, useMemo: useMemo3, useEffect: useEffect3 } = React22;
+var React23 = __toESM(require("react"), 1);
+var { useState: useState7, useMemo: useMemo3, useEffect: useEffect4 } = React23;
 function currentWeekKey(today) {
   const date = /* @__PURE__ */ new Date(`${today}T00:00:00`);
   const jan1 = new Date(date.getFullYear(), 0, 1);
@@ -3939,7 +4391,7 @@ function isoDayOffset(baseIso, deltaDays) {
 function TrendChart({
   points
 }) {
-  const [hoverIdx, setHoverIdx] = useState6(null);
+  const [hoverIdx, setHoverIdx] = useState7(null);
   const width = 460;
   const height = 170;
   const padL = 26;
@@ -3961,18 +4413,18 @@ function TrendChart({
   const firstCoord = coords[0];
   const areaPath = lastCoord && firstCoord ? `${linePath} L${lastCoord.x.toFixed(1)},${(padT + innerH).toFixed(1)} L${firstCoord.x.toFixed(1)},${(padT + innerH).toFixed(1)} Z` : "";
   const hovered = hoverIdx !== null ? coords[hoverIdx] : lastCoord;
-  return /* @__PURE__ */ React22.createElement("div", { className: "sy-chart-wrap" }, hovered ? /* @__PURE__ */ React22.createElement("div", { className: "sy-chart-stat" }, /* @__PURE__ */ React22.createElement("span", { className: "mono" }, hovered.date.slice(5)), /* @__PURE__ */ React22.createElement("span", null, "完成 ", /* @__PURE__ */ React22.createElement("b", null, hovered.tasks), " 项 · 收录/速记 ", /* @__PURE__ */ React22.createElement("b", null, hovered.captures), " 条")) : null, /* @__PURE__ */ React22.createElement(
+  return /* @__PURE__ */ React23.createElement("div", { className: "sy-chart-wrap" }, hovered ? /* @__PURE__ */ React23.createElement("div", { className: "sy-chart-stat" }, /* @__PURE__ */ React23.createElement("span", { className: "mono" }, hovered.date.slice(5)), /* @__PURE__ */ React23.createElement("span", null, "完成 ", /* @__PURE__ */ React23.createElement("b", null, hovered.tasks), " 项 · 收录/速记 ", /* @__PURE__ */ React23.createElement("b", null, hovered.captures), " 条")) : null, /* @__PURE__ */ React23.createElement(
     "svg",
     {
       className: "sy-chart",
       viewBox: `0 0 ${width} ${height}`,
       onMouseLeave: () => setHoverIdx(null)
     },
-    /* @__PURE__ */ React22.createElement("defs", null, /* @__PURE__ */ React22.createElement("linearGradient", { id: "syRetroGrad", x1: "0", y1: "0", x2: "0", y2: "1" }, /* @__PURE__ */ React22.createElement("stop", { offset: "0%", stopColor: "var(--sy-accent)", stopOpacity: "0.28" }), /* @__PURE__ */ React22.createElement("stop", { offset: "100%", stopColor: "var(--sy-accent)", stopOpacity: "0.0" }))),
+    /* @__PURE__ */ React23.createElement("defs", null, /* @__PURE__ */ React23.createElement("linearGradient", { id: "syRetroGrad", x1: "0", y1: "0", x2: "0", y2: "1" }, /* @__PURE__ */ React23.createElement("stop", { offset: "0%", stopColor: "var(--sy-accent)", stopOpacity: "0.28" }), /* @__PURE__ */ React23.createElement("stop", { offset: "100%", stopColor: "var(--sy-accent)", stopOpacity: "0.0" }))),
     [0, 0.5, 1].map((ratio, idx) => {
       const y = padT + innerH * (1 - ratio);
       const val = Math.round(maxVal * ratio);
-      return /* @__PURE__ */ React22.createElement("g", { key: idx }, /* @__PURE__ */ React22.createElement(
+      return /* @__PURE__ */ React23.createElement("g", { key: idx }, /* @__PURE__ */ React23.createElement(
         "line",
         {
           x1: padL,
@@ -3982,7 +4434,7 @@ function TrendChart({
           stroke: "var(--sy-line)",
           strokeDasharray: ratio === 0 ? void 0 : "3 3"
         }
-      ), /* @__PURE__ */ React22.createElement(
+      ), /* @__PURE__ */ React23.createElement(
         "text",
         {
           x: padL - 6,
@@ -3995,8 +4447,8 @@ function TrendChart({
         val
       ));
     }),
-    areaPath ? /* @__PURE__ */ React22.createElement("path", { d: areaPath, fill: "url(#syRetroGrad)" }) : null,
-    linePath ? /* @__PURE__ */ React22.createElement(
+    areaPath ? /* @__PURE__ */ React23.createElement("path", { d: areaPath, fill: "url(#syRetroGrad)" }) : null,
+    linePath ? /* @__PURE__ */ React23.createElement(
       "path",
       {
         d: linePath,
@@ -4007,14 +4459,14 @@ function TrendChart({
         strokeLinejoin: "round"
       }
     ) : null,
-    coords.map((pt, index) => /* @__PURE__ */ React22.createElement(
+    coords.map((pt, index) => /* @__PURE__ */ React23.createElement(
       "g",
       {
         key: pt.date,
         onMouseEnter: () => setHoverIdx(index),
         style: { cursor: "pointer" }
       },
-      /* @__PURE__ */ React22.createElement(
+      /* @__PURE__ */ React23.createElement(
         "rect",
         {
           x: pt.x - stepX / 2,
@@ -4024,7 +4476,7 @@ function TrendChart({
           fill: "transparent"
         }
       ),
-      /* @__PURE__ */ React22.createElement(
+      /* @__PURE__ */ React23.createElement(
         "circle",
         {
           cx: pt.x,
@@ -4035,7 +4487,7 @@ function TrendChart({
           strokeWidth: "2"
         }
       ),
-      index % 3 === 0 || index === coords.length - 1 ? /* @__PURE__ */ React22.createElement(
+      index % 3 === 0 || index === coords.length - 1 ? /* @__PURE__ */ React23.createElement(
         "text",
         {
           x: pt.x,
@@ -4058,18 +4510,18 @@ function RetroView({
   onOpenEntry
 }) {
   const today = toDayKey(/* @__PURE__ */ new Date());
-  const [period, setPeriod] = useState6("week");
-  const [trendMode, setTrendMode] = useState6("chart");
+  const [period, setPeriod] = useState7("week");
+  const [trendMode, setTrendMode] = useState7("chart");
   const periodKey = useMemo3(() => {
     if (period === "day") return today;
     if (period === "week") return currentWeekKey(today);
     return today.slice(0, 7);
   }, [period, today]);
   const existingRetro = daily?.retros?.[periodKey];
-  const [highlights, setHighlights] = useState6("");
-  const [blockers, setBlockers] = useState6("");
-  const [nextFocus, setNextFocus] = useState6("");
-  useEffect3(() => {
+  const [highlights, setHighlights] = useState7("");
+  const [blockers, setBlockers] = useState7("");
+  const [nextFocus, setNextFocus] = useState7("");
+  useEffect4(() => {
     setHighlights(existingRetro?.highlights ?? "");
     setBlockers(existingRetro?.blockers ?? "");
     setNextFocus(existingRetro?.nextFocus ?? "");
@@ -4167,6 +4619,7 @@ function RetroView({
   const recentHighlights = useMemo3(() => entries.slice(0, 3), [entries]);
   const handleSaveRetro = (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     void onRun(
       "retro.save",
       {
@@ -4177,7 +4630,11 @@ function RetroView({
         nextFocus: nextFocus.trim()
       },
       { toast: `已保存「${periodKey}」个人复盘` }
-    );
+    ).then((result) => {
+      if (result && typeof result === "object" && !("ok" in result && result.ok === false)) {
+        document.dispatchEvent(new CustomEvent("sooyo:form-saved", { detail: form }));
+      }
+    });
   };
   const handleRolloverOpenTasks = async () => {
     for (const task of periodStats.openTodayOrOverdue) {
@@ -4193,7 +4650,7 @@ function RetroView({
       { toast: `已加入今日排期：${firstLine.slice(0, 24)}` }
     );
   };
-  return /* @__PURE__ */ React22.createElement("div", { className: "sy-view-retro", "data-view": "retro" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-view-toolbar" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-view-toolbar-left" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-seg sm", role: "tablist", "aria-label": "复盘周期" }, /* @__PURE__ */ React22.createElement(
+  return /* @__PURE__ */ React23.createElement("div", { className: "sy-view-retro", "data-view": "retro" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-view-toolbar" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-view-toolbar-left" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-seg sm", role: "tablist", "aria-label": "复盘周期" }, /* @__PURE__ */ React23.createElement(
     "button",
     {
       type: "button",
@@ -4202,7 +4659,7 @@ function RetroView({
       onClick: () => setPeriod("day")
     },
     "今日复盘"
-  ), /* @__PURE__ */ React22.createElement(
+  ), /* @__PURE__ */ React23.createElement(
     "button",
     {
       type: "button",
@@ -4211,7 +4668,7 @@ function RetroView({
       onClick: () => setPeriod("week")
     },
     "本周复盘"
-  ), /* @__PURE__ */ React22.createElement(
+  ), /* @__PURE__ */ React23.createElement(
     "button",
     {
       type: "button",
@@ -4220,7 +4677,7 @@ function RetroView({
       onClick: () => setPeriod("month")
     },
     "本月复盘"
-  )), /* @__PURE__ */ React22.createElement("span", { className: "meta" }, `周期标识：${periodKey} · 连续活跃 ${streak} 天`)), /* @__PURE__ */ React22.createElement("div", { className: "sy-view-toolbar-right" }, periodStats.openTodayOrOverdue.length > 0 ? /* @__PURE__ */ React22.createElement(
+  )), /* @__PURE__ */ React23.createElement("span", { className: "meta" }, `周期标识：${periodKey} · 连续活跃 ${streak} 天`)), /* @__PURE__ */ React23.createElement("div", { className: "sy-view-toolbar-right" }, periodStats.openTodayOrOverdue.length > 0 ? /* @__PURE__ */ React23.createElement(
     "button",
     {
       type: "button",
@@ -4228,7 +4685,7 @@ function RetroView({
       onClick: () => void handleRolloverOpenTasks()
     },
     `顺延 ${periodStats.openTodayOrOverdue.length} 项未完待办到今天`
-  ) : null, /* @__PURE__ */ React22.createElement(
+  ) : null, /* @__PURE__ */ React23.createElement(
     "button",
     {
       type: "button",
@@ -4236,7 +4693,7 @@ function RetroView({
       onClick: () => onNavigate("schedule")
     },
     "打开排期日历 →"
-  ))), /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-grid" }, /* @__PURE__ */ React22.createElement("section", { className: "sy-retro-tile sy-retro-hero" }, /* @__PURE__ */ React22.createElement("div", null, /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-eyebrow" }, period === "day" ? "DAILY RETROSPECTIVE · 今日小结" : period === "week" ? "WEEKLY RETROSPECTIVE · 本周复盘" : "MONTHLY RETROSPECTIVE · 月度复盘"), /* @__PURE__ */ React22.createElement("h2", { className: "sy-retro-title" }, period === "day" ? "今天" : period === "week" ? "最近 7 天" : "最近 30 天", "共完成了", " ", /* @__PURE__ */ React22.createElement("em", null, periodStats.completedCount, " 项任务"), "，收录了", " ", /* @__PURE__ */ React22.createElement("b", null, periodStats.createdNotesAndCollections, " 条灵感与偏好收藏"), "；重心集中在「", /* @__PURE__ */ React22.createElement("b", null, topProjectName), "」，当前还有", " ", /* @__PURE__ */ React22.createElement("b", null, periodStats.openTodayOrOverdue.length, " 项今日待办"), "等待收尾。")), /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-metrics" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-metric" }, /* @__PURE__ */ React22.createElement("span", { className: "num" }, periodStats.completedCount), /* @__PURE__ */ React22.createElement("span", { className: "lbl" }, "已完成任务")), /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-metric" }, /* @__PURE__ */ React22.createElement("span", { className: "num" }, periodStats.focusMin), /* @__PURE__ */ React22.createElement("span", { className: "lbl" }, "今日专注分钟")), /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-metric" }, /* @__PURE__ */ React22.createElement("span", { className: "num" }, entries.length), /* @__PURE__ */ React22.createElement("span", { className: "lbl" }, "偏好与速记总数")), /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-metric" }, /* @__PURE__ */ React22.createElement("span", { className: "num" }, `${streak}d`), /* @__PURE__ */ React22.createElement("span", { className: "lbl" }, "连续记录天数")))), /* @__PURE__ */ React22.createElement("section", { className: "sy-retro-tile sy-retro-trend" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-tile-h" }, /* @__PURE__ */ React22.createElement("div", null, /* @__PURE__ */ React22.createElement("h3", null, "近 14 日节奏曲线"), /* @__PURE__ */ React22.createElement("span", { className: "meta" }, "任务完成 + 灵感与收藏收录")), /* @__PURE__ */ React22.createElement("div", { className: "sy-seg sm" }, /* @__PURE__ */ React22.createElement(
+  ))), /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-grid" }, /* @__PURE__ */ React23.createElement("section", { className: "sy-retro-tile sy-retro-hero" }, /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-eyebrow" }, period === "day" ? "DAILY RETROSPECTIVE · 今日小结" : period === "week" ? "WEEKLY RETROSPECTIVE · 本周复盘" : "MONTHLY RETROSPECTIVE · 月度复盘"), /* @__PURE__ */ React23.createElement("h2", { className: "sy-retro-title" }, period === "day" ? "今天" : period === "week" ? "最近 7 天" : "最近 30 天", "共完成了", " ", /* @__PURE__ */ React23.createElement("em", null, periodStats.completedCount, " 项任务"), "，收录了", " ", /* @__PURE__ */ React23.createElement("b", null, periodStats.createdNotesAndCollections, " 条灵感与偏好收藏"), "；重心集中在「", /* @__PURE__ */ React23.createElement("b", null, topProjectName), "」，当前还有", " ", /* @__PURE__ */ React23.createElement("b", null, periodStats.openTodayOrOverdue.length, " 项今日待办"), "等待收尾。")), /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-metrics" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-metric" }, /* @__PURE__ */ React23.createElement("span", { className: "num" }, periodStats.completedCount), /* @__PURE__ */ React23.createElement("span", { className: "lbl" }, "已完成任务")), /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-metric" }, /* @__PURE__ */ React23.createElement("span", { className: "num" }, periodStats.focusMin), /* @__PURE__ */ React23.createElement("span", { className: "lbl" }, "今日专注分钟")), /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-metric" }, /* @__PURE__ */ React23.createElement("span", { className: "num" }, entries.length), /* @__PURE__ */ React23.createElement("span", { className: "lbl" }, "偏好与速记总数")), /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-metric" }, /* @__PURE__ */ React23.createElement("span", { className: "num" }, `${streak}d`), /* @__PURE__ */ React23.createElement("span", { className: "lbl" }, "连续记录天数")))), /* @__PURE__ */ React23.createElement("section", { className: "sy-retro-tile sy-retro-trend" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-tile-h" }, /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("h3", null, "近 14 日节奏曲线"), /* @__PURE__ */ React23.createElement("span", { className: "meta" }, "任务完成 + 灵感与收藏收录")), /* @__PURE__ */ React23.createElement("div", { className: "sy-seg sm" }, /* @__PURE__ */ React23.createElement(
     "button",
     {
       type: "button",
@@ -4244,7 +4701,7 @@ function RetroView({
       onClick: () => setTrendMode("chart")
     },
     "图"
-  ), /* @__PURE__ */ React22.createElement(
+  ), /* @__PURE__ */ React23.createElement(
     "button",
     {
       type: "button",
@@ -4252,17 +4709,17 @@ function RetroView({
       onClick: () => setTrendMode("table")
     },
     "表"
-  ))), trendMode === "chart" ? /* @__PURE__ */ React22.createElement(TrendChart, { points: trendPoints }) : /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-mini-table" }, trendPoints.slice().reverse().slice(0, 6).map((row) => /* @__PURE__ */ React22.createElement("div", { key: row.date, className: "sy-retro-mini-row" }, /* @__PURE__ */ React22.createElement("span", { className: "mono" }, row.date), /* @__PURE__ */ React22.createElement("span", null, `完成 ${row.tasks} · 收录 ${row.captures}`), /* @__PURE__ */ React22.createElement("b", { className: "mono" }, row.total))))), /* @__PURE__ */ React22.createElement("section", { className: "sy-retro-tile sy-retro-dist" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-tile-h" }, /* @__PURE__ */ React22.createElement("div", null, /* @__PURE__ */ React22.createElement("h3", null, "项目推进与收藏构成"), /* @__PURE__ */ React22.createElement("span", { className: "meta" }, "工作进度与输入偏好分布"))), /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-list" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-subhead" }, "项目完成度"), periodStats.sortedProjects.slice(0, 3).map(([proj, stat]) => {
+  ))), trendMode === "chart" ? /* @__PURE__ */ React23.createElement(TrendChart, { points: trendPoints }) : /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-mini-table" }, trendPoints.slice().reverse().slice(0, 6).map((row) => /* @__PURE__ */ React23.createElement("div", { key: row.date, className: "sy-retro-mini-row" }, /* @__PURE__ */ React23.createElement("span", { className: "mono" }, row.date), /* @__PURE__ */ React23.createElement("span", null, `完成 ${row.tasks} · 收录 ${row.captures}`), /* @__PURE__ */ React23.createElement("b", { className: "mono" }, row.total))))), /* @__PURE__ */ React23.createElement("section", { className: "sy-retro-tile sy-retro-dist" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-tile-h" }, /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("h3", null, "项目推进与收藏构成"), /* @__PURE__ */ React23.createElement("span", { className: "meta" }, "工作进度与输入偏好分布"))), /* @__PURE__ */ React23.createElement("div", { className: "sy-dist-list" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-dist-subhead" }, "项目完成度"), periodStats.sortedProjects.slice(0, 3).map(([proj, stat]) => {
     const pct = stat.total > 0 ? Math.round(stat.done / stat.total * 100) : 0;
-    return /* @__PURE__ */ React22.createElement("div", { key: proj, className: "sy-dist-row" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-label" }, /* @__PURE__ */ React22.createElement("b", null, proj), /* @__PURE__ */ React22.createElement("span", { className: "mono" }, `${stat.done}/${stat.total} (${pct}%)`)), /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-bar" }, /* @__PURE__ */ React22.createElement("i", { style: { width: `${pct}%` } })));
-  }), /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-subhead", style: { marginTop: 8 } }, "偏好内容分布"), ["note", "github", "x", "video", "web"].map((kind) => {
+    return /* @__PURE__ */ React23.createElement("div", { key: proj, className: "sy-dist-row" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-dist-label" }, /* @__PURE__ */ React23.createElement("b", null, proj), /* @__PURE__ */ React23.createElement("span", { className: "mono" }, `${stat.done}/${stat.total} (${pct}%)`)), /* @__PURE__ */ React23.createElement("div", { className: "sy-dist-bar" }, /* @__PURE__ */ React23.createElement("i", { style: { width: `${pct}%` } })));
+  }), /* @__PURE__ */ React23.createElement("div", { className: "sy-dist-subhead", style: { marginTop: 8 } }, "偏好内容分布"), ["note", "github", "x", "video", "web"].map((kind) => {
     const count = periodStats.kindCounts.get(kind) ?? 0;
     const pct = entries.length > 0 ? Math.round(count / entries.length * 100) : 0;
     const label = KIND_BADGE_LABELS[kind] ?? kind;
-    return /* @__PURE__ */ React22.createElement("div", { key: kind, className: "sy-dist-row" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-label" }, /* @__PURE__ */ React22.createElement("span", null, label), /* @__PURE__ */ React22.createElement("span", { className: "mono" }, `${count} 条`)), /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-bar" }, /* @__PURE__ */ React22.createElement("i", { style: { width: `${Math.max(pct, count > 0 ? 8 : 0)}%` } })));
-  }), habits.length > 0 ? /* @__PURE__ */ React22.createElement(React22.Fragment, null, /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-subhead", style: { marginTop: 8 } }, "习惯打卡"), /* @__PURE__ */ React22.createElement("div", { className: "sy-chips" }, habits.map((habit) => {
+    return /* @__PURE__ */ React23.createElement("div", { key: kind, className: "sy-dist-row" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-dist-label" }, /* @__PURE__ */ React23.createElement("span", null, label), /* @__PURE__ */ React23.createElement("span", { className: "mono" }, `${count} 条`)), /* @__PURE__ */ React23.createElement("div", { className: "sy-dist-bar" }, /* @__PURE__ */ React23.createElement("i", { style: { width: `${Math.max(pct, count > 0 ? 8 : 0)}%` } })));
+  }), habits.length > 0 ? /* @__PURE__ */ React23.createElement(React23.Fragment, null, /* @__PURE__ */ React23.createElement("div", { className: "sy-dist-subhead", style: { marginTop: 8 } }, "习惯打卡"), /* @__PURE__ */ React23.createElement("div", { className: "sy-chips" }, habits.map((habit) => {
     const doneToday = habit.lastTickDate === today;
-    return /* @__PURE__ */ React22.createElement(
+    return /* @__PURE__ */ React23.createElement(
       "button",
       {
         key: habit.id,
@@ -4274,7 +4731,7 @@ function RetroView({
       },
       `${doneToday ? "✓ " : ""}${habit.name} (${habit.streak ?? 0}d)`
     );
-  }))) : null)), /* @__PURE__ */ React22.createElement("section", { className: "sy-retro-tile sy-retro-reflect" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-tile-h" }, /* @__PURE__ */ React22.createElement("div", null, /* @__PURE__ */ React22.createElement("h3", null, "个人复盘手记 · ", periodKey), /* @__PURE__ */ React22.createElement("span", { className: "meta" }, "沉淀关键收获，飞书长文可贴在内容库"))), /* @__PURE__ */ React22.createElement("form", { className: "sy-retro-form", onSubmit: handleSaveRetro }, /* @__PURE__ */ React22.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React22.createElement("span", null, "✨ 本期高光与关键产出"), /* @__PURE__ */ React22.createElement(
+  }))) : null)), /* @__PURE__ */ React23.createElement("section", { className: "sy-retro-tile sy-retro-reflect" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-tile-h" }, /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("h3", null, "个人复盘手记 · ", periodKey), /* @__PURE__ */ React23.createElement("span", { className: "meta" }, "沉淀关键收获，飞书长文可贴在内容库"))), /* @__PURE__ */ React23.createElement("form", { className: "sy-retro-form", onSubmit: handleSaveRetro }, /* @__PURE__ */ React23.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React23.createElement("span", null, "✨ 本期高光与关键产出"), /* @__PURE__ */ React23.createElement(
     "textarea",
     {
       name: "retro-highlights",
@@ -4283,7 +4740,7 @@ function RetroView({
       rows: 2,
       placeholder: "这周/今天最有价值的一件事是什么？"
     }
-  )), /* @__PURE__ */ React22.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React22.createElement("span", null, "🚧 卡点与精力复盘"), /* @__PURE__ */ React22.createElement(
+  )), /* @__PURE__ */ React23.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React23.createElement("span", null, "🚧 卡点与精力复盘"), /* @__PURE__ */ React23.createElement(
     "textarea",
     {
       name: "retro-blockers",
@@ -4292,7 +4749,7 @@ function RetroView({
       rows: 2,
       placeholder: "哪里拖慢了节奏？下次如何规避？"
     }
-  )), /* @__PURE__ */ React22.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React22.createElement("span", null, "🎯 下一阶段聚焦（可一键转待办）"), /* @__PURE__ */ React22.createElement(
+  )), /* @__PURE__ */ React23.createElement("label", { className: "sy-fld" }, /* @__PURE__ */ React23.createElement("span", null, "🎯 下一阶段聚焦（可一键转待办）"), /* @__PURE__ */ React23.createElement(
     "textarea",
     {
       name: "retro-next-focus",
@@ -4301,7 +4758,7 @@ function RetroView({
       rows: 2,
       placeholder: "写下接下来最重要的一件事..."
     }
-  )), /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-form-foot" }, nextFocus.trim() ? /* @__PURE__ */ React22.createElement(
+  )), /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-form-foot" }, nextFocus.trim() ? /* @__PURE__ */ React23.createElement(
     "button",
     {
       type: "button",
@@ -4309,7 +4766,7 @@ function RetroView({
       onClick: handleNextFocusToTask
     },
     "转为今日任务"
-  ) : null, /* @__PURE__ */ React22.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink", "data-act": "retro-save" }, "保存复盘记录"))), recentHighlights.length > 0 ? /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-recent" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-dist-subhead" }, "最新收录与闪念"), recentHighlights.map((entry) => /* @__PURE__ */ React22.createElement(
+  ) : null, /* @__PURE__ */ React23.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink", "data-act": "retro-save" }, "保存复盘记录"))), recentHighlights.length > 0 ? /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-recent" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-dist-subhead" }, "最新收录与闪念"), recentHighlights.map((entry) => /* @__PURE__ */ React23.createElement(
     "button",
     {
       key: entry.id,
@@ -4317,11 +4774,11 @@ function RetroView({
       className: "sy-retro-recent-item",
       onClick: () => onOpenEntry(entry)
     },
-    /* @__PURE__ */ React22.createElement("span", { className: "badge" }, KIND_BADGE_LABELS[entry.kind] ?? entry.kind),
-    /* @__PURE__ */ React22.createElement("span", { className: "c1" }, entry.title)
-  ))) : null), /* @__PURE__ */ React22.createElement("section", { className: "sy-retro-tile sy-retro-advice" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-retro-tile-h" }, /* @__PURE__ */ React22.createElement("div", null, /* @__PURE__ */ React22.createElement("h3", null, "Agent 复盘建议与行动"), /* @__PURE__ */ React22.createElement("span", { className: "meta" }, "基于当前待办、收藏与复盘提议"))), /* @__PURE__ */ React22.createElement("div", { className: "sy-advice-list" }, proposals.map((proposal) => {
+    /* @__PURE__ */ React23.createElement("span", { className: "badge" }, KIND_BADGE_LABELS[entry.kind] ?? entry.kind),
+    /* @__PURE__ */ React23.createElement("span", { className: "c1" }, entry.title)
+  ))) : null), /* @__PURE__ */ React23.createElement("section", { className: "sy-retro-tile sy-retro-advice" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-retro-tile-h" }, /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("h3", null, "Agent 复盘建议与行动"), /* @__PURE__ */ React23.createElement("span", { className: "meta" }, "基于当前待办、收藏与复盘提议"))), /* @__PURE__ */ React23.createElement("div", { className: "sy-advice-list" }, proposals.map((proposal) => {
     const applied = proposal.status === "applied";
-    return /* @__PURE__ */ React22.createElement("div", { key: proposal.id, className: "sy-advice-card" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-advice-top" }, /* @__PURE__ */ React22.createElement("span", { className: "sy-pill" }, applied ? "已生效" : "Agent 提议"), /* @__PURE__ */ React22.createElement("b", null, proposal.reason)), /* @__PURE__ */ React22.createElement("div", { className: "sy-advice-acts" }, applied ? /* @__PURE__ */ React22.createElement(
+    return /* @__PURE__ */ React23.createElement("div", { key: proposal.id, className: "sy-advice-card" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-advice-top" }, /* @__PURE__ */ React23.createElement("span", { className: "sy-pill" }, applied ? "已生效" : "Agent 提议"), /* @__PURE__ */ React23.createElement("b", null, proposal.reason)), /* @__PURE__ */ React23.createElement("div", { className: "sy-advice-acts" }, applied ? /* @__PURE__ */ React23.createElement(
       "button",
       {
         type: "button",
@@ -4330,7 +4787,7 @@ function RetroView({
         "data-proposal": proposal.id
       },
       "撤销改动"
-    ) : /* @__PURE__ */ React22.createElement(React22.Fragment, null, /* @__PURE__ */ React22.createElement(
+    ) : /* @__PURE__ */ React23.createElement(React23.Fragment, null, /* @__PURE__ */ React23.createElement(
       "button",
       {
         type: "button",
@@ -4339,7 +4796,7 @@ function RetroView({
         "data-proposal": proposal.id
       },
       "采纳并执行"
-    ), /* @__PURE__ */ React22.createElement(
+    ), /* @__PURE__ */ React23.createElement(
       "button",
       {
         type: "button",
@@ -4349,7 +4806,7 @@ function RetroView({
       },
       "忽略"
     ))));
-  }), /* @__PURE__ */ React22.createElement("div", { className: "sy-advice-card" }, /* @__PURE__ */ React22.createElement("div", { className: "sy-advice-top" }, /* @__PURE__ */ React22.createElement("span", { className: "sy-pill" }, "智能洞察"), /* @__PURE__ */ React22.createElement("b", null, periodStats.openTodayOrOverdue.length > 0 ? `今日还有 ${periodStats.openTodayOrOverdue.length} 项待办未收尾` : "今日排期已全部清空")), /* @__PURE__ */ React22.createElement("p", null, periodStats.openTodayOrOverdue[0] ? `建议优先完成「${periodStats.openTodayOrOverdue[0].title}」，或进入排期日历拖拽调整日期。` : "可以前往「内容」库整理近期收藏的 GitHub Stars、X 书签与视频，或开启下一轮专注。"), /* @__PURE__ */ React22.createElement("div", { className: "sy-advice-acts" }, /* @__PURE__ */ React22.createElement(
+  }), /* @__PURE__ */ React23.createElement("div", { className: "sy-advice-card" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-advice-top" }, /* @__PURE__ */ React23.createElement("span", { className: "sy-pill" }, "智能洞察"), /* @__PURE__ */ React23.createElement("b", null, periodStats.openTodayOrOverdue.length > 0 ? `今日还有 ${periodStats.openTodayOrOverdue.length} 项待办未收尾` : "今日排期已全部清空")), /* @__PURE__ */ React23.createElement("p", null, periodStats.openTodayOrOverdue[0] ? `建议优先完成「${periodStats.openTodayOrOverdue[0].title}」，或进入排期日历拖拽调整日期。` : "可以前往「内容」库整理近期收藏的 GitHub Stars、X 书签与视频，或开启下一轮专注。"), /* @__PURE__ */ React23.createElement("div", { className: "sy-advice-acts" }, /* @__PURE__ */ React23.createElement(
     "button",
     {
       type: "button",
@@ -4361,8 +4818,8 @@ function RetroView({
 }
 
 // src/client/views/ScheduleView.tsx
-var React23 = __toESM(require("react"), 1);
-var { useState: useState7, useMemo: useMemo4 } = React23;
+var React24 = __toESM(require("react"), 1);
+var { useState: useState8, useMemo: useMemo4 } = React24;
 var MONTHS_EN = [
   "January",
   "February",
@@ -4389,13 +4846,13 @@ function TaskDetailModal({
   onClose,
   onRun
 }) {
-  const [title, setTitle] = useState7(task.title);
-  const [due, setDue] = useState7(task.due ? task.due.slice(0, 10) : "");
-  const [priority, setPriority] = useState7(task.priority ?? "");
-  const [project, setProject] = useState7(task.project ?? "");
-  const [note, setNote] = useState7(task.note ?? "");
-  const [subtasks, setSubtasks] = useState7(Array.isArray(task.subtasks) ? task.subtasks : []);
-  const [newSub, setNewSub] = useState7("");
+  const [title, setTitle] = useState8(task.title);
+  const [due, setDue] = useState8(task.due ? task.due.slice(0, 10) : "");
+  const [priority, setPriority] = useState8(task.priority ?? "");
+  const [project, setProject] = useState8(task.project ?? "");
+  const [note, setNote] = useState8(task.note ?? "");
+  const [subtasks, setSubtasks] = useState8(Array.isArray(task.subtasks) ? task.subtasks : []);
+  const [newSub, setNewSub] = useState8("");
   const addSubtask = () => {
     const t = newSub.trim();
     if (!t) return;
@@ -4424,9 +4881,9 @@ function TaskDetailModal({
     await onRun("task.remove", { id: task.id }, { toast: "已删除任务" });
     onClose();
   };
-  return /* @__PURE__ */ React23.createElement("div", { className: "sy-scrim", "data-act": "scrim", onClick: (e) => {
+  return /* @__PURE__ */ React24.createElement("div", { className: "sy-scrim", "data-act": "scrim", onClick: (e) => {
     if (e.target === e.currentTarget) onClose();
-  } }, /* @__PURE__ */ React23.createElement("div", { className: "sy-modal sy-capture-modal", role: "dialog", "aria-label": "任务排期与详情" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-modal-h" }, /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("b", null, "任务排期与子步骤"), /* @__PURE__ */ React23.createElement("div", { className: "meta" }, due ? `已排期至 ${due}` : "未排期（位于收件箱 Inbox）", task.origin?.url ? ` · 来源：${task.origin.source || task.origin.title || "外链"}` : "")), /* @__PURE__ */ React23.createElement("button", { type: "button", className: "sy-icon-btn", onClick: onClose, "aria-label": "关闭" }, "✕")), /* @__PURE__ */ React23.createElement("form", { className: "sy-modal-b sy-form-stack", onSubmit: handleSave }, /* @__PURE__ */ React23.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React23.createElement("span", null, "任务标题"), /* @__PURE__ */ React23.createElement("input", { value: title, onChange: (e) => setTitle(e.target.value), required: true })), /* @__PURE__ */ React23.createElement("div", { className: "sy-form-row3" }, /* @__PURE__ */ React23.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React23.createElement("span", null, "排期日期（清空则回 Inbox）"), /* @__PURE__ */ React23.createElement("input", { type: "date", value: due, onChange: (e) => setDue(e.target.value) })), /* @__PURE__ */ React23.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React23.createElement("span", null, "优先级"), /* @__PURE__ */ React23.createElement("select", { value: priority, onChange: (e) => setPriority(e.target.value) }, /* @__PURE__ */ React23.createElement("option", { value: "" }, "无优先级"), /* @__PURE__ */ React23.createElement("option", { value: "high" }, "高优先级 (High)"), /* @__PURE__ */ React23.createElement("option", { value: "medium" }, "中优先级 (Medium)"), /* @__PURE__ */ React23.createElement("option", { value: "low" }, "低优先级 (Low)"))), /* @__PURE__ */ React23.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React23.createElement("span", null, "所属项目 (Project)"), /* @__PURE__ */ React23.createElement("input", { value: project, onChange: (e) => setProject(e.target.value), placeholder: "如：插件重构" }))), /* @__PURE__ */ React23.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React23.createElement("span", null, "备注说明"), /* @__PURE__ */ React23.createElement(
+  } }, /* @__PURE__ */ React24.createElement("div", { className: "sy-modal sy-capture-modal", role: "dialog", "aria-label": "任务排期与详情" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-modal-h" }, /* @__PURE__ */ React24.createElement("div", null, /* @__PURE__ */ React24.createElement("b", null, "任务排期与子步骤"), /* @__PURE__ */ React24.createElement("div", { className: "meta" }, due ? `已排期至 ${due}` : "未排期（位于收件箱 Inbox）", task.origin?.url ? ` · 来源：${task.origin.source || task.origin.title || "外链"}` : "")), /* @__PURE__ */ React24.createElement("button", { type: "button", className: "sy-icon-btn", onClick: onClose, "aria-label": "关闭" }, "✕")), /* @__PURE__ */ React24.createElement("form", { className: "sy-modal-b sy-form-stack", onSubmit: handleSave }, /* @__PURE__ */ React24.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React24.createElement("span", null, "任务标题"), /* @__PURE__ */ React24.createElement("input", { value: title, onChange: (e) => setTitle(e.target.value), required: true })), /* @__PURE__ */ React24.createElement("div", { className: "sy-form-row3" }, /* @__PURE__ */ React24.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React24.createElement("span", null, "排期日期（清空则回 Inbox）"), /* @__PURE__ */ React24.createElement("input", { type: "date", value: due, onChange: (e) => setDue(e.target.value) })), /* @__PURE__ */ React24.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React24.createElement("span", null, "优先级"), /* @__PURE__ */ React24.createElement("select", { value: priority, onChange: (e) => setPriority(e.target.value) }, /* @__PURE__ */ React24.createElement("option", { value: "" }, "无优先级"), /* @__PURE__ */ React24.createElement("option", { value: "high" }, "高优先级 (High)"), /* @__PURE__ */ React24.createElement("option", { value: "medium" }, "中优先级 (Medium)"), /* @__PURE__ */ React24.createElement("option", { value: "low" }, "低优先级 (Low)"))), /* @__PURE__ */ React24.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React24.createElement("span", null, "所属项目 (Project)"), /* @__PURE__ */ React24.createElement("input", { value: project, onChange: (e) => setProject(e.target.value), placeholder: "如：插件重构" }))), /* @__PURE__ */ React24.createElement("label", { className: "sy-field" }, /* @__PURE__ */ React24.createElement("span", null, "备注说明"), /* @__PURE__ */ React24.createElement(
     "textarea",
     {
       rows: 2,
@@ -4434,14 +4891,14 @@ function TaskDetailModal({
       onChange: (e) => setNote(e.target.value),
       placeholder: "记录执行要点、上下文或相关链接……"
     }
-  )), /* @__PURE__ */ React23.createElement("div", { className: "sy-field" }, /* @__PURE__ */ React23.createElement("span", null, "子步骤清单 (", subtasks.filter((s) => s.done).length, "/", subtasks.length, ")"), /* @__PURE__ */ React23.createElement("div", { className: "sy-subtask-list" }, subtasks.map((sub, idx) => /* @__PURE__ */ React23.createElement("div", { key: sub.id, className: "sy-subtask-row" }, /* @__PURE__ */ React23.createElement(
+  )), /* @__PURE__ */ React24.createElement("div", { className: "sy-field" }, /* @__PURE__ */ React24.createElement("span", null, "子步骤清单 (", subtasks.filter((s) => s.done).length, "/", subtasks.length, ")"), /* @__PURE__ */ React24.createElement("div", { className: "sy-subtask-list" }, subtasks.map((sub, idx) => /* @__PURE__ */ React24.createElement("div", { key: sub.id, className: "sy-subtask-row" }, /* @__PURE__ */ React24.createElement(
     "input",
     {
       type: "checkbox",
       checked: sub.done,
       onChange: () => setSubtasks((prev) => prev.map((s, i) => i === idx ? { ...s, done: !s.done } : s))
     }
-  ), /* @__PURE__ */ React23.createElement("span", { className: sub.done ? "is-done" : "" }, sub.title), /* @__PURE__ */ React23.createElement(
+  ), /* @__PURE__ */ React24.createElement("span", { className: sub.done ? "is-done" : "" }, sub.title), /* @__PURE__ */ React24.createElement(
     "button",
     {
       type: "button",
@@ -4449,7 +4906,7 @@ function TaskDetailModal({
       onClick: () => setSubtasks((prev) => prev.filter((_, i) => i !== idx))
     },
     "✕"
-  ))), /* @__PURE__ */ React23.createElement("div", { className: "sy-subtask-add" }, /* @__PURE__ */ React23.createElement(
+  ))), /* @__PURE__ */ React24.createElement("div", { className: "sy-subtask-add" }, /* @__PURE__ */ React24.createElement(
     "input",
     {
       value: newSub,
@@ -4462,7 +4919,7 @@ function TaskDetailModal({
         }
       }
     }
-  ), /* @__PURE__ */ React23.createElement("button", { type: "button", className: "sy-btn", onClick: addSubtask }, "+ 添加步骤")))), /* @__PURE__ */ React23.createElement("div", { className: "sy-modal-f" }, /* @__PURE__ */ React23.createElement("button", { type: "button", className: "sy-btn", onClick: handleDelete }, "删除任务"), /* @__PURE__ */ React23.createElement(
+  ), /* @__PURE__ */ React24.createElement("button", { type: "button", className: "sy-btn", onClick: addSubtask }, "+ 添加步骤")))), /* @__PURE__ */ React24.createElement("div", { className: "sy-modal-f" }, /* @__PURE__ */ React24.createElement("button", { type: "button", className: "sy-btn", onClick: handleDelete }, "删除任务"), /* @__PURE__ */ React24.createElement(
     "button",
     {
       type: "button",
@@ -4473,7 +4930,7 @@ function TaskDetailModal({
       }
     },
     task.done ? "标记为未完成" : "✓ 标记完成"
-  ), /* @__PURE__ */ React23.createElement("span", { className: "grow" }), /* @__PURE__ */ React23.createElement("button", { type: "button", className: "sy-btn", onClick: onClose }, "取消"), /* @__PURE__ */ React23.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink" }, "保存排期")))));
+  ), /* @__PURE__ */ React24.createElement("span", { className: "grow" }), /* @__PURE__ */ React24.createElement("button", { type: "button", className: "sy-btn", onClick: onClose }, "取消"), /* @__PURE__ */ React24.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink" }, "保存排期")))));
 }
 function ScheduleView({
   tasks,
@@ -4483,8 +4940,8 @@ function ScheduleView({
   onRun
 }) {
   const todayKey = toDayKey(/* @__PURE__ */ new Date());
-  const [calMode, setCalMode] = useState7("month");
-  const [cursor, setCursor] = useState7(() => {
+  const [calMode, setCalMode] = useState8("month");
+  const [cursor, setCursor] = useState8(() => {
     if (initialFocusDay && /^\d{4}-\d{2}-\d{2}/.test(initialFocusDay)) {
       const d = /* @__PURE__ */ new Date(`${initialFocusDay.slice(0, 10)}T12:00:00`);
       if (!Number.isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -4492,12 +4949,12 @@ function ScheduleView({
     const now = /* @__PURE__ */ new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
-  const [selectedDay, setSelectedDay] = useState7(initialFocusDay || todayKey);
-  const [dragOverCell, setDragOverCell] = useState7(null);
-  const [dragOverTray, setDragOverTray] = useState7(false);
-  const [editingTask, setEditingTask] = useState7(null);
-  const [inboxDraft, setInboxDraft] = useState7("");
-  const [dayDraft, setDayDraft] = useState7("");
+  const [selectedDay, setSelectedDay] = useState8(initialFocusDay || todayKey);
+  const [dragOverCell, setDragOverCell] = useState8(null);
+  const [dragOverTray, setDragOverTray] = useState8(false);
+  const [editingTask, setEditingTask] = useState8(null);
+  const [inboxDraft, setInboxDraft] = useState8("");
+  const [dayDraft, setDayDraft] = useState8("");
   const y = cursor.getFullYear();
   const m = cursor.getMonth();
   const monthPrefix = `${y}-${String(m + 1).padStart(2, "0")}`;
@@ -4605,7 +5062,7 @@ function ScheduleView({
     );
   };
   const selectedDayTasks = tasksByDay.get(selectedDay) ?? [];
-  return /* @__PURE__ */ React23.createElement("div", { className: "sy-app-page", "data-view": "schedule" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-schedule-layout" }, /* @__PURE__ */ React23.createElement("section", { className: "sy-cal-tile" }, /* @__PURE__ */ React23.createElement("header", { className: "sy-cal-head" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-cal-num" }, String(m + 1).padStart(2, "0")), /* @__PURE__ */ React23.createElement("div", { className: "sy-cal-month" }, /* @__PURE__ */ React23.createElement("span", null, y), /* @__PURE__ */ React23.createElement("em", null, MONTHS_EN[m])), /* @__PURE__ */ React23.createElement("dl", { className: "sy-cal-stats" }, /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("dt", null, "连续记录"), /* @__PURE__ */ React23.createElement("dd", null, streak, /* @__PURE__ */ React23.createElement("small", null, "天"))), /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("dt", null, "本月排期"), /* @__PURE__ */ React23.createElement("dd", null, monthScheduledCount, /* @__PURE__ */ React23.createElement("small", null, "项"))), /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("dt", null, "本月完成"), /* @__PURE__ */ React23.createElement("dd", null, monthDoneCount, /* @__PURE__ */ React23.createElement("small", null, "项")))), /* @__PURE__ */ React23.createElement("span", { className: "grow" }), /* @__PURE__ */ React23.createElement("div", { className: "sy-seg" }, /* @__PURE__ */ React23.createElement(
+  return /* @__PURE__ */ React24.createElement("div", { className: "sy-app-page", "data-view": "schedule" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-schedule-layout" }, /* @__PURE__ */ React24.createElement("section", { className: "sy-cal-tile" }, /* @__PURE__ */ React24.createElement("header", { className: "sy-cal-head" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-cal-num" }, String(m + 1).padStart(2, "0")), /* @__PURE__ */ React24.createElement("div", { className: "sy-cal-month" }, /* @__PURE__ */ React24.createElement("span", null, y), /* @__PURE__ */ React24.createElement("em", null, MONTHS_EN[m])), /* @__PURE__ */ React24.createElement("dl", { className: "sy-cal-stats" }, /* @__PURE__ */ React24.createElement("div", null, /* @__PURE__ */ React24.createElement("dt", null, "连续记录"), /* @__PURE__ */ React24.createElement("dd", null, streak, /* @__PURE__ */ React24.createElement("small", null, "天"))), /* @__PURE__ */ React24.createElement("div", null, /* @__PURE__ */ React24.createElement("dt", null, "本月排期"), /* @__PURE__ */ React24.createElement("dd", null, monthScheduledCount, /* @__PURE__ */ React24.createElement("small", null, "项"))), /* @__PURE__ */ React24.createElement("div", null, /* @__PURE__ */ React24.createElement("dt", null, "本月完成"), /* @__PURE__ */ React24.createElement("dd", null, monthDoneCount, /* @__PURE__ */ React24.createElement("small", null, "项")))), /* @__PURE__ */ React24.createElement("span", { className: "grow" }), /* @__PURE__ */ React24.createElement("div", { className: "sy-seg" }, /* @__PURE__ */ React24.createElement(
     "button",
     {
       type: "button",
@@ -4613,7 +5070,7 @@ function ScheduleView({
       onClick: () => setCalMode("month")
     },
     "月历"
-  ), /* @__PURE__ */ React23.createElement(
+  ), /* @__PURE__ */ React24.createElement(
     "button",
     {
       type: "button",
@@ -4621,7 +5078,7 @@ function ScheduleView({
       onClick: () => setCalMode("week")
     },
     "周视图"
-  )), /* @__PURE__ */ React23.createElement(
+  )), /* @__PURE__ */ React24.createElement(
     "button",
     {
       type: "button",
@@ -4630,7 +5087,7 @@ function ScheduleView({
       onClick: () => setCursor(new Date(y, m - 1, 1))
     },
     "‹"
-  ), /* @__PURE__ */ React23.createElement(
+  ), /* @__PURE__ */ React24.createElement(
     "button",
     {
       type: "button",
@@ -4642,7 +5099,7 @@ function ScheduleView({
       }
     },
     "今天"
-  ), /* @__PURE__ */ React23.createElement(
+  ), /* @__PURE__ */ React24.createElement(
     "button",
     {
       type: "button",
@@ -4651,7 +5108,7 @@ function ScheduleView({
       onClick: () => setCursor(new Date(y, m + 1, 1))
     },
     "›"
-  )), /* @__PURE__ */ React23.createElement("div", { className: "sy-cal-weeks" }, WEEK_HEADERS.map((w) => /* @__PURE__ */ React23.createElement("span", { key: w }, w))), /* @__PURE__ */ React23.createElement(
+  )), /* @__PURE__ */ React24.createElement("div", { className: "sy-cal-weeks" }, WEEK_HEADERS.map((w) => /* @__PURE__ */ React24.createElement("span", { key: w }, w))), /* @__PURE__ */ React24.createElement(
     "div",
     {
       className: `sy-cal-grid${calMode === "week" ? " is-week" : ""}`,
@@ -4666,7 +5123,7 @@ function ScheduleView({
       const isSelected = key === selectedDay;
       const isOutside = calMode === "month" && date.getMonth() !== m;
       const maxShow = calMode === "week" ? 8 : 3;
-      return /* @__PURE__ */ React23.createElement(
+      return /* @__PURE__ */ React24.createElement(
         "div",
         {
           key,
@@ -4690,7 +5147,7 @@ function ScheduleView({
             if (taskId) void scheduleTaskToDate(taskId, key);
           }
         },
-        /* @__PURE__ */ React23.createElement("div", { className: "sy-cal-cell-top" }, /* @__PURE__ */ React23.createElement("span", { className: "sy-cal-date" }, date.getDate(), isToday ? /* @__PURE__ */ React23.createElement("small", null, "今日") : null), stamps?.length || isToday ? /* @__PURE__ */ React23.createElement("div", { className: "sy-cal-stamp", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React23.createElement(
+        /* @__PURE__ */ React24.createElement("div", { className: "sy-cal-cell-top" }, /* @__PURE__ */ React24.createElement("span", { className: "sy-cal-date" }, date.getDate(), isToday ? /* @__PURE__ */ React24.createElement("small", null, "今日") : null), stamps?.length || isToday ? /* @__PURE__ */ React24.createElement("div", { className: "sy-cal-stamp", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React24.createElement(
           Stamp,
           {
             list: stamps,
@@ -4700,10 +5157,10 @@ function ScheduleView({
             onOpen: () => setSelectedDay(key)
           }
         )) : null),
-        /* @__PURE__ */ React23.createElement("div", { className: "sy-cal-tasks", onClick: (e) => e.stopPropagation() }, dayTasks.slice(0, maxShow).map((task) => {
+        /* @__PURE__ */ React24.createElement("div", { className: "sy-cal-tasks", onClick: (e) => e.stopPropagation() }, dayTasks.slice(0, maxShow).map((task) => {
           const subDone = (task.subtasks ?? []).filter((s) => s.done).length;
           const subTotal = (task.subtasks ?? []).length;
-          return /* @__PURE__ */ React23.createElement(
+          return /* @__PURE__ */ React24.createElement(
             "div",
             {
               key: task.id,
@@ -4713,7 +5170,7 @@ function ScheduleView({
               onClick: () => setEditingTask(task),
               title: task.title
             },
-            /* @__PURE__ */ React23.createElement(
+            /* @__PURE__ */ React24.createElement(
               "button",
               {
                 type: "button",
@@ -4725,10 +5182,10 @@ function ScheduleView({
                 }
               }
             ),
-            /* @__PURE__ */ React23.createElement("span", { className: "sy-cal-chip-title" }, task.title),
-            subTotal > 0 ? /* @__PURE__ */ React23.createElement("small", { className: "sy-cal-chip-sub" }, subDone, "/", subTotal) : null
+            /* @__PURE__ */ React24.createElement("span", { className: "sy-cal-chip-title" }, task.title),
+            subTotal > 0 ? /* @__PURE__ */ React24.createElement("small", { className: "sy-cal-chip-sub" }, subDone, "/", subTotal) : null
           );
-        }), dayTasks.length > maxShow ? /* @__PURE__ */ React23.createElement(
+        }), dayTasks.length > maxShow ? /* @__PURE__ */ React24.createElement(
           "button",
           {
             type: "button",
@@ -4741,7 +5198,7 @@ function ScheduleView({
         ) : null)
       );
     })
-  ), /* @__PURE__ */ React23.createElement("div", { className: "sy-day-agenda" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-day-agenda-head" }, /* @__PURE__ */ React23.createElement("b", null, selectedDay === todayKey ? `今日日程 (${selectedDay})` : `${selectedDay} 排期事项`), /* @__PURE__ */ React23.createElement("span", { className: "meta" }, "共 ", selectedDayTasks.length, " 项任务 · 点击任务可编辑优先级与子步骤")), /* @__PURE__ */ React23.createElement("form", { className: "sy-day-add-form", onSubmit: handleAddOnSelectedDay }, /* @__PURE__ */ React23.createElement(
+  ), /* @__PURE__ */ React24.createElement("div", { className: "sy-day-agenda" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-day-agenda-head" }, /* @__PURE__ */ React24.createElement("b", null, selectedDay === todayKey ? `今日日程 (${selectedDay})` : `${selectedDay} 排期事项`), /* @__PURE__ */ React24.createElement("span", { className: "meta" }, "共 ", selectedDayTasks.length, " 项任务 · 点击任务可编辑优先级与子步骤")), /* @__PURE__ */ React24.createElement("form", { className: "sy-day-add-form", onSubmit: handleAddOnSelectedDay }, /* @__PURE__ */ React24.createElement(
     "input",
     {
       value: dayDraft,
@@ -4749,14 +5206,14 @@ function ScheduleView({
       placeholder: `在 ${selectedDay} 新建一项排期任务，回车保存…`,
       "aria-label": `在 ${selectedDay} 新建排期任务`
     }
-  ), /* @__PURE__ */ React23.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink", disabled: !dayDraft.trim() }, "+ 排入当天")), selectedDayTasks.length > 0 ? /* @__PURE__ */ React23.createElement("div", { className: "sy-day-agenda-list" }, selectedDayTasks.map((task) => /* @__PURE__ */ React23.createElement("div", { key: task.id, className: `sy-agenda-item${task.done ? " is-done" : ""}` }, /* @__PURE__ */ React23.createElement(
+  ), /* @__PURE__ */ React24.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink", disabled: !dayDraft.trim() }, "+ 排入当天")), selectedDayTasks.length > 0 ? /* @__PURE__ */ React24.createElement("div", { className: "sy-day-agenda-list" }, selectedDayTasks.map((task) => /* @__PURE__ */ React24.createElement("div", { key: task.id, className: `sy-agenda-item${task.done ? " is-done" : ""}` }, /* @__PURE__ */ React24.createElement(
     "button",
     {
       type: "button",
       className: `sy-chk${task.done ? " on" : ""}`,
       onClick: () => void onRun("task.update", { id: task.id, done: !task.done })
     }
-  ), /* @__PURE__ */ React23.createElement("div", { className: "sy-agenda-main", onClick: () => setEditingTask(task) }, /* @__PURE__ */ React23.createElement("b", null, task.title), task.note ? /* @__PURE__ */ React23.createElement("p", null, task.note) : null), task.priority ? /* @__PURE__ */ React23.createElement("span", { className: `sy-prio-badge prio-${task.priority}` }, PRIORITY_LABELS[task.priority] ?? task.priority) : null, task.project ? /* @__PURE__ */ React23.createElement("span", { className: "sy-pill" }, task.project) : null, /* @__PURE__ */ React23.createElement("button", { type: "button", className: "sy-mini-act", onClick: () => setEditingTask(task) }, "详情")))) : null)), /* @__PURE__ */ React23.createElement("aside", { className: "sy-schedule-rail" }, nextFocusTask ? /* @__PURE__ */ React23.createElement("div", { className: "sy-next-card", onClick: () => setEditingTask(nextFocusTask), role: "button", tabIndex: 0 }, /* @__PURE__ */ React23.createElement("div", { className: "sy-next-top" }, /* @__PURE__ */ React23.createElement("span", null, "今日聚焦 · 下一件事"), /* @__PURE__ */ React23.createElement("span", null, nextFocusTask.due || "今天")), /* @__PURE__ */ React23.createElement("strong", { className: "sy-next-title" }, nextFocusTask.title), nextFocusTask.note ? /* @__PURE__ */ React23.createElement("p", { className: "sy-next-note" }, nextFocusTask.note) : null, /* @__PURE__ */ React23.createElement("div", { className: "sy-next-foot", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React23.createElement("span", null, nextFocusTask.project ? `${nextFocusTask.project} · ` : "", nextFocusTask.priority ? `${PRIORITY_LABELS[nextFocusTask.priority]} · ` : "", todayAndOverdue.length, " 项今日待办"), /* @__PURE__ */ React23.createElement(
+  ), /* @__PURE__ */ React24.createElement("div", { className: "sy-agenda-main", onClick: () => setEditingTask(task) }, /* @__PURE__ */ React24.createElement("b", null, task.title), task.note ? /* @__PURE__ */ React24.createElement("p", null, task.note) : null), task.priority ? /* @__PURE__ */ React24.createElement("span", { className: `sy-prio-badge prio-${task.priority}` }, PRIORITY_LABELS[task.priority] ?? task.priority) : null, task.project ? /* @__PURE__ */ React24.createElement("span", { className: "sy-pill" }, task.project) : null, /* @__PURE__ */ React24.createElement("button", { type: "button", className: "sy-mini-act", onClick: () => setEditingTask(task) }, "详情")))) : null)), /* @__PURE__ */ React24.createElement("aside", { className: "sy-schedule-rail" }, nextFocusTask ? /* @__PURE__ */ React24.createElement("div", { className: "sy-next-card", onClick: () => setEditingTask(nextFocusTask), role: "button", tabIndex: 0 }, /* @__PURE__ */ React24.createElement("div", { className: "sy-next-top" }, /* @__PURE__ */ React24.createElement("span", null, "今日聚焦 · 下一件事"), /* @__PURE__ */ React24.createElement("span", null, nextFocusTask.due || "今天")), /* @__PURE__ */ React24.createElement("strong", { className: "sy-next-title" }, nextFocusTask.title), nextFocusTask.note ? /* @__PURE__ */ React24.createElement("p", { className: "sy-next-note" }, nextFocusTask.note) : null, /* @__PURE__ */ React24.createElement("div", { className: "sy-next-foot", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React24.createElement("span", null, nextFocusTask.project ? `${nextFocusTask.project} · ` : "", nextFocusTask.priority ? `${PRIORITY_LABELS[nextFocusTask.priority]} · ` : "", todayAndOverdue.length, " 项今日待办"), /* @__PURE__ */ React24.createElement(
     "button",
     {
       type: "button",
@@ -4764,7 +5221,7 @@ function ScheduleView({
       onClick: () => void onRun("task.update", { id: nextFocusTask.id, done: true }, { toast: "已完成今日聚焦事项" })
     },
     "✓ 完成"
-  ))) : /* @__PURE__ */ React23.createElement("div", { className: "sy-next-card is-calm" }, /* @__PURE__ */ React23.createElement("div", { className: "sy-next-top" }, /* @__PURE__ */ React23.createElement("span", null, "今日聚焦"), /* @__PURE__ */ React23.createElement("span", null, todayKey)), /* @__PURE__ */ React23.createElement("strong", { className: "sy-next-title" }, "今天的排期已经全部清空"), /* @__PURE__ */ React23.createElement("p", { className: "sy-next-note" }, "可以从下方待排期收件箱把任务拖到日历任意一天。")), /* @__PURE__ */ React23.createElement(
+  ))) : /* @__PURE__ */ React24.createElement("div", { className: "sy-next-card is-calm" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-next-top" }, /* @__PURE__ */ React24.createElement("span", null, "今日聚焦"), /* @__PURE__ */ React24.createElement("span", null, todayKey)), /* @__PURE__ */ React24.createElement("strong", { className: "sy-next-title" }, "今天的排期已经全部清空"), /* @__PURE__ */ React24.createElement("p", { className: "sy-next-note" }, "可以从下方待排期收件箱把任务拖到日历任意一天。")), /* @__PURE__ */ React24.createElement(
     "section",
     {
       className: `sy-inbox-tray${dragOverTray ? " is-over" : ""}`,
@@ -4783,8 +5240,8 @@ function ScheduleView({
         if (taskId) void unscheduleTaskToInbox(taskId);
       }
     },
-    /* @__PURE__ */ React23.createElement("header", { className: "sy-tray-head" }, /* @__PURE__ */ React23.createElement("div", null, /* @__PURE__ */ React23.createElement("h2", null, "待排期 · Inbox (", unscheduledInbox.length, ")"), /* @__PURE__ */ React23.createElement("span", { className: "meta" }, "拖到左侧日历即可排期；从日历拖回此处取消排期"))),
-    /* @__PURE__ */ React23.createElement("form", { className: "sy-tray-add", onSubmit: handleAddInbox }, /* @__PURE__ */ React23.createElement(
+    /* @__PURE__ */ React24.createElement("header", { className: "sy-tray-head" }, /* @__PURE__ */ React24.createElement("div", null, /* @__PURE__ */ React24.createElement("h2", null, "待排期 · Inbox (", unscheduledInbox.length, ")"), /* @__PURE__ */ React24.createElement("span", { className: "meta" }, "拖到左侧日历即可排期；从日历拖回此处取消排期"))),
+    /* @__PURE__ */ React24.createElement("form", { className: "sy-tray-add", onSubmit: handleAddInbox }, /* @__PURE__ */ React24.createElement(
       "input",
       {
         value: inboxDraft,
@@ -4792,8 +5249,8 @@ function ScheduleView({
         placeholder: "先记下待办，稍后再拖上日历排期…",
         "aria-label": "新建待排期任务"
       }
-    ), /* @__PURE__ */ React23.createElement("button", { type: "submit", className: "sy-btn", disabled: !inboxDraft.trim() }, "+ 记入")),
-    /* @__PURE__ */ React23.createElement("div", { className: "sy-tray-scroll" }, unscheduledInbox.length === 0 ? /* @__PURE__ */ React23.createElement("p", { className: "meta", style: { padding: "16px 4px", textAlign: "center" } }, "收件箱为空，所有待办均已排入日历。") : unscheduledInbox.map((task) => /* @__PURE__ */ React23.createElement(
+    ), /* @__PURE__ */ React24.createElement("button", { type: "submit", className: "sy-btn", disabled: !inboxDraft.trim() }, "+ 记入")),
+    /* @__PURE__ */ React24.createElement("div", { className: "sy-tray-scroll" }, unscheduledInbox.length === 0 ? /* @__PURE__ */ React24.createElement("p", { className: "meta", style: { padding: "16px 4px", textAlign: "center" } }, "收件箱为空，所有待办均已排入日历。") : unscheduledInbox.map((task) => /* @__PURE__ */ React24.createElement(
       "div",
       {
         key: task.id,
@@ -4802,9 +5259,9 @@ function ScheduleView({
         onDragStart: (e) => startDragTask(e, task.id),
         onClick: () => setEditingTask(task)
       },
-      /* @__PURE__ */ React23.createElement("span", { className: "sy-drag-grip", "aria-hidden": "true" }, "⋮⋮"),
-      /* @__PURE__ */ React23.createElement("div", { className: "sy-tray-item-body" }, /* @__PURE__ */ React23.createElement("b", null, task.title), /* @__PURE__ */ React23.createElement("small", null, task.project ? `#${task.project} · ` : "", task.priority ? PRIORITY_LABELS[task.priority] : "待排期")),
-      /* @__PURE__ */ React23.createElement(
+      /* @__PURE__ */ React24.createElement("span", { className: "sy-drag-grip", "aria-hidden": "true" }, "⋮⋮"),
+      /* @__PURE__ */ React24.createElement("div", { className: "sy-tray-item-body" }, /* @__PURE__ */ React24.createElement("b", null, task.title), /* @__PURE__ */ React24.createElement("small", null, task.project ? `#${task.project} · ` : "", task.priority ? PRIORITY_LABELS[task.priority] : "待排期")),
+      /* @__PURE__ */ React24.createElement(
         "button",
         {
           type: "button",
@@ -4818,7 +5275,7 @@ function ScheduleView({
         "今天"
       )
     )))
-  ))), editingTask ? /* @__PURE__ */ React23.createElement(
+  ))), editingTask ? /* @__PURE__ */ React24.createElement(
     TaskDetailModal,
     {
       task: editingTask,
@@ -4832,10 +5289,10 @@ function ScheduleView({
 var tokens_default = CSS;
 
 // src/client/SooyoPanel.tsx
-var { useState: useState8, useEffect: useEffect4, useRef: useRef2, useCallback: useCallback2, useMemo: useMemo5 } = React24;
+var { useState: useState9, useEffect: useEffect5, useRef: useRef2, useCallback: useCallback2, useMemo: useMemo5 } = React25;
 function InlineHeadlineIcon({ name, rotated, text }) {
-  const [hidden, setHidden] = useState8(false);
-  return /* @__PURE__ */ React24.createElement("span", { className: "sy-nw" }, !hidden ? /* @__PURE__ */ React24.createElement(
+  const [hidden, setHidden] = useState9(false);
+  return /* @__PURE__ */ React25.createElement("span", { className: "sy-nw" }, !hidden ? /* @__PURE__ */ React25.createElement(
     "img",
     {
       className: `sy-hi${rotated ? " r" : ""}`,
@@ -4843,38 +5300,39 @@ function InlineHeadlineIcon({ name, rotated, text }) {
       alt: "",
       onError: () => setHidden(true)
     }
-  ) : null, /* @__PURE__ */ React24.createElement("b", null, text));
+  ) : null, /* @__PURE__ */ React25.createElement("b", null, text));
 }
 function SooyoPanel() {
   const state = useDaily();
   const rootRef = useRef2(null);
   const gridRef = useRef2(null);
-  const [cols, setCols] = useState8(12);
-  const [appView, setAppView] = useState8("home");
-  const [homeMode, setHomeMode] = useState8("bento");
-  const [homeKindFilter, setHomeKindFilter] = useState8("all");
-  const [heroInput, setHeroInput] = useState8("");
-  const [heroCaptureMode, setHeroCaptureMode] = useState8("auto");
-  const [captureModalTab, setCaptureModalTab] = useState8(null);
-  const [activeEntryDetail, setActiveEntryDetail] = useState8(null);
-  const [scheduleFocusDay, setScheduleFocusDay] = useState8(null);
-  const [editing, setEditing] = useState8(false);
-  const [modal, setModal] = useState8(null);
-  const [menu, setMenu] = useState8(null);
-  const [deck, setDeck] = useState8({
+  const [cols, setCols] = useState9(12);
+  const [appView, setAppView] = useState9("home");
+  const [homeMode, setHomeMode] = useState9("bento");
+  const [homeKindFilter, setHomeKindFilter] = useState9("all");
+  const [heroInput, setHeroInput] = useState9("");
+  const [heroCaptureMode, setHeroCaptureMode] = useState9("auto");
+  const [captureModalTab, setCaptureModalTab] = useState9(null);
+  const [activeEntryDetail, setActiveEntryDetail] = useState9(null);
+  const [scheduleFocusDay, setScheduleFocusDay] = useState9(null);
+  const [editing, setEditing] = useState9(false);
+  const [modal, setModal] = useState9(null);
+  const [menu, setMenu] = useState9(null);
+  const [deck, setDeck] = useState9({
     index: {},
     flipped: {}
   });
-  const [query, setQuery] = useState8("");
-  const [cmdOpen, setCmdOpen] = useState8(false);
-  const [theme, setTheme] = useState8("light");
+  const [query, setQuery] = useState9("");
+  const [cmdOpen, setCmdOpen] = useState9(false);
+  const [updatesOpen, setUpdatesOpen] = useState9(false);
+  const [theme, setTheme] = useState9("light");
   const daily = state.daily;
   const widgets = daily?.widgets ?? {};
   const types = daily?.types ?? {};
   const boards = daily?.boards ?? [];
   const activeBoard = daily?.active ?? boards[0]?.id ?? null;
   const layout = activeBoard ? daily?.layouts?.[activeBoard]?.[cols] ?? daily?.layouts?.[activeBoard]?.[12] ?? [] : [];
-  useEffect4(() => {
+  useEffect5(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return void 0;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const stored = (() => {
@@ -4889,11 +5347,11 @@ function SooyoPanel() {
     media.addEventListener?.("change", sync);
     return () => media.removeEventListener?.("change", sync);
   }, []);
-  useEffect4(() => {
+  useEffect5(() => {
     if (rootRef.current) rootRef.current.scrollTop = 0;
     if (typeof window !== "undefined") window.scrollTo(0, 0);
   }, [appView]);
-  useEffect4(() => {
+  useEffect5(() => {
     const element = gridRef.current;
     if (!element || typeof ResizeObserver === "undefined") return void 0;
     const apply = () => setCols(columnsFor(gridRef.current?.clientWidth || element.clientWidth || 1200));
@@ -5353,7 +5811,7 @@ function SooyoPanel() {
     },
     [state, heroInput, heroCaptureMode]
   );
-  useEffect4(() => {
+  useEffect5(() => {
     const onKeyDown = (event) => {
       const inField = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName ?? "");
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -5657,12 +6115,12 @@ function SooyoPanel() {
   const erroring = (daily?.sources ?? []).filter((source) => source.lastError).length;
   const readLaterCount = daily?.readLater?.length ?? 0;
   const renderHeadline = () => {
-    if (!board) return /* @__PURE__ */ React24.createElement(React24.Fragment, null, greeting(), "。");
+    if (!board) return /* @__PURE__ */ React25.createElement(React25.Fragment, null, greeting(), "。");
     if (board.id === "home") {
-      return /* @__PURE__ */ React24.createElement(React24.Fragment, null, greeting(), "。今天还有 ", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "task", rotated: false, text: `${openTasks} 件事` }), "，", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "subscription", rotated: true, text: `${freshItems} 条` }), "新内容。");
+      return /* @__PURE__ */ React25.createElement(React25.Fragment, null, greeting(), "。今天还有 ", /* @__PURE__ */ React25.createElement(InlineHeadlineIcon, { name: "task", rotated: false, text: `${openTasks} 件事` }), "，", /* @__PURE__ */ React25.createElement(InlineHeadlineIcon, { name: "subscription", rotated: true, text: `${freshItems} 条` }), "新内容。");
     }
     if (board.id === "work") {
-      return /* @__PURE__ */ React24.createElement(React24.Fragment, null, "工作。", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "task", rotated: false, text: `${openTasks} 件任务` }), "待办，", /* @__PURE__ */ React24.createElement(
+      return /* @__PURE__ */ React25.createElement(React25.Fragment, null, "工作。", /* @__PURE__ */ React25.createElement(InlineHeadlineIcon, { name: "task", rotated: false, text: `${openTasks} 件任务` }), "待办，", /* @__PURE__ */ React25.createElement(
         InlineHeadlineIcon,
         {
           name: "project",
@@ -5672,14 +6130,14 @@ function SooyoPanel() {
       ), "在推进。");
     }
     if (board.id === "life") {
-      return /* @__PURE__ */ React24.createElement(React24.Fragment, null, "生活。", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "habit", rotated: false, text: `${(daily?.habits ?? []).length} 个习惯` }), "在坚持，", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "bookmarks", rotated: true, text: `${(daily?.bookmarks ?? []).length} 个书签` }), "常去。");
+      return /* @__PURE__ */ React25.createElement(React25.Fragment, null, "生活。", /* @__PURE__ */ React25.createElement(InlineHeadlineIcon, { name: "habit", rotated: false, text: `${(daily?.habits ?? []).length} 个习惯` }), "在坚持，", /* @__PURE__ */ React25.createElement(InlineHeadlineIcon, { name: "bookmarks", rotated: true, text: `${(daily?.bookmarks ?? []).length} 个书签` }), "常去。");
     }
     if (board.id === "read") {
-      return /* @__PURE__ */ React24.createElement(React24.Fragment, null, "阅读。", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "subscription", rotated: false, text: `${freshItems} 条` }), "新内容，", /* @__PURE__ */ React24.createElement(InlineHeadlineIcon, { name: "readlater", rotated: true, text: `${readLaterCount} 篇` }), "稍后读。");
+      return /* @__PURE__ */ React25.createElement(React25.Fragment, null, "阅读。", /* @__PURE__ */ React25.createElement(InlineHeadlineIcon, { name: "subscription", rotated: false, text: `${freshItems} 条` }), "新内容，", /* @__PURE__ */ React25.createElement(InlineHeadlineIcon, { name: "readlater", rotated: true, text: `${readLaterCount} 篇` }), "稍后读。");
     }
-    return /* @__PURE__ */ React24.createElement(React24.Fragment, null, board.name, "。这个 Board 上有 ", /* @__PURE__ */ React24.createElement("b", null, layout.length, " 个 Widget"), "。");
+    return /* @__PURE__ */ React25.createElement(React25.Fragment, null, board.name, "。这个 Board 上有 ", /* @__PURE__ */ React25.createElement("b", null, layout.length, " 个 Widget"), "。");
   };
-  return /* @__PURE__ */ React24.createElement(
+  return /* @__PURE__ */ React25.createElement(
     "div",
     {
       className: "sy-root",
@@ -5689,9 +6147,9 @@ function SooyoPanel() {
       onSubmit: onRootSubmit,
       onPointerDown
     },
-    /* @__PURE__ */ React24.createElement("style", null, tokens_default),
-    /* @__PURE__ */ React24.createElement("div", { className: 'sy-grain', "aria-hidden": "true" }),
-    /* @__PURE__ */ React24.createElement("div", { className: "sy-page" }, /* @__PURE__ */ React24.createElement("div", { className: `sy-frame${editing ? " sy-editing" : ""}`, "data-cols": cols }, /* @__PURE__ */ React24.createElement("header", { className: "sy-topbar" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-brand" }, /* @__PURE__ */ React24.createElement(
+    /* @__PURE__ */ React25.createElement("style", null, tokens_default),
+    /* @__PURE__ */ React25.createElement("div", { className: 'sy-grain', "aria-hidden": "true" }),
+    /* @__PURE__ */ React25.createElement("div", { className: "sy-page" }, /* @__PURE__ */ React25.createElement("div", { className: `sy-frame${editing ? " sy-editing" : ""}`, "data-cols": cols }, /* @__PURE__ */ React25.createElement("header", { className: "sy-topbar" }, /* @__PURE__ */ React25.createElement("div", { className: "sy-brand" }, /* @__PURE__ */ React25.createElement(
       "svg",
       {
         viewBox: "0 0 320 320",
@@ -5700,7 +6158,7 @@ function SooyoPanel() {
         "aria-hidden": true,
         dangerouslySetInnerHTML: { __html: BRAND_APP }
       }
-    ), "sooyo", /* @__PURE__ */ React24.createElement("span", null, "daily")), /* @__PURE__ */ React24.createElement("nav", { className: "sy-seg sy-app-nav", role: "tablist", "aria-label": "主视图导航" }, /* @__PURE__ */ React24.createElement(
+    ), "sooyo", /* @__PURE__ */ React25.createElement("span", null, "daily")), /* @__PURE__ */ React25.createElement("nav", { className: "sy-seg sy-app-nav", role: "tablist", "aria-label": "主视图导航" }, /* @__PURE__ */ React25.createElement(
       "button",
       {
         type: "button",
@@ -5710,7 +6168,7 @@ function SooyoPanel() {
         "data-view": "home"
       },
       "首页"
-    ), /* @__PURE__ */ React24.createElement(
+    ), /* @__PURE__ */ React25.createElement(
       "button",
       {
         type: "button",
@@ -5720,8 +6178,8 @@ function SooyoPanel() {
         "data-view": "content"
       },
       "内容",
-      unifiedEntries.length > 0 ? /* @__PURE__ */ React24.createElement("small", null, unifiedEntries.length) : null
-    ), /* @__PURE__ */ React24.createElement(
+      unifiedEntries.length > 0 ? /* @__PURE__ */ React25.createElement("small", null, unifiedEntries.length) : null
+    ), /* @__PURE__ */ React25.createElement(
       "button",
       {
         type: "button",
@@ -5731,8 +6189,8 @@ function SooyoPanel() {
         "data-view": "schedule"
       },
       "排期",
-      openTasks > 0 ? /* @__PURE__ */ React24.createElement("small", null, openTasks) : null
-    ), /* @__PURE__ */ React24.createElement(
+      openTasks > 0 ? /* @__PURE__ */ React25.createElement("small", null, openTasks) : null
+    ), /* @__PURE__ */ React25.createElement(
       "button",
       {
         type: "button",
@@ -5742,7 +6200,7 @@ function SooyoPanel() {
         "data-view": "retro"
       },
       "复盘"
-    )), /* @__PURE__ */ React24.createElement("div", { className: "sy-cmd" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-cmd-box" }, /* @__PURE__ */ React24.createElement(SvgIcon, { svg: I.search }), /* @__PURE__ */ React24.createElement(
+    )), /* @__PURE__ */ React25.createElement("div", { className: "sy-cmd" }, /* @__PURE__ */ React25.createElement("div", { className: "sy-cmd-box" }, /* @__PURE__ */ React25.createElement(SvgIcon, { svg: I.search }), /* @__PURE__ */ React25.createElement(
       "input",
       {
         name: "cmd",
@@ -5763,8 +6221,8 @@ function SooyoPanel() {
           }
         }
       }
-    ), /* @__PURE__ */ React24.createElement("kbd", null, "⌘K")), cmdOpen && commands.length > 0 ? /* @__PURE__ */ React24.createElement("div", { className: "sy-cmd-pop", role: "listbox" }, commands.map(
-      (entry, index) => entry.group ? /* @__PURE__ */ React24.createElement("div", { key: `g${index}`, className: "sy-cmd-group" }, entry.group) : entry.href ? /* @__PURE__ */ React24.createElement(
+    ), /* @__PURE__ */ React25.createElement("kbd", null, "⌘K")), cmdOpen && commands.length > 0 ? /* @__PURE__ */ React25.createElement("div", { className: "sy-cmd-pop", role: "listbox" }, commands.map(
+      (entry, index) => entry.group ? /* @__PURE__ */ React25.createElement("div", { key: `g${index}`, className: "sy-cmd-group" }, entry.group) : entry.href ? /* @__PURE__ */ React25.createElement(
         "a",
         {
           key: `i${index}`,
@@ -5778,9 +6236,9 @@ function SooyoPanel() {
             entry.run?.();
           }
         },
-        /* @__PURE__ */ React24.createElement("span", { className: "k" }, entry.k ?? ""),
-        /* @__PURE__ */ React24.createElement("span", { className: "ci-t c1" }, entry.label)
-      ) : /* @__PURE__ */ React24.createElement(
+        /* @__PURE__ */ React25.createElement("span", { className: "k" }, entry.k ?? ""),
+        /* @__PURE__ */ React25.createElement("span", { className: "ci-t c1" }, entry.label)
+      ) : /* @__PURE__ */ React25.createElement(
         "button",
         {
           key: `i${index}`,
@@ -5791,10 +6249,10 @@ function SooyoPanel() {
             entry.run?.();
           }
         },
-        /* @__PURE__ */ React24.createElement("span", { className: "k" }, entry.k ?? ""),
-        /* @__PURE__ */ React24.createElement("span", { className: "ci-t c1" }, entry.label)
+        /* @__PURE__ */ React25.createElement("span", { className: "k" }, entry.k ?? ""),
+        /* @__PURE__ */ React25.createElement("span", { className: "ci-t c1" }, entry.label)
       )
-    )) : null), /* @__PURE__ */ React24.createElement("div", { className: "sy-actions" }, /* @__PURE__ */ React24.createElement(
+    )) : null), /* @__PURE__ */ React25.createElement("div", { className: "sy-actions" }, /* @__PURE__ */ React25.createElement(PluginUpdateButton, { onClick: () => setUpdatesOpen(true) }), /* @__PURE__ */ React25.createElement(
       "button",
       {
         type: "button",
@@ -5802,9 +6260,9 @@ function SooyoPanel() {
         "data-act": "capture-modal-open",
         "data-tab": "collection"
       },
-      /* @__PURE__ */ React24.createElement(SvgIcon, { svg: I.plus }),
-      /* @__PURE__ */ React24.createElement("span", { className: "lbl" }, "录入收藏")
-    ), appView === "home" ? /* @__PURE__ */ React24.createElement(React24.Fragment, null, /* @__PURE__ */ React24.createElement(
+      /* @__PURE__ */ React25.createElement(SvgIcon, { svg: I.plus }),
+      /* @__PURE__ */ React25.createElement("span", { className: "lbl" }, "录入收藏")
+    ), appView === "home" ? /* @__PURE__ */ React25.createElement(React25.Fragment, null, /* @__PURE__ */ React25.createElement(
       "button",
       {
         className: "sy-switch",
@@ -5812,9 +6270,9 @@ function SooyoPanel() {
         "aria-checked": editing,
         "data-act": "edit-toggle"
       },
-      /* @__PURE__ */ React24.createElement("span", { className: "lbl" }, "编辑"),
-      /* @__PURE__ */ React24.createElement("span", { className: "sy-sw", "aria-hidden": true })
-    ), /* @__PURE__ */ React24.createElement("button", { className: "sy-btn sy-btn-add", "data-act": "gallery-open" }, /* @__PURE__ */ React24.createElement(SvgIcon, { svg: I.plus }), /* @__PURE__ */ React24.createElement("span", { className: "lbl" }, "添加 Widget"))) : null, /* @__PURE__ */ React24.createElement(
+      /* @__PURE__ */ React25.createElement("span", { className: "lbl" }, "编辑"),
+      /* @__PURE__ */ React25.createElement("span", { className: "sy-sw", "aria-hidden": true })
+    ), /* @__PURE__ */ React25.createElement("button", { className: "sy-btn sy-btn-add", "data-act": "gallery-open" }, /* @__PURE__ */ React25.createElement(SvgIcon, { svg: I.plus }), /* @__PURE__ */ React25.createElement("span", { className: "lbl" }, "添加 Widget"))) : null, /* @__PURE__ */ React25.createElement(
       "button",
       {
         className: "sy-icon-btn",
@@ -5828,8 +6286,8 @@ function SooyoPanel() {
           }
         }
       },
-      /* @__PURE__ */ React24.createElement(SvgIcon, { svg: screenshotTheme === "dark" ? I.sun : I.moon })
-    ), /* @__PURE__ */ React24.createElement(
+      /* @__PURE__ */ React25.createElement(SvgIcon, { svg: screenshotTheme === "dark" ? I.sun : I.moon })
+    ), /* @__PURE__ */ React25.createElement(
       "button",
       {
         className: "sy-icon-btn",
@@ -5837,13 +6295,13 @@ function SooyoPanel() {
         title: "刷新信息源",
         onClick: () => void state.refreshSources()
       },
-      /* @__PURE__ */ React24.createElement(SvgIcon, { svg: I.reset })
-    ))), appView === "home" ? /* @__PURE__ */ React24.createElement(React24.Fragment, null, /* @__PURE__ */ React24.createElement("section", { className: "sy-hero" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-hero-main" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-hero-top-row" }, /* @__PURE__ */ React24.createElement("span", { className: "sy-tag" }, `${(/* @__PURE__ */ new Date()).getMonth() + 1}月${(/* @__PURE__ */ new Date()).getDate()}日 · 星期${WEEK[(/* @__PURE__ */ new Date()).getDay()]}`), /* @__PURE__ */ React24.createElement("div", { className: "sy-status" }, /* @__PURE__ */ React24.createElement("i", { className: erroring > 0 ? "warn" : "" }), `${(daily?.sources ?? []).length - erroring} 个来源正常 · ${state.items.length} 条内容`)), /* @__PURE__ */ React24.createElement("h1", { className: "sy-headline" }, renderHeadline()), /* @__PURE__ */ React24.createElement("form", { className: "sy-hero-capture", "data-form": "hero-capture" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-hero-capture-modes" }, [
+      /* @__PURE__ */ React25.createElement(SvgIcon, { svg: I.reset })
+    ))), appView === "home" ? /* @__PURE__ */ React25.createElement(React25.Fragment, null, /* @__PURE__ */ React25.createElement("section", { className: "sy-hero" }, /* @__PURE__ */ React25.createElement("div", { className: "sy-hero-main" }, /* @__PURE__ */ React25.createElement("div", { className: "sy-hero-top-row" }, /* @__PURE__ */ React25.createElement("span", { className: "sy-tag" }, `${(/* @__PURE__ */ new Date()).getMonth() + 1}月${(/* @__PURE__ */ new Date()).getDate()}日 · 星期${WEEK[(/* @__PURE__ */ new Date()).getDay()]}`), /* @__PURE__ */ React25.createElement("div", { className: "sy-status" }, /* @__PURE__ */ React25.createElement("i", { className: erroring > 0 ? "warn" : "" }), `${(daily?.sources ?? []).length - erroring} 个来源正常 · ${state.items.length} 条内容`)), /* @__PURE__ */ React25.createElement("h1", { className: "sy-headline" }, renderHeadline()), /* @__PURE__ */ React25.createElement("form", { className: "sy-hero-capture", "data-form": "hero-capture" }, /* @__PURE__ */ React25.createElement("div", { className: "sy-hero-capture-modes" }, [
       { id: "auto", label: "智能识别" },
       { id: "note", label: "✎ 速记/闪念" },
       { id: "collection", label: "★ 偏好收藏" },
       { id: "task", label: "✓ 待办事项" }
-    ].map((m) => /* @__PURE__ */ React24.createElement(
+    ].map((m) => /* @__PURE__ */ React25.createElement(
       "button",
       {
         key: m.id,
@@ -5853,7 +6311,7 @@ function SooyoPanel() {
         onClick: () => setHeroCaptureMode(m.id)
       },
       m.label
-    ))), /* @__PURE__ */ React24.createElement("div", { className: "sy-hero-capture-row" }, /* @__PURE__ */ React24.createElement(
+    ))), /* @__PURE__ */ React25.createElement("div", { className: "sy-hero-capture-row" }, /* @__PURE__ */ React25.createElement(
       "input",
       {
         name: "hero-q",
@@ -5862,7 +6320,7 @@ function SooyoPanel() {
         placeholder: heroCaptureMode === "collection" ? "粘贴 GitHub / X / 网站 / 视频 / 音乐链接，回车保存元信息…" : heroCaptureMode === "task" ? "输入待办事项，回车进入排期收件箱…" : "随手记一条灵感备忘、贴入收藏链接，或输入 todo: 记待办…",
         autoComplete: "off"
       }
-    ), /* @__PURE__ */ React24.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink" }, "记下来 ↵"), /* @__PURE__ */ React24.createElement(
+    ), /* @__PURE__ */ React25.createElement("button", { type: "submit", className: "sy-btn sy-btn-ink" }, "记下来 ↵"), /* @__PURE__ */ React25.createElement(
       "button",
       {
         type: "button",
@@ -5872,7 +6330,7 @@ function SooyoPanel() {
         title: "打开完整录入面板（支持缩略图、飞书外链、JSON/CSV 批量导入）"
       },
       "详细录入"
-    )), relatedHeroEntries.length > 0 ? /* @__PURE__ */ React24.createElement("div", { className: "sy-hero-related" }, /* @__PURE__ */ React24.createElement("span", { className: "meta" }, "相似已收录："), relatedHeroEntries.map((item) => /* @__PURE__ */ React24.createElement(
+    )), relatedHeroEntries.length > 0 ? /* @__PURE__ */ React25.createElement("div", { className: "sy-hero-related" }, /* @__PURE__ */ React25.createElement("span", { className: "meta" }, "相似已收录："), relatedHeroEntries.map((item) => /* @__PURE__ */ React25.createElement(
       "button",
       {
         key: item.id,
@@ -5880,9 +6338,9 @@ function SooyoPanel() {
         className: "sy-hero-related-chip",
         onClick: () => setActiveEntryDetail(item)
       },
-      /* @__PURE__ */ React24.createElement("span", null, KIND_BADGE_LABELS[item.kind] ?? item.kind),
-      /* @__PURE__ */ React24.createElement("span", { className: "c1" }, item.title)
-    ))) : null)), /* @__PURE__ */ React24.createElement("div", { className: "sy-hero-aside" }, /* @__PURE__ */ React24.createElement(
+      /* @__PURE__ */ React25.createElement("span", null, KIND_BADGE_LABELS[item.kind] ?? item.kind),
+      /* @__PURE__ */ React25.createElement("span", { className: "c1" }, item.title)
+    ))) : null)), /* @__PURE__ */ React25.createElement("div", { className: "sy-hero-aside" }, /* @__PURE__ */ React25.createElement(
       MiniStamps,
       {
         dayMap,
@@ -5892,7 +6350,7 @@ function SooyoPanel() {
           setAppView("schedule");
         }
       }
-    ))), /* @__PURE__ */ React24.createElement("div", { className: "sy-home-dock", role: "toolbar", "aria-label": "看板与灵感墙切换" }, /* @__PURE__ */ React24.createElement("div", { className: "sy-home-dock-left" }, /* @__PURE__ */ React24.createElement(BoardTabs, { boards, activeBoard }), /* @__PURE__ */ React24.createElement("div", { className: "sy-seg sm" }, /* @__PURE__ */ React24.createElement(
+    ))), /* @__PURE__ */ React25.createElement("div", { className: "sy-home-dock", role: "toolbar", "aria-label": "看板与灵感墙切换" }, /* @__PURE__ */ React25.createElement("div", { className: "sy-home-dock-left" }, /* @__PURE__ */ React25.createElement(BoardTabs, { boards, activeBoard }), /* @__PURE__ */ React25.createElement("div", { className: "sy-seg sm" }, /* @__PURE__ */ React25.createElement(
       "button",
       {
         type: "button",
@@ -5900,7 +6358,7 @@ function SooyoPanel() {
         onClick: () => setHomeMode("bento")
       },
       "工作台看板"
-    ), /* @__PURE__ */ React24.createElement(
+    ), /* @__PURE__ */ React25.createElement(
       "button",
       {
         type: "button",
@@ -5908,7 +6366,7 @@ function SooyoPanel() {
         onClick: () => setHomeMode("wall")
       },
       `灵感与收藏墙 (${filteredHomeEntries.length})`
-    ))), /* @__PURE__ */ React24.createElement("div", { className: "sy-home-dock-filters" }, KIND_FILTER_OPTIONS.map((f) => /* @__PURE__ */ React24.createElement(
+    ))), /* @__PURE__ */ React25.createElement("div", { className: "sy-home-dock-filters" }, KIND_FILTER_OPTIONS.map((f) => /* @__PURE__ */ React25.createElement(
       "button",
       {
         key: f.value,
@@ -5921,7 +6379,7 @@ function SooyoPanel() {
         }
       },
       f.label
-    )))), homeMode === "wall" ? /* @__PURE__ */ React24.createElement("section", { className: "sy-home-wall-section" }, filteredHomeEntries.length === 0 ? /* @__PURE__ */ React24.createElement("div", { className: "sy-view-empty" }, /* @__PURE__ */ React24.createElement("p", null, "当前分类还没有速记或偏好收藏。"), /* @__PURE__ */ React24.createElement(
+    )))), homeMode === "wall" ? /* @__PURE__ */ React25.createElement("section", { className: "sy-home-wall-section" }, filteredHomeEntries.length === 0 ? /* @__PURE__ */ React25.createElement("div", { className: "sy-view-empty" }, /* @__PURE__ */ React25.createElement("p", null, "当前分类还没有速记或偏好收藏。"), /* @__PURE__ */ React25.createElement(
       "button",
       {
         type: "button",
@@ -5930,7 +6388,7 @@ function SooyoPanel() {
         "data-tab": "collection"
       },
       "+ 录入第一条收藏或闪念"
-    )) : /* @__PURE__ */ React24.createElement("div", { className: "sy-wall-grid" }, filteredHomeEntries.map((entry) => /* @__PURE__ */ React24.createElement(
+    )) : /* @__PURE__ */ React25.createElement("div", { className: "sy-wall-grid" }, filteredHomeEntries.map((entry) => /* @__PURE__ */ React25.createElement(
       MediaCollectionCard,
       {
         key: entry.id,
@@ -5945,7 +6403,7 @@ function SooyoPanel() {
           { toast: "已转为待办任务" }
         )
       }
-    )))) : null, editing ? /* @__PURE__ */ React24.createElement("div", { className: "sy-editbar" }, /* @__PURE__ */ React24.createElement("span", { className: "grow" }, `正在编辑「${board?.name ?? ""}」的布局（${cols} 列）。拖动卡片排序，拖右下角改尺寸；不同宽度各自保存。`), /* @__PURE__ */ React24.createElement("button", { className: "sy-btn", "data-act": "gallery-open" }, "添加"), /* @__PURE__ */ React24.createElement("button", { className: "sy-btn sy-btn-ink", "data-act": "edit-toggle" }, "完成")) : null, /* @__PURE__ */ React24.createElement(
+    )))) : null, editing ? /* @__PURE__ */ React25.createElement("div", { className: "sy-editbar" }, /* @__PURE__ */ React25.createElement("span", { className: "grow" }, `正在编辑「${board?.name ?? ""}」的布局（${cols} 列）。拖动卡片排序，拖右下角改尺寸；不同宽度各自保存。`), /* @__PURE__ */ React25.createElement("button", { className: "sy-btn", "data-act": "gallery-open" }, "添加"), /* @__PURE__ */ React25.createElement("button", { className: "sy-btn sy-btn-ink", "data-act": "edit-toggle" }, "完成")) : null, /* @__PURE__ */ React25.createElement(
       WidgetGrid,
       {
         gridRef,
@@ -5955,7 +6413,7 @@ function SooyoPanel() {
         positions,
         context
       }
-    ), /* @__PURE__ */ React24.createElement("div", { className: "meta", style: { marginTop: 14, whiteSpace: "normal", lineHeight: "19px" } }, "数据来源：AIHOT（个人非商业使用）、HuggingFace、Product Hunt、YouTube。抓取到的内容一律视为资料，不作为指令执行。")) : null, appView === "content" ? /* @__PURE__ */ React24.createElement(
+    ), /* @__PURE__ */ React25.createElement("div", { className: "meta", style: { marginTop: 14, whiteSpace: "normal", lineHeight: "19px" } }, "数据来源：AIHOT（个人非商业使用）、HuggingFace、Product Hunt、YouTube。抓取到的内容一律视为资料，不作为指令执行。")) : null, appView === "content" ? /* @__PURE__ */ React25.createElement(
       ContentView,
       {
         notes: daily?.notes ?? [],
@@ -5966,7 +6424,7 @@ function SooyoPanel() {
         onOpenCapture: (tab) => setCaptureModalTab(tab),
         onOpenEntry: (entry) => setActiveEntryDetail(entry)
       }
-    ) : null, appView === "schedule" ? /* @__PURE__ */ React24.createElement(
+    ) : null, appView === "schedule" ? /* @__PURE__ */ React25.createElement(
       ScheduleView,
       {
         tasks: daily?.tasks ?? [],
@@ -5975,7 +6433,7 @@ function SooyoPanel() {
         onCaptureToday: () => setCaptureModalTab("task"),
         onRun: state.run
       }
-    ) : null, appView === "retro" ? /* @__PURE__ */ React24.createElement(
+    ) : null, appView === "retro" ? /* @__PURE__ */ React25.createElement(
       RetroView,
       {
         daily,
@@ -5985,7 +6443,8 @@ function SooyoPanel() {
         onOpenEntry: (entry) => setActiveEntryDetail(entry)
       }
     ) : null)),
-    menu ? /* @__PURE__ */ React24.createElement(
+    /* @__PURE__ */ React25.createElement(PluginUpdates, { rootRef, open: updatesOpen, onClose: () => setUpdatesOpen(false) }),
+    menu ? /* @__PURE__ */ React25.createElement(
       MenuLayer,
       {
         menu,
@@ -5995,7 +6454,7 @@ function SooyoPanel() {
         onClose: () => setMenu(null)
       }
     ) : null,
-    modal ? /* @__PURE__ */ React24.createElement(
+    modal ? /* @__PURE__ */ React25.createElement(
       ModalLayer,
       {
         modal,
@@ -6008,7 +6467,7 @@ function SooyoPanel() {
         onRun: state.run
       }
     ) : null,
-    captureModalTab ? /* @__PURE__ */ React24.createElement(
+    captureModalTab ? /* @__PURE__ */ React25.createElement(
       CaptureModal,
       {
         initialTab: captureModalTab,
@@ -6016,7 +6475,7 @@ function SooyoPanel() {
         onRun: state.run
       }
     ) : null,
-    activeEntryDetail ? /* @__PURE__ */ React24.createElement(
+    activeEntryDetail ? /* @__PURE__ */ React25.createElement(
       EntryDetailModal,
       {
         entry: activeEntryDetail,
@@ -6024,7 +6483,7 @@ function SooyoPanel() {
         onRun: state.run
       }
     ) : null,
-    state.toast ? /* @__PURE__ */ React24.createElement("div", { className: "sy-toast", role: "status" }, /* @__PURE__ */ React24.createElement("span", null, state.toast.text)) : null
+    state.toast ? /* @__PURE__ */ React25.createElement("div", { className: "sy-toast", role: "status" }, /* @__PURE__ */ React25.createElement("span", null, state.toast.text)) : null
   );
 }
 
@@ -6032,7 +6491,7 @@ function SooyoPanel() {
 var PANEL_ID = "sooyo";
 function SooyoIcon(props) {
   const size = props?.size ?? 18;
-  return React25.createElement("svg", {
+  return React26.createElement("svg", {
     viewBox: "0 0 24 24",
     width: size,
     height: size,
@@ -6044,6 +6503,12 @@ function SooyoIcon(props) {
 var clientPlugin = {
   inject: ["slots"],
   apply(ctx) {
+    const updates = updateSession();
+    updates.bind(BUILD, () => void 0);
+    ctx.inject?.(
+      ["remote", "remote.pluginManager"],
+      (remoteCtx) => updates.bind(BUILD, () => remoteCtx.remote.pluginManager)
+    );
     ctx.slots.inject(
       "sidebar.panellist",
       () => ctx.slots.register(
@@ -6051,7 +6516,14 @@ var clientPlugin = {
         SooyoIcon
       )
     );
-    ctx.slots.inject("main", () => ctx.slots.register({ name: "main", key: PANEL_ID }, SooyoPanel));
+    ctx.slots.inject("main", () => {
+      const dispose = ctx.slots.register({ name: "main", key: PANEL_ID }, SooyoPanel);
+      ctx.inject?.(["layout"], (layoutCtx) => updates.bindNavigation({
+        begin: () => layoutCtx.layout.beginNavigation?.(),
+        open: () => layoutCtx.layout.selectPanel(PANEL_ID)
+      }));
+      return dispose;
+    });
   }
 };
 var index_default = clientPlugin;

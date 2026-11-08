@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { api, action } from './api/client.ts'
 import { useDaily } from './api/hooks.ts'
+import { PluginUpdates, PluginUpdateButton } from './updates/PluginUpdates.js'
 import { columnsFor, sizeOrder } from './layout/breakpoints.ts'
 import { pack, startDrag, startResize } from './layout/bento-packer.ts'
 import { BoardTabs } from './shell/BoardTabs.tsx'
@@ -93,6 +94,7 @@ export function SooyoPanel() {
   })
   const [query, setQuery] = useState('')
   const [cmdOpen, setCmdOpen] = useState(false)
+  const [updatesOpen, setUpdatesOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
 
   const daily = state.daily
@@ -1139,6 +1141,7 @@ export function SooyoPanel() {
             </div>
 
             <div className="sy-actions">
+              <PluginUpdateButton onClick={() => setUpdatesOpen(true)} />
               <button
                 type="button"
                 className="sy-btn sy-btn-capture"
@@ -1424,6 +1427,7 @@ export function SooyoPanel() {
         </div>
       </div>
 
+      <PluginUpdates rootRef={rootRef} open={updatesOpen} onClose={() => setUpdatesOpen(false)} />
       {menu ? (
         <MenuLayer
           menu={menu}

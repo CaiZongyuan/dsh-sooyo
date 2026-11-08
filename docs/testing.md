@@ -2,6 +2,9 @@
 
 Sooyo uses three focused testing tiers managed via `pnpm` and a single browser automation framework (**Playwright Test**).
 
+Native update tests require a DSH with `pluginManager.updateBundle` (tested API: `0.2.2-rc.1`);
+set `DSH_E2E_BIN` to its `lib/bin.js` when the global CLI is older.
+
 ## 1. The Three Testing Tiers
 
 | Tier | When to Run | What It Verifies | Runner |
@@ -21,6 +24,7 @@ pnpm run test:offline                              # fast offline self-test (pro
 pnpm run test:e2e                                  # full real-DSH Playwright E2E suite (ui + sync)
 pnpm exec playwright test tests/e2e/ui.spec.ts     # single-instance real DSH UI, persistence & Desktop/Mobile screenshots
 pnpm exec playwright test tests/e2e/sync.spec.ts   # three-instance real DSH Hub + Client A + Client B sync E2E
+pnpm exec playwright test tests/e2e/updates.spec.ts # native registry update, restoration and pending restart
 ```
 
 ## 3. Real DSH E2E Architecture (`tests/e2e/`)

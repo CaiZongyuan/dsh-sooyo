@@ -33,14 +33,8 @@ export const ACTION_NAMES_LIST = [
   'item.toNote',
 ] as const
 
-/** Bumped only for a breaking funnel change; the Hub advertises it on `/health`. */
-export const PROTOCOL_VERSION = 1
-
-/** Supported wire protocol range advertised on `/health` for rolling upgrades. */
-export const PROTOCOL_RANGE = { min: 1, max: 1 }
-
-/** Monotonic schema version of the authoritative domain tables. */
-export const DATA_SCHEMA_VERSION = 2
+/** Wire/data versions are shared with the published upgrade compatibility contract. */
+export { PROTOCOL_VERSION, PROTOCOL_RANGE, DATA_SCHEMA_VERSION } from '../../shared/updates.js'
 
 /** Feature capabilities advertised by this Host version. */
 export const CAPABILITIES = [

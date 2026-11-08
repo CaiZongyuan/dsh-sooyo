@@ -6,9 +6,10 @@
  *   - `client.js`: DSH `__ModuleLoader__` Client bundle (`react` resolved via `require('react')`).
  */
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import * as esbuild from 'esbuild'
 
 const ROOT = resolve(import.meta.dirname, '..')
@@ -41,7 +42,7 @@ function readBuildInfo({ allowDirty }) {
     // `execFileSync` rather than a shell: no quoting rules, and a missing `git` is an exception
     // rather than a stray "command not found" line on stdout.
     commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null
-    const status = execFileSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+    const status = execFileSync('git', ['status', '--porcelain', '--', '.', ':!index.js', ':!client.js'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
     dirty = Boolean(status.trim())
     if (dirty && !allowDirty) {
       const files = status.trim().split('\n').slice(0, 8).join('\n  ')
@@ -57,15 +58,17 @@ function readBuildInfo({ allowDirty }) {
     commit = null
     dirty = false
   }
-  return { version, commit, dirty, builtAt: new Date().toISOString() }
+  // Clean builds use their source commit's timestamp so a tag produces identical release bytes on reruns.
+  const builtAt = commit && !dirty
+    ? new Date(execFileSync('git', ['show', '-s', '--format=%cI', 'HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()).toISOString()
+    : new Date().toISOString()
+  return { version, commit, dirty, builtAt }
 }
 
-const BUILD = readBuildInfo({ allowDirty: process.argv.includes('--allow-dirty') })
-
-async function buildHost() {
+async function buildHost(buildInfo, outdir) {
   const result = await esbuild.build({
     entryPoints: [resolve(ROOT, 'src/host/index.ts')],
-    outfile: resolve(ROOT, 'index.js'),
+    outfile: resolve(outdir, 'index.js'),
     bundle: true,
     format: 'esm',
     platform: 'node',
@@ -74,12 +77,12 @@ async function buildHost() {
     charset: 'utf8',
     legalComments: 'none',
     metafile: true,
-    define: { __SOOYO_BUILD__: JSON.stringify(BUILD) },
+    define: { __SOOYO_BUILD__: JSON.stringify(buildInfo) },
   })
   return result
 }
 
-async function buildClient() {
+async function buildClient(buildInfo, outdir) {
   const cssPath = resolve(ROOT, 'src/client/styles/tokens.css')
   const rawCss = readFileSync(cssPath, 'utf8').replace(/\r\n/g, '\n').trim()
 
@@ -111,6 +114,7 @@ async function buildClient() {
     charset: 'utf8',
     legalComments: 'none',
     plugins: [cssExternalPlugin],
+    define: { __SOOYO_BUILD__: JSON.stringify(buildInfo) },
   })
 
   const cjsCode = result.outputFiles[0].text
@@ -119,6 +123,7 @@ async function buildClient() {
   const wrapped = `/**
  * Client half of sooyo daily — generated from \`src/client/index.ts\`.
  * Do not edit by hand; run \`pnpm run build\` to regenerate.
+ * Build identity: ${JSON.stringify(buildInfo)}
  */
 window.__ModuleLoader__.load({
   id: 'dsh-sooyo',
@@ -134,9 +139,18 @@ ${cjsCode}
 })
 `
 
-  writeFileSync(resolve(ROOT, 'client.js'), wrapped, 'utf8')
+  writeFileSync(resolve(outdir, 'client.js'), wrapped, 'utf8')
 }
 
-await buildHost()
-await buildClient()
-console.log(`Built index.js and client.js successfully (${BUILD.version ?? 'unknown'}+${BUILD.commit ?? 'nogit'}).`)
+export async function buildPlugin({ outdir = ROOT, info } = {}) {
+  const buildInfo = info ?? readBuildInfo({ allowDirty: false })
+  mkdirSync(outdir, { recursive: true })
+  await buildHost(buildInfo, outdir)
+  await buildClient(buildInfo, outdir)
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const info = readBuildInfo({ allowDirty: process.argv.includes('--allow-dirty') })
+  await buildPlugin({ info })
+  console.log(`Built index.js and client.js successfully (${info.version ?? 'unknown'}+${info.commit ?? 'nogit'}).`)
+}

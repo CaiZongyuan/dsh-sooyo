@@ -13,32 +13,10 @@
 
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+export { BUILD, type BuildInfo } from '../shared/build.js'
+import type { BuildInfo } from '../shared/build.js'
 
 export type InstallShape = 'checkout' | 'package' | 'unknown'
-
-export type BuildInfo = {
-  /** `package.json` `version` at build time. */
-  version: string | null
-  /**
-   * `git rev-parse HEAD` at build time, or null when built outside a checkout.
-   *
-   * Plain 40-hex, deliberately: it is compared for equality against the upstream ref, so a
-   * suffix like `-dirty` would make every build with uncommitted edits look out of date. The
-   * dirty flag travels separately in {@link BuildInfo.dirty}.
-   */
-  commit: string | null
-  /** Whether the working tree had uncommitted changes when this build ran. */
-  dirty: boolean
-  /** ISO timestamp of the build. */
-  builtAt: string | null
-}
-
-declare const __SOOYO_BUILD__: BuildInfo | undefined
-
-const FALLBACK: BuildInfo = { version: null, commit: null, dirty: false, builtAt: null }
-
-export const BUILD: BuildInfo =
-  typeof __SOOYO_BUILD__ === 'object' && __SOOYO_BUILD__ !== null ? __SOOYO_BUILD__ : FALLBACK
 
 /**
  * How this copy got here, which decides what an update command even looks like.

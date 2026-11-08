@@ -299,8 +299,9 @@ export function RetroView({
   const topProjectName = periodStats.sortedProjects[0]?.[0] ?? '日常事项'
   const recentHighlights = useMemo(() => entries.slice(0, 3), [entries])
 
-  const handleSaveRetro = (event: React.FormEvent) => {
+  const handleSaveRetro = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const form = event.currentTarget
     void onRun(
       'retro.save',
       {
@@ -311,7 +312,11 @@ export function RetroView({
         nextFocus: nextFocus.trim(),
       },
       { toast: `已保存「${periodKey}」个人复盘` },
-    )
+    ).then((result) => {
+      if (result && typeof result === 'object' && !('ok' in result && result.ok === false)) {
+        document.dispatchEvent(new CustomEvent('sooyo:form-saved', { detail: form }))
+      }
+    })
   }
 
   const handleRolloverOpenTasks = async () => {

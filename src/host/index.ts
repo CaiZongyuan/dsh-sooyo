@@ -14,6 +14,7 @@
  */
 
 import { readFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { readFeed, decodeEntities, stripTags, extractOgImage, absoluteUrl } from './sources/feed-parser.js'
@@ -63,6 +64,12 @@ import {
   updatePlan,
 } from './sources/upstream.js'
 import { BUILD, buildLabel, installShape } from './build-info.js'
+import { sameBuild } from '../shared/build.js'
+import { UPDATE_CONTRACT, type LocalRuntime } from '../shared/updates.js'
+import { RuntimeLifecycle } from './core/lifecycle.js'
+import { createPluginUpdates } from './updates/service.js'
+
+export { RuntimeLifecycle, createPluginUpdates, UPDATE_CONTRACT, sameBuild, BUILD }
 
 export {
   readFeed,
@@ -179,6 +186,9 @@ const itemTime = (item: any): number => {
 }
 
 export function apply(ctx: any, config: Record<string, any> = {}) {
+  const lifecycle = new RuntimeLifecycle()
+  const instanceId = randomUUID()
+  let storageReady = false
   setSourceConfig(config)
   const enabledIds = new Set<string>(
     Array.isArray(config.sources) && config.sources.length > 0 ? config.sources : SOURCES.map((s) => s.id),
@@ -195,9 +205,8 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
   /**
    * Outside-world awareness for the Agent (see `sources/upstream.ts`).
    *
-   * All three are read-only and lazily cached, so a conversation that never asks costs no
-   * network. `updateCheck.enabled` defaults to on for the authority roles only: a `client`
-   * runs the Hub's build against the Hub's install shape and would report the wrong thing.
+   * AIHOT readers and the checkout's development-ref comparison remain read-only. Formal
+   * release checks run separately on every role and identify this Host's own installation.
    */
   const upstreamConfig = config.upstream ?? {}
   const shape = installShape(import.meta.url)
@@ -245,7 +254,7 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
   const writeTables: TableAccessor = createStampTable(
     (tableName) => {
       if (!domain) throw new Error('sooyo store is not open yet')
-      return domain.table(tableName)
+      return lifecycle.guard(domain.table(tableName))
     },
     (tableName, key, value) => (stamper ? stamper.stamp(tableName, key, value) : value),
   )
@@ -253,7 +262,7 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
   const beginWrite = () => stamper?.open()
   const endWrite = () => stamper?.close()
 
-  const service: LocalSooyoService | RemoteSooyoService =
+  const rawService: LocalSooyoService | RemoteSooyoService =
     role === 'client'
       ? new RemoteSooyoService(sync, {
           sources: () => active,
@@ -269,57 +278,60 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
           hooks: { beginWrite, endWrite },
         })
 
+  const service = lifecycle.guard(rawService)
+  const localRuntime = (): LocalRuntime => ({
+    build: BUILD, instanceId, role, ready: storageReady && rawService.ready,
+    phase: lifecycle.phase, contract: UPDATE_CONTRACT,
+  })
+  const pluginUpdates = createPluginUpdates({
+    manager: () => ctx.get?.('pluginManager'),
+    runtime: localRuntime, lifecycle, shape, development: updateCheck,
+    ttlMs: Number(upstreamConfig.checkTtlMinutes ?? 60) * 60_000,
+    registry: typeof config.updates?.registry === 'string' ? config.updates.registry : undefined,
+    checkHub: rawService instanceof RemoteSooyoService ? () => rawService.checkHealth() : undefined,
+  })
+  ctx.effect(() => () => pluginUpdates.dispose(), 'sooyo: updates')
+
   ctx.effect(() => {
     let disposed = false
     let handle: any = null
-    if (role === 'client') {
-      if (!ctx.storageDomain?.open) return () => {}
-      ctx.storageDomain
-        .open(CLIENT_CACHE_DOMAIN_SPEC)
-        .then((opened: any) => {
-          if (disposed) {
-            void opened.close()
-            return
-          }
-          handle = opened
-          if (service instanceof RemoteSooyoService) {
-            service.attachCacheTables((tableName) => opened.table(tableName))
-          }
-        })
-        .catch((error: unknown) => {
-          ctx.logger?.warn?.('sooyo: could not open the client cache domain', error)
-        })
-      return () => {
-        disposed = true
-        if (handle) void handle.close()
-      }
-    }
-    ctx.storageDomain
-      .open(DOMAIN_SPEC)
-      .then(async (opened: any) => {
+    void lifecycle.run(async () => {
+      try {
+        const opened = await ctx.storageDomain.open(role === 'client' ? CLIENT_CACHE_DOMAIN_SPEC : DOMAIN_SPEC)
         if (disposed) {
-          void opened.close()
+          await opened.close()
           return
         }
         handle = opened
+        if (rawService instanceof RemoteSooyoService) {
+          rawService.attachCacheTables((tableName) => lifecycle.guard(opened.table(tableName)))
+          storageReady = true
+          return
+        }
         domain = opened
         openError = null
         stamper = makeStamper(writeTables)
-        if (service instanceof LocalSooyoService) {
-          await service.recover((message) => ctx.logger?.warn?.(message))
-        }
-        await daily.ensureSeeded(writeTables)
-        service.ready = true
-      })
-      .catch((error: unknown) => {
+        await rawService.recover((message) => ctx.logger?.warn?.(message))
+        if (disposed) return
+        await queue.run(() => daily.ensureSeeded(writeTables))
+        if (disposed) return
+        rawService.ready = true
+        storageReady = true
+      } catch (error: unknown) {
         openError = error
         ctx.logger?.warn?.('sooyo: could not open the sooyo domain', error)
-      })
+      }
+    })
     return () => {
       disposed = true
-      domain = null
-      service.ready = false
-      if (handle) void handle.close()
+      return lifecycle.close(async () => {
+        await queue.drain()
+        rawService.ready = false
+        storageReady = false
+        if (rawService instanceof RemoteSooyoService) rawService.cacheTables = null
+        if (handle) await handle.close()
+        domain = null
+      })
     }
   }, 'sooyo: domain')
 
@@ -329,12 +341,10 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
     if (role === 'client' || config.autoRefresh === false) return () => {}
     const tick = async () => {
       try {
-        await refreshDue()
-      } catch (error: unknown) {
-        runtime.lastError = String((error as Error)?.message ?? error)
-      }
-      try {
-        await resolveThumbnails(thumbnailBatch)
+        if (lifecycle.accepting) await lifecycle.run(async () => {
+          await refreshDue()
+          if (lifecycle.accepting) await resolveThumbnails(thumbnailBatch)
+        })
       } catch (error: unknown) {
         runtime.lastError = String((error as Error)?.message ?? error)
       }
@@ -361,17 +371,17 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
    * machine installs the plugin separately. Only the feed pump above is Hub-only.
    */
   ctx.effect(() => {
-    if (upstreamConfig.context === false) return () => {}
     let stopped = false
     let handle: ReturnType<typeof setTimeout> | null = null
     const warm = async () => {
       try {
-        changelogDigest = await aihot.read()
-      } catch (error: unknown) {
-        ctx.logger?.warn?.(`sooyo: AIHOT changelog unavailable: ${String((error as Error)?.message ?? error)}`)
-      }
-      try {
-        await updateCheck.check()
+        if (lifecycle.accepting) await lifecycle.run(async () => {
+          const results = await Promise.allSettled([
+            upstreamConfig.context !== false ? aihot.read(lifecycle.signal).then((digest) => { changelogDigest = digest }) : Promise.resolve(),
+            config.updates?.autoCheck !== false ? pluginUpdates.check() : Promise.resolve(),
+          ])
+          for (const result of results) if (result.status === 'rejected') ctx.logger?.warn?.('sooyo: upstream check failed', result.reason)
+        })
       } catch (error: unknown) {
         ctx.logger?.warn?.(`sooyo: update check failed: ${String((error as Error)?.message ?? error)}`)
       }
@@ -402,6 +412,10 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
   }
 
   async function refreshDue() {
+    return lifecycle.run(() => refreshDueNow())
+  }
+
+  async function refreshDueNow() {
     if (!domain) return { ok: false, error: openError ? String(openError.message ?? openError) : '存储域正在打开' }
     runtime.lastTickAt = nowIso()
     const due = dueSources()
@@ -443,7 +457,7 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
   function refreshSource(sourceId: string, reason: string): Promise<any> {
     const running = inFlight.get(sourceId)
     if (running) return running
-    const run = refreshSourceNow(sourceId, reason).finally(() => inFlight.delete(sourceId))
+    const run = lifecycle.run(() => refreshSourceNow(sourceId, reason)).finally(() => inFlight.delete(sourceId))
     inFlight.set(sourceId, run)
     return run
   }
@@ -457,7 +471,7 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
     const previous = stateOfSource(sourceId)
     const startedAt = Date.now()
     try {
-      const result = await withFetchSlot(() => source.load(AbortSignal.timeout(REQUEST_TIMEOUT_MS), previous))
+      const result = await withFetchSlot(() => source.load(AbortSignal.any([lifecycle.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]), previous))
       const next = {
         ...previous,
         id: sourceId,
@@ -473,18 +487,21 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
         itemCount: previous.itemCount ?? 0,
       }
       if (result.notModified) {
-        await sources.put(sourceId, { ...next, lastResult: 'not-modified' })
+        await queue.run(() => sources.put(sourceId, { ...next, lastResult: 'not-modified' }))
         return { ok: true, sourceId, notModified: true }
       }
-      const added = await upsert(source, result.items ?? [])
-      const total = countForSource(sourceId)
-      await sources.put(sourceId, { ...next, lastResult: 'ok', lastAdded: added, itemCount: total })
-      await touchItemsUpdated(writeTables)
-      return { ok: true, sourceId, added, total, notModified: false }
+      return await queue.run(async () => {
+        const added = await upsert(source, result.items ?? [])
+        const total = countForSource(sourceId)
+        await sources.put(sourceId, { ...next, lastResult: 'ok', lastAdded: added, itemCount: total })
+        await touchItemsUpdated(writeTables)
+        return { ok: true, sourceId, added, total, notModified: false }
+      })
     } catch (error: unknown) {
       const message = describeError(error)
       const failStreak = (previous.failStreak ?? 0) + 1
-      await sources.put(sourceId, {
+      await queue.run(async () => {
+        await sources.put(sourceId, {
         ...previous,
         id: sourceId,
         label: source.label,
@@ -494,8 +511,9 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
         lastResult: 'failed',
         failStreak,
         nextDueAt: startedAt + retryDelay(failStreak, cadenceOf(source)),
+        })
+        await touchItemsUpdated(writeTables)
       })
-      await touchItemsUpdated(writeTables)
       return { ok: false, sourceId, error: message, reason, failStreak }
     }
   }
@@ -568,6 +586,10 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
   let thumbnailPass: Promise<any> | null = null
 
   function resolveThumbnails(limit: number): Promise<any> {
+    return lifecycle.run(() => resolveThumbnailsNow(limit))
+  }
+
+  function resolveThumbnailsNow(limit: number): Promise<any> {
     if (!domain) {
       return Promise.resolve({
         ok: false,
@@ -595,15 +617,15 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
       let failed = 0
       for (const [key, value] of batch) {
         try {
-          const page = await withFetchSlot(() => fetchPagePrefix(value.url, AbortSignal.timeout(PAGE_TIMEOUT_MS)))
+          const page = await withFetchSlot(() => fetchPagePrefix(value.url, AbortSignal.any([lifecycle.signal, AbortSignal.timeout(PAGE_TIMEOUT_MS)])))
           const image = page.html ? extractOgImage(page.html, value.url) : null
-          if (image) {
-            await items.put(key, { ...value, thumbnail: image, thumbnailCheckedAt: nowIso() })
-            resolved += 1
-          } else {
-            await items.put(key, { ...value, thumbnailCheckedAt: nowIso() })
-            skipped += 1
-          }
+          await queue.run(async () => {
+            const current = items.get(key)
+            if (!current) return
+            await items.put(key, { ...current, ...(image ? { thumbnail: image } : {}), thumbnailCheckedAt: nowIso() })
+          })
+          if (image) resolved += 1
+          else skipped += 1
         } catch {
           failed += 1
         }
@@ -612,7 +634,7 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
       runtime.thumbnails.skipped += skipped
       runtime.thumbnails.failed += failed
       if (resolved > 0) {
-        await touchItemsUpdated(writeTables)
+        await queue.run(() => touchItemsUpdated(writeTables))
       }
       return { ok: true, candidates: candidates.length, checked: batch.length, resolved, skipped, failed }
     })().finally(() => {
@@ -769,6 +791,49 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
   }
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    if (!isLoopback(req)) {
+      send(res, 403, { error: 'sooyo routes are loopback-only' })
+      return
+    }
+    const route = new URL(req.url ?? '/', 'http://127.0.0.1').pathname.slice(ROUTE_PREFIX.length)
+    if (req.method === 'GET' && route === '/runtime') {
+      send(res, 200, localRuntime())
+      return
+    }
+    if (req.method === 'GET' && route === '/updates') {
+      send(res, 200, pluginUpdates.status())
+      return
+    }
+    if (req.method === 'POST' && route.startsWith('/updates/')) {
+      const origin = req.headers?.origin
+      if (req.headers?.['x-sooyo-ui'] !== '1'
+        || (origin && new URL(origin).host !== req.headers.host)) {
+        send(res, 403, { error: '升级控制只接受当前界面的请求' })
+        return
+      }
+      const body = await readJsonBody(req)
+      if (route === '/updates/presence') send(res, 200, pluginUpdates.presence(body))
+      else if (route === '/updates/check') send(res, 200, await pluginUpdates.check(true))
+      else if (route === '/updates/prepare') send(res, 200, await pluginUpdates.prepare(body.panelId, body.version))
+      else if (route === '/updates/resume') {
+        pluginUpdates.resume(body.requestId)
+        send(res, 200, { ok: true })
+      } else send(res, 404, { error: 'unknown update route' })
+      return
+    }
+    const claimed = req.headers?.['x-sooyo-build']
+    if (req.method === 'POST' && typeof claimed === 'string') {
+      let matches = false
+      try { matches = sameBuild(JSON.parse(claimed), BUILD) } catch { /* malformed identity is refused */ }
+      if (!matches) {
+        send(res, 409, { error: '界面和本机 Host 的版本不同，请等待升级完成或重新打开面板' })
+        return
+      }
+    }
+    await lifecycle.run(() => handleData(req, res))
+  }
+
+  async function handleData(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (!isLoopback(req)) {
       send(res, 403, { error: 'sooyo routes are loopback-only' })
       return
@@ -1073,7 +1138,7 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
         handler: (req: IncomingMessage, res: ServerResponse) =>
           handle(req, res).catch((error: unknown) => {
             ctx.logger?.warn?.('sooyo: route failed', error)
-            if (!res.headersSent) send(res, 500, { error: String((error as Error)?.message ?? error) })
+            if (!res.headersSent) send(res, error instanceof SyncError ? error.status : 500, { error: String((error as Error)?.message ?? error) })
             else res.end()
           }),
       }),
@@ -1105,7 +1170,7 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
             ...options,
             // Appended, never awaited: the bridge must not hold a turn open on a third party,
             // and `describeChangelog` reads the last successful parse rather than fetching.
-            extraLines: [describeChangelog(changelogDigest, { limit: 1 }), describeUpdate(updateCheck.peek())].filter(
+            extraLines: upstreamConfig.context === false ? [] : [describeChangelog(changelogDigest, { limit: 1 }), pluginUpdates.describe()].filter(
               (line): line is string => Boolean(line),
             ),
           }),
@@ -1118,6 +1183,7 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
   ctx.effect(() => {
     if (role === 'client') return () => {}
     const timer = setInterval(() => {
+      if (!lifecycle.accepting) return
       reviewer
         .sweep()
         .catch((error: unknown) => ctx.logger?.warn?.(`sooyo: sweep failed: ${String((error as Error)?.message ?? error)}`))
@@ -1128,12 +1194,13 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
 
   // ---- Agent tools ---------------------------------------------------------
 
-  const reviewer = createReviewer({
+  const reviewer = lifecycle.guard(createReviewer({
     service,
     role: () => role,
     config: sync.review ?? {},
     log: (message) => ctx.logger?.warn?.(message),
-  })
+    write: (operation) => queue.run(operation),
+  }))
 
   const inbox = {
     list: async () => {
@@ -1149,7 +1216,11 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
 
   ctx.inject?.(['tools'], (toolsCtx: any) => {
     const disposeAll = registerAgentTools({
-      tools: toolsCtx.tools,
+      tools: {
+        register: (definition: any) => toolsCtx.tools.register({
+          ...definition, execute: (...args: any[]) => lifecycle.run(() => definition.execute(...args)),
+        }),
+      },
       service,
       role: () => role,
       warn: (message, error) => ctx.logger?.warn?.(message, error),
@@ -1158,7 +1229,9 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
     const disposers: Array<() => void> = [disposeAll]
     const register = (definition: any) => {
       try {
-        disposers.push(toolsCtx.tools.register(definition))
+        disposers.push(toolsCtx.tools.register({
+          ...definition, execute: (...args: any[]) => lifecycle.run(() => definition.execute(...args)),
+        }))
       } catch (error: unknown) {
         ctx.logger?.warn?.(`sooyo: could not register tool ${definition.name}`, error)
       }
@@ -1334,14 +1407,13 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
     /**
      * Whether this plugin's own upstream has moved, and how to take the update.
      *
-     * Deliberately read-only: it reports the ref and the command, and stops. Applying an update
-     * is a profile mutation — on the Hub it is a `pnpm add`, on a checkout it is a pull plus a
-     * rebuild plus a DSH restart — and none of those belong inside a chat turn.
+     * Agent tools only inspect releases. Human browser interaction owns installation;
+     * DSH's native manager owns package changes, activation and restoration attempts.
      */
     register({
       name: 'sooyo_update_check',
       description:
-        '检查 dsh-sooyo 插件本身有没有上游更新（默认 GitHub 默认分支），并给出这个安装方式下该跑的命令。只读：不会真的更新。Host 代码改动需要重启 DSH 才生效。',
+        '检查本机 dsh-sooyo 的 npm 正式版本；源码副本另报开发提交差异。只读，不安装或激活。升级由用户在 sooyo 更新面板点击，宿主决定热重载或待重启。',
       parameters: {
         type: 'object',
         properties: {
@@ -1351,8 +1423,7 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
       },
       output: { schema: { type: 'object' }, render: text },
       execute: async (args: Record<string, any> = {}) => {
-        if (args?.force) updateCheck.peek()
-        const result = await updateCheck.check()
+        const result = await pluginUpdates.check(args?.force === true)
         return {
           ok: !result.error,
           build: runtime.build,
@@ -1363,9 +1434,8 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
           ...(role === 'client'
             ? { scope: '这台设备上的插件副本；Hub 上的副本可能不同，需在 Hub 上单独检查' }
             : {}),
-          restartRequired: true,
           ...result,
-          note: '只读检查；真正更新请按 plan.command 在对应机器上执行，然后重启 DSH 让 Host 代码重新加载。',
+          note: '只读检查；打开 sooyo 更新面板查看更新说明并由用户点击升级。每个实例独立更新。',
         }
       },
     })
@@ -1392,5 +1462,8 @@ export function apply(ctx: any, config: Record<string, any> = {}) {
     aihot,
     guide,
     updateCheck,
+    pluginUpdates,
+    lifecycle,
+    localRuntime,
   }
 }

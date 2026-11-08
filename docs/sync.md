@@ -171,7 +171,7 @@ schedule_create({
 | `403 sync API 只接受本机连接` | Hub 的 `allowLoopbackOnly` 还是 `true`。放到私网/HTTPS 之后才改。 |
 | `403 这个凭证只有读权限` | 该设备的令牌是 `access: read`。 |
 | `409 conflict` | 另一台设备先改了。UI 会刷新到最新；Agent 工具会提示重新读取 revision。 |
-| 改了 Host 代码但行为没变 | Host 模块按 specifier 缓存，需要重启 DSH（AGENTS.md 规则 2）。 |
+| 改了 Host 代码但行为没变 | 文件安装不等于运行生效；检查 `/sooyo/runtime` 的本机构建，按 DSH 的 HMR / 待重启结果激活。 |
 | Hub 重启后 Client 一直 503 | Hub 存储域还在打开，或 `journal` 里有需要人工确认的记录——看日志里的 `sooyo: journal ...`。 |
 
 ## 8. 三进程端到端验证（Three-Instance Check）

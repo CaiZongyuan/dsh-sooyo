@@ -1,26 +1,30 @@
 import type { CommandPrecondition } from '../../shared/commands.js'
 import type { DailySnapshot } from '../../shared/domain.js'
+import { BUILD } from '../../shared/build.js'
+import { updateSession } from '../updates/session.js'
 
 export const API = '/sooyo'
 
 export async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(API + path, {
-    cache: 'no-store',
-    headers: { accept: 'application/json', ...(init?.headers ?? {}) },
-    ...init,
-  })
-  const text = await response.text()
-  const parsed = text
-    ? (() => {
-        try {
-          return JSON.parse(text)
-        } catch {
-          return null
-        }
-      })()
-    : null
-  if (!response.ok) throw new Error(parsed?.error ?? `HTTP ${response.status}`)
-  return parsed as T
+  const finishWrite = init?.method && init.method !== 'GET' ? updateSession().beginWrite() : null
+  try {
+    const headers = new Headers(init?.headers)
+    if (!headers.has('accept')) headers.set('accept', 'application/json')
+    headers.set('x-sooyo-build', JSON.stringify(BUILD))
+    const response = await fetch(API + path, {
+      ...init,
+      cache: 'no-store',
+      headers,
+    })
+    const text = await response.text()
+    const parsed = text
+      ? (() => {
+          try { return JSON.parse(text) } catch { return null }
+        })()
+      : null
+    if (!response.ok) throw new Error(parsed?.error ?? `HTTP ${response.status}`)
+    return parsed as T
+  } finally { finishWrite?.() }
 }
 
 export function action<T = any>(name: string, body: unknown, precondition?: CommandPrecondition): Promise<T> {

@@ -1,8 +1,9 @@
 // <define:__SOOYO_BUILD__>
-var define_SOOYO_BUILD_default = { version: "0.2.0", commit: "1d415b14c50da8caa4c2a5671a21c0af6348f2d6", dirty: false, builtAt: "2026-11-08T05:47:56.068Z" };
+var define_SOOYO_BUILD_default = { version: "0.3.0", commit: "b5d075256fe7be78f88c06df033a2c67f6591b7f", dirty: false, builtAt: "2026-11-08T08:11:53.000Z" };
 
 // src/host/index.ts
 import { readFile } from "node:fs/promises";
+import { randomUUID as randomUUID3 } from "node:crypto";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // src/host/sources/feed-parser.ts
@@ -1389,6 +1390,33 @@ var ACTIONS = {
 };
 var ACTION_NAMES = Object.keys(ACTIONS);
 
+// src/shared/updates.ts
+var PACKAGE_NAME = "dsh-sooyo";
+var PROTOCOL_VERSION = 1;
+var PROTOCOL_RANGE = { min: 1, max: 1 };
+var DATA_SCHEMA_VERSION = 2;
+var UPDATE_CONTRACT = {
+  version: 1,
+  dataSchemaVersion: DATA_SCHEMA_VERSION,
+  protocolVersion: PROTOCOL_VERSION,
+  outboxVersion: 1
+};
+function compatibleContract(value) {
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(UPDATE_CONTRACT).every(([key, expected]) => value[key] === expected);
+}
+function stableVersion(value) {
+  return typeof value === "string" && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(value);
+}
+function compareStableVersions(left, right) {
+  const a = left.split(".").map(Number);
+  const b = right.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if (a[i] !== b[i]) return (a[i] ?? 0) > (b[i] ?? 0) ? 1 : -1;
+  }
+  return 0;
+}
+
 // src/host/core/protocol.ts
 var ACTION_NAMES_LIST = [
   "board.create",
@@ -1419,9 +1447,6 @@ var ACTION_NAMES_LIST = [
   "item.toTask",
   "item.toNote"
 ];
-var PROTOCOL_VERSION = 1;
-var PROTOCOL_RANGE = { min: 1, max: 1 };
-var DATA_SCHEMA_VERSION = 2;
 var CAPABILITIES = [
   "intent-v2",
   "settings-split",
@@ -3579,6 +3604,7 @@ var RemoteSooyoService = class {
   cache;
   cacheTables;
   health;
+  outboxFlush = null;
   constructor(sync, options = {}) {
     this.sync = sync;
     this.sources = options.sources ?? (() => []);
@@ -3767,6 +3793,15 @@ var RemoteSooyoService = class {
     }
   }
   async flushOutbox() {
+    if (this.outboxFlush) return this.outboxFlush;
+    this.outboxFlush = this.flushOutboxNow();
+    try {
+      return await this.outboxFlush;
+    } finally {
+      this.outboxFlush = null;
+    }
+  }
+  async flushOutboxNow() {
     if (!this.cacheTables || !this.ready) return { flushed: 0, conflicts: 0, pending: 0 };
     const outboxTable = this.cacheTables("outbox");
     const conflictsTable = this.cacheTables("conflicts");
@@ -4020,7 +4055,7 @@ var RemoteSooyoService = class {
       throw error;
     }
   }
-  _applyOptimisticOutboxProjection(name2, body, operationId) {
+  async _applyOptimisticOutboxProjection(name2, body, operationId) {
     if (!this.cache.snapshot) return null;
     const snap = JSON.parse(JSON.stringify(this.cache.snapshot));
     let optimisticResult = null;
@@ -4051,7 +4086,7 @@ var RemoteSooyoService = class {
     }
     this.cache.snapshot = snap;
     if (this.cacheTables) {
-      void this.cacheTables("snapshots").put("latest", {
+      await this.cacheTables("snapshots").put("latest", {
         id: "latest",
         snapshot: snap,
         etag: this.cache.etag,
@@ -4122,7 +4157,7 @@ var RemoteSooyoService = class {
           lastError: error.message
         };
         await this.cacheTables("outbox").put(operationId, entry);
-        const optimistic = this._applyOptimisticOutboxProjection(String(command?.name ?? ""), command?.body ?? {}, operationId);
+        const optimistic = await this._applyOptimisticOutboxProjection(String(command?.name ?? ""), command?.body ?? {}, operationId);
         return {
           ok: true,
           queued: true,
@@ -4160,6 +4195,7 @@ var RemoteSooyoService = class {
     return { checked: 0, completed: 0, abandoned: 0, pruned: 0, errors: [] };
   }
   async settled() {
+    if (this.outboxFlush) await this.outboxFlush;
     return { revision: this.cache.snapshot?.dataRevision ?? 0, changedAt: null, writer: null };
   }
 };
@@ -4724,6 +4760,9 @@ function createReviewer(deps) {
     };
   }
   async function acknowledge(entries, runId) {
+    return deps.write ? deps.write(() => acknowledgeNow(entries, runId)) : acknowledgeNow(entries, runId);
+  }
+  async function acknowledgeNow(entries, runId) {
     if (!Array.isArray(entries) || entries.length === 0) return { ok: true, acknowledged: 0 };
     const table = tables();
     let acknowledged = 0;
@@ -4840,6 +4879,7 @@ async function readText(url2, signal, accept = "text/html") {
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS2);
   const onAbort = () => controller.abort();
   signal?.addEventListener?.("abort", onAbort, { once: true });
+  if (signal?.aborted) controller.abort();
   try {
     const response = await fetch(url2, {
       headers: { accept, "user-agent": "dsh-sooyo (+personal, non-commercial; agent context)" },
@@ -4976,8 +5016,8 @@ function createUpdateChecker(options = {}) {
   const shape = options.shape ?? "unknown";
   let cache = null;
   let inflight = null;
-  async function check(signal) {
-    if (cache && Date.now() - cache.at < ttlMs) return cache.value;
+  async function check(signal, force = false) {
+    if (!force && cache && Date.now() - cache.at < ttlMs) return cache.value;
     if (inflight) return inflight;
     inflight = (async () => {
       const checkedAt = (/* @__PURE__ */ new Date()).toISOString();
@@ -5030,7 +5070,7 @@ function describeUpdate(check) {
   if (check.updateAvailable === true) {
     const local = check.installedCommit ? check.installedCommit.slice(0, 7) : check.installedVersion ?? "unknown";
     const remote = check.latestCommit ? check.latestCommit.slice(0, 7) : "unknown";
-    return `Update: dsh-sooyo ${local} → ${remote} on ${check.latestRef} (ask the user before updating; Host reload needs a restart).`;
+    return `Development: dsh-sooyo ${local} differs from ${remote} on ${check.latestRef}; a checkout is updated manually.`;
   }
   if (check.updateAvailable === false && check.installedDirty) {
     return `Build: dsh-sooyo ${check.installedCommit?.slice(0, 7) ?? "unknown"} + local edits (upstream is at the same revision).`;
@@ -5049,8 +5089,14 @@ function describeChangelog(digest, { limit = 2 } = {}) {
 // src/host/build-info.ts
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-var FALLBACK = { version: null, commit: null, dirty: false, builtAt: null };
-var BUILD = typeof define_SOOYO_BUILD_default === "object" && define_SOOYO_BUILD_default !== null ? define_SOOYO_BUILD_default : FALLBACK;
+
+// src/shared/build.ts
+var BUILD = typeof define_SOOYO_BUILD_default === "object" && define_SOOYO_BUILD_default !== null ? define_SOOYO_BUILD_default : { version: null, commit: null, dirty: false, builtAt: null };
+function sameBuild(left, right) {
+  return Boolean(left.version && left.builtAt) && left.version === right.version && left.commit === right.commit && left.dirty === right.dirty && left.builtAt === right.builtAt;
+}
+
+// src/host/build-info.ts
 function installShape(entryUrl) {
   try {
     const root = new URL("./", entryUrl);
@@ -5063,6 +5109,324 @@ function buildLabel(info, shape) {
   const version = info.version ?? "unknown";
   const commit = info.commit ? info.commit.slice(0, 7) : "nogit";
   return `${version}+${commit}${info.dirty ? "+edits" : ""} (${shape})`;
+}
+
+// src/host/core/lifecycle.ts
+import { AsyncLocalStorage } from "node:async_hooks";
+var RuntimeLifecycle = class {
+  context = new AsyncLocalStorage();
+  pending = /* @__PURE__ */ new Set();
+  controller = new AbortController();
+  closing = null;
+  phase = "running";
+  get accepting() {
+    return this.phase === "running";
+  }
+  get signal() {
+    return this.controller.signal;
+  }
+  run(operation) {
+    if (!this.accepting && !this.context.getStore()?.active) {
+      throw new SyncError(ERRORS.notReady, "插件正在升级或关闭，请稍后重试");
+    }
+    const scope = { active: true };
+    let value;
+    try {
+      value = this.context.run(scope, operation);
+    } catch (error) {
+      scope.active = false;
+      throw error;
+    }
+    if (!value || typeof value.then !== "function") {
+      scope.active = false;
+      return value;
+    }
+    const tracked = Promise.resolve(value).finally(() => {
+      scope.active = false;
+      this.pending.delete(tracked);
+    });
+    this.pending.add(tracked);
+    return tracked;
+  }
+  /** Preserve synchronous service methods and `instanceof`, and track nested fire-and-forget writes. */
+  guard(target) {
+    const bound = /* @__PURE__ */ new Map();
+    return new Proxy(target, {
+      get: (object, key) => {
+        const value = Reflect.get(object, key, object);
+        if (typeof value !== "function") return value;
+        if (!bound.has(key)) bound.set(key, (...args) => this.run(() => value.apply(object, args)));
+        return bound.get(key);
+      }
+    });
+  }
+  async drain() {
+    while (this.pending.size) await Promise.allSettled([...this.pending]);
+  }
+  async pause() {
+    if (this.phase !== "running") throw new SyncError(ERRORS.notReady, "已有升级正在准备或执行");
+    this.phase = "pausing";
+    this.controller.abort(new Error("sooyo is pausing"));
+    await this.drain();
+    if (this.phase === "pausing") this.phase = "paused";
+  }
+  resume() {
+    if (this.phase === "closing" || this.phase === "closed") return;
+    this.controller = new AbortController();
+    this.phase = "running";
+  }
+  close(release) {
+    if (this.closing) return this.closing;
+    this.phase = "closing";
+    this.controller.abort(new Error("sooyo is closing"));
+    this.closing = (async () => {
+      await this.drain();
+      await release();
+      this.phase = "closed";
+    })();
+    return this.closing;
+  }
+};
+
+// src/host/updates/service.ts
+import { randomUUID as randomUUID2 } from "node:crypto";
+function registryUrl(value) {
+  const url2 = new URL(value);
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url2.hostname);
+  if (url2.protocol !== "https:" && !(url2.protocol === "http:" && loopback) || url2.username || url2.password || url2.search || url2.hash) throw new Error("更新 registry 地址无效");
+  return url2.href.replace(/\/$/, "");
+}
+function supportsNode(value) {
+  if (typeof value !== "string") return false;
+  const minimum = /^>=\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?$/.exec(value);
+  if (!minimum) return false;
+  const current = process.versions.node.split(".").map(Number);
+  const required = minimum.slice(1).map((part) => Number(part ?? 0));
+  for (let i = 0; i < 3; i++) {
+    if (current[i] !== required[i]) return (current[i] ?? 0) > (required[i] ?? 0);
+  }
+  return true;
+}
+async function readMetadata(url2, signal, request) {
+  const response = await request(url2, {
+    signal: AbortSignal.any([signal, AbortSignal.timeout(15e3)]),
+    headers: { accept: "application/json", "user-agent": "dsh-sooyo/update-check" },
+    redirect: "error"
+  });
+  if (!response.ok) throw new Error(response.status === 404 ? "尚无可用的 npm 正式发布" : `版本检查返回 HTTP ${response.status}`);
+  if (!response.body) throw new Error("版本检查返回空响应");
+  const reader = response.body.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      size += next.value.byteLength;
+      if (size > 2e6) throw new Error("版本元数据超过大小限制");
+      chunks.push(next.value);
+    }
+  } finally {
+    await reader.cancel();
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+function createPluginUpdates(deps) {
+  const request = deps.fetch ?? fetch;
+  const panels = /* @__PURE__ */ new Map();
+  let cached = {
+    state: "unchecked",
+    checkedAt: null,
+    installedVersion: null,
+    source: deps.shape === "checkout" ? "checkout" : "unknown",
+    canUpdate: false,
+    reason: "尚未检查更新",
+    candidate: null,
+    error: null,
+    development: null
+  };
+  let checkedAt = 0;
+  let inflight = null;
+  let lease = null;
+  let leaseTimer = null;
+  const status = () => ({ ...cached, runtime: deps.runtime() });
+  async function check(force = false) {
+    if (inflight) return inflight;
+    if (!force && checkedAt && Date.now() - checkedAt < (deps.ttlMs ?? 36e5)) return status();
+    inflight = (async () => {
+      const next = {
+        ...cached,
+        state: "current",
+        checkedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        error: null,
+        candidate: null,
+        canUpdate: false,
+        reason: null,
+        development: null
+      };
+      try {
+        const manager = deps.manager();
+        const bundles = manager ? await manager.listBundles() : [];
+        const installed = bundles.find((bundle) => bundle.name === PACKAGE_NAME);
+        next.installedVersion = typeof installed?.version === "string" ? installed.version : deps.runtime().build.version;
+        next.source = deps.shape === "checkout" ? "checkout" : installed?.updatable === true ? "registry" : installed ? "other" : "unknown";
+        const native = Boolean(manager?.listVersions && manager.updateBundle);
+        next.reason = next.source === "checkout" ? "源码副本仅检查更新，请在工作树中手动拉取和构建" : !native ? "当前 DSH 缺少原生更新接口，请在插件管理器中手动更新" : next.source !== "registry" ? "当前安装方式不支持一键升级；请在 DSH 插件管理器切换为 npm 安装" : null;
+        if (next.source === "checkout") {
+          const dev = await deps.development.check(deps.lifecycle.signal, force);
+          next.development = { installedCommit: dev.installedCommit, latestCommit: dev.latestCommit, changed: dev.updateAvailable };
+          if (dev.error) next.reason += `；开发提交检查失败：${dev.error}`;
+        }
+        let registry = registryUrl(deps.registry ?? "https://registry.npmjs.org");
+        let latest;
+        if (native && next.source === "registry") {
+          const listing = await manager.listVersions(
+            PACKAGE_NAME,
+            deps.registry ? { registry } : {},
+            AbortSignal.any([deps.lifecycle.signal, AbortSignal.timeout(9e4)])
+          );
+          if (listing.status !== "listed") throw new Error(String(listing.reason ?? "宿主无法读取发布版本"));
+          registry = registryUrl(typeof listing.registry === "string" ? listing.registry : registry);
+          const versions = Array.isArray(listing.versions) ? listing.versions : [];
+          latest = versions.filter((item) => stableVersion(item.version) && !item.prerelease).sort((a, b) => compareStableVersions(b.version, a.version))[0];
+          if (!latest && listing.omitted > 0) throw new Error("宿主版本列表被截断，无法确认最新正式版本");
+        } else {
+          const metadata = await readMetadata(`${registry}/${PACKAGE_NAME}`, deps.lifecycle.signal, request);
+          const versions = Object.keys(metadata.versions ?? {}).filter(stableVersion).sort((a, b) => compareStableVersions(b, a));
+          const version = versions[0];
+          if (!version) throw new Error("尚无可用的 npm 正式发布");
+          if (!next.installedVersion || !stableVersion(next.installedVersion) || compareStableVersions(version, next.installedVersion) > 0) latest = { version, publishedAt: metadata.time?.[version] };
+        }
+        if (latest) {
+          const manifest = await readMetadata(`${registry}/${PACKAGE_NAME}/${latest.version}`, deps.lifecycle.signal, request);
+          if (manifest.name !== PACKAGE_NAME || manifest.version !== latest.version) throw new Error("发布元数据的名称或版本不匹配");
+          const contract = manifest.sooyo?.updateContract;
+          const nodeCompatible = supportsNode(manifest.engines?.node);
+          const compatible = compatibleContract(contract) && nodeCompatible && latest.bundle !== false && !latest.incompatible && !manifest.deprecated;
+          const candidate = {
+            version: latest.version,
+            publishedAt: latest.publishedAt ?? null,
+            registry,
+            notes: typeof manifest.sooyo?.releaseNotes === "string" ? manifest.sooyo.releaseNotes.slice(0, 6e3) : "此版本没有提供更新说明。",
+            contract: compatibleContract(contract) ? contract : null,
+            compatible,
+            reason: latest.incompatible ? "目标版本与当前 DSH 不兼容" : manifest.deprecated ? "此版本已被撤回，不提供一键升级" : !nodeCompatible ? "目标 Node.js 要求不兼容或无法自动验证，请安排维护升级" : !compatibleContract(contract) ? "目标版本需要维护升级，或没有声明兼容的数据和同步协议" : null
+          };
+          next.candidate = candidate;
+          next.state = "available";
+          next.canUpdate = native && next.source === "registry" && compatible;
+          next.reason ??= candidate.reason;
+        }
+      } catch (error) {
+        next.state = "error";
+        next.error = String(error?.message ?? error);
+        next.canUpdate = false;
+      }
+      cached = next;
+      checkedAt = Date.now();
+      return status();
+    })();
+    try {
+      return await inflight;
+    } finally {
+      inflight = null;
+    }
+  }
+  function presence(value) {
+    if (!/^[a-zA-Z0-9_-]{8,100}$/.test(value?.id ?? "")) throw new SyncError(ERRORS.badRequest, "面板标识无效");
+    if (value.leaving) panels.delete(value.id);
+    else {
+      if (!panels.has(value.id) && panels.size >= 100) throw new SyncError(ERRORS.rateLimited, "打开的面板过多");
+      panels.set(value.id, {
+        id: value.id,
+        build: value.build,
+        dirty: value.dirty !== false,
+        busy: value.busy !== false,
+        freezeId: typeof value.freezeId === "string" ? value.freezeId : null,
+        at: Date.now()
+      });
+    }
+    return { freezeId: lease?.requestId ?? null, runtime: deps.runtime() };
+  }
+  function resume(requestId) {
+    if (!lease || lease.requestId !== requestId) return;
+    if (leaseTimer) clearTimeout(leaseTimer);
+    leaseTimer = null;
+    lease = null;
+    deps.lifecycle.resume();
+  }
+  async function prepare(panelId, version) {
+    if (lease || !deps.lifecycle.accepting) throw new SyncError(ERRORS.notReady, "已有升级正在准备或执行");
+    const runtime = deps.runtime();
+    if (!runtime.ready) throw new SyncError(ERRORS.notReady, "本机存储尚未就绪");
+    if (!panels.has(panelId)) throw new SyncError(ERRORS.badRequest, "当前面板尚未连接，请稍后重试");
+    const pending = { requestId: randomUUID2(), version, registry: "", instanceId: runtime.instanceId };
+    lease = pending;
+    try {
+      const current = await check();
+      const target = current.candidate;
+      if (!current.canUpdate || !target || target.version !== version) {
+        throw new SyncError(ERRORS.badRequest, current.error ?? current.reason ?? "目标版本已改变，请重新检查");
+      }
+      pending.registry = target.registry;
+      if (deps.checkHub) {
+        const health = await deps.checkHub();
+        if (!health.ok || health.protocolVersion !== UPDATE_CONTRACT.protocolVersion || health.dataSchemaVersion !== UPDATE_CONTRACT.dataSchemaVersion) {
+          throw new SyncError(ERRORS.unavailable, "暂时无法确认与 Hub 的兼容性，请恢复连接后重试");
+        }
+      }
+      const deadline = Date.now() + 1e4;
+      while (true) {
+        const connected = [...panels.values()];
+        if (!panels.has(panelId)) throw new SyncError(ERRORS.badRequest, "发起升级的面板已经关闭");
+        if (connected.some((panel) => Date.now() - panel.at > 15e3)) {
+          throw new SyncError(ERRORS.notReady, "还有未响应的窗口，请重新打开或关闭该窗口后再升级");
+        }
+        if (connected.every((panel) => panel.freezeId === pending.requestId)) {
+          if (connected.some((panel) => panel.dirty)) throw new SyncError(ERRORS.notReady, "请先保存或取消所有窗口中的未提交内容");
+          if (connected.some((panel) => !panel.build || !sameBuild(panel.build, runtime.build))) {
+            throw new SyncError(ERRORS.notReady, "还有窗口运行不同的界面版本，请重新打开这些面板后再升级");
+          }
+          if (connected.every((panel) => !panel.busy)) break;
+        }
+        if (Date.now() > deadline) throw new SyncError(ERRORS.notReady, "等待其他窗口或正在保存的内容超时，请稍后重试");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      let timer;
+      try {
+        await Promise.race([
+          deps.lifecycle.pause(),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error("等待在途工作结束超时，请稍后重试")), 3e4);
+          })
+        ]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+      leaseTimer = setTimeout(() => resume(pending.requestId), 5 * 6e4);
+      leaseTimer.unref?.();
+      return pending;
+    } catch (error) {
+      resume(pending.requestId);
+      throw error;
+    }
+  }
+  return {
+    status,
+    check,
+    presence,
+    prepare,
+    resume,
+    freezeId: () => lease?.requestId ?? null,
+    dispose: () => {
+      if (leaseTimer) clearTimeout(leaseTimer);
+      leaseTimer = null;
+    },
+    describe: () => {
+      const value = status();
+      return value.error ? `Update check failed: ${value.error}` : value.candidate ? `Update: sooyo ${value.runtime.build.version ?? "unknown"} → ${value.candidate.version}; a human can review it in the sooyo update panel.` : null;
+    }
+  };
 }
 
 // src/host/index.ts
@@ -5105,6 +5469,9 @@ var itemTime = (item) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 function apply(ctx, config = {}) {
+  const lifecycle = new RuntimeLifecycle();
+  const instanceId = randomUUID3();
+  let storageReady = false;
   setSourceConfig(config);
   const enabledIds = new Set(
     Array.isArray(config.sources) && config.sources.length > 0 ? config.sources : SOURCES.map((s) => s.id)
@@ -5144,13 +5511,13 @@ function apply(ctx, config = {}) {
   const writeTables = createStampTable(
     (tableName) => {
       if (!domain) throw new Error("sooyo store is not open yet");
-      return domain.table(tableName);
+      return lifecycle.guard(domain.table(tableName));
     },
     (tableName, key, value) => stamper ? stamper.stamp(tableName, key, value) : value
   );
   const beginWrite = () => stamper?.open();
   const endWrite = () => stamper?.close();
-  const service = role === "client" ? new RemoteSooyoService(sync, {
+  const rawService = role === "client" ? new RemoteSooyoService(sync, {
     sources: () => active,
     log: (message) => ctx.logger?.warn?.(message)
   }) : new LocalSooyoService({
@@ -5162,52 +5529,66 @@ function apply(ctx, config = {}) {
     readers: { items: (searchParams) => listItems(searchParams), meta: () => meta() },
     hooks: { beginWrite, endWrite }
   });
+  const service = lifecycle.guard(rawService);
+  const localRuntime = () => ({
+    build: BUILD,
+    instanceId,
+    role,
+    ready: storageReady && rawService.ready,
+    phase: lifecycle.phase,
+    contract: UPDATE_CONTRACT
+  });
+  const pluginUpdates = createPluginUpdates({
+    manager: () => ctx.get?.("pluginManager"),
+    runtime: localRuntime,
+    lifecycle,
+    shape,
+    development: updateCheck,
+    ttlMs: Number(upstreamConfig.checkTtlMinutes ?? 60) * 6e4,
+    registry: typeof config.updates?.registry === "string" ? config.updates.registry : void 0,
+    checkHub: rawService instanceof RemoteSooyoService ? () => rawService.checkHealth() : void 0
+  });
+  ctx.effect(() => () => pluginUpdates.dispose(), "sooyo: updates");
   ctx.effect(() => {
     let disposed = false;
     let handle2 = null;
-    if (role === "client") {
-      if (!ctx.storageDomain?.open) return () => {
-      };
-      ctx.storageDomain.open(CLIENT_CACHE_DOMAIN_SPEC).then((opened) => {
+    void lifecycle.run(async () => {
+      try {
+        const opened = await ctx.storageDomain.open(role === "client" ? CLIENT_CACHE_DOMAIN_SPEC : DOMAIN_SPEC);
         if (disposed) {
-          void opened.close();
+          await opened.close();
           return;
         }
         handle2 = opened;
-        if (service instanceof RemoteSooyoService) {
-          service.attachCacheTables((tableName) => opened.table(tableName));
+        if (rawService instanceof RemoteSooyoService) {
+          rawService.attachCacheTables((tableName) => lifecycle.guard(opened.table(tableName)));
+          storageReady = true;
+          return;
         }
-      }).catch((error) => {
-        ctx.logger?.warn?.("sooyo: could not open the client cache domain", error);
-      });
-      return () => {
-        disposed = true;
-        if (handle2) void handle2.close();
-      };
-    }
-    ctx.storageDomain.open(DOMAIN_SPEC).then(async (opened) => {
-      if (disposed) {
-        void opened.close();
-        return;
+        domain = opened;
+        openError = null;
+        stamper = makeStamper(writeTables);
+        await rawService.recover((message) => ctx.logger?.warn?.(message));
+        if (disposed) return;
+        await queue.run(() => ensureSeeded(writeTables));
+        if (disposed) return;
+        rawService.ready = true;
+        storageReady = true;
+      } catch (error) {
+        openError = error;
+        ctx.logger?.warn?.("sooyo: could not open the sooyo domain", error);
       }
-      handle2 = opened;
-      domain = opened;
-      openError = null;
-      stamper = makeStamper(writeTables);
-      if (service instanceof LocalSooyoService) {
-        await service.recover((message) => ctx.logger?.warn?.(message));
-      }
-      await ensureSeeded(writeTables);
-      service.ready = true;
-    }).catch((error) => {
-      openError = error;
-      ctx.logger?.warn?.("sooyo: could not open the sooyo domain", error);
     });
     return () => {
       disposed = true;
-      domain = null;
-      service.ready = false;
-      if (handle2) void handle2.close();
+      return lifecycle.close(async () => {
+        await queue.drain();
+        rawService.ready = false;
+        storageReady = false;
+        if (rawService instanceof RemoteSooyoService) rawService.cacheTables = null;
+        if (handle2) await handle2.close();
+        domain = null;
+      });
     };
   }, "sooyo: domain");
   ctx.effect(() => {
@@ -5217,12 +5598,10 @@ function apply(ctx, config = {}) {
     };
     const tick = async () => {
       try {
-        await refreshDue();
-      } catch (error) {
-        runtime.lastError = String(error?.message ?? error);
-      }
-      try {
-        await resolveThumbnails(thumbnailBatch);
+        if (lifecycle.accepting) await lifecycle.run(async () => {
+          await refreshDue();
+          if (lifecycle.accepting) await resolveThumbnails(thumbnailBatch);
+        });
       } catch (error) {
         runtime.lastError = String(error?.message ?? error);
       }
@@ -5235,18 +5614,19 @@ function apply(ctx, config = {}) {
     };
   }, "sooyo: poll");
   ctx.effect(() => {
-    if (upstreamConfig.context === false) return () => {
-    };
     let stopped = false;
     let handle2 = null;
     const warm = async () => {
       try {
-        changelogDigest = await aihot.read();
-      } catch (error) {
-        ctx.logger?.warn?.(`sooyo: AIHOT changelog unavailable: ${String(error?.message ?? error)}`);
-      }
-      try {
-        await updateCheck.check();
+        if (lifecycle.accepting) await lifecycle.run(async () => {
+          const results = await Promise.allSettled([
+            upstreamConfig.context !== false ? aihot.read(lifecycle.signal).then((digest) => {
+              changelogDigest = digest;
+            }) : Promise.resolve(),
+            config.updates?.autoCheck !== false ? pluginUpdates.check() : Promise.resolve()
+          ]);
+          for (const result of results) if (result.status === "rejected") ctx.logger?.warn?.("sooyo: upstream check failed", result.reason);
+        });
       } catch (error) {
         ctx.logger?.warn?.(`sooyo: update check failed: ${String(error?.message ?? error)}`);
       }
@@ -5271,6 +5651,9 @@ function apply(ctx, config = {}) {
     });
   }
   async function refreshDue() {
+    return lifecycle.run(() => refreshDueNow());
+  }
+  async function refreshDueNow() {
     if (!domain) return { ok: false, error: openError ? String(openError.message ?? openError) : "存储域正在打开" };
     runtime.lastTickAt = nowIso9();
     const due = dueSources();
@@ -5306,7 +5689,7 @@ function apply(ctx, config = {}) {
   function refreshSource(sourceId, reason) {
     const running = inFlight.get(sourceId);
     if (running) return running;
-    const run = refreshSourceNow(sourceId, reason).finally(() => inFlight.delete(sourceId));
+    const run = lifecycle.run(() => refreshSourceNow(sourceId, reason)).finally(() => inFlight.delete(sourceId));
     inFlight.set(sourceId, run);
     return run;
   }
@@ -5318,7 +5701,7 @@ function apply(ctx, config = {}) {
     const previous = stateOfSource(sourceId);
     const startedAt = Date.now();
     try {
-      const result = await withFetchSlot(() => source.load(AbortSignal.timeout(REQUEST_TIMEOUT_MS), previous));
+      const result = await withFetchSlot(() => source.load(AbortSignal.any([lifecycle.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]), previous));
       const next = {
         ...previous,
         id: sourceId,
@@ -5334,29 +5717,33 @@ function apply(ctx, config = {}) {
         itemCount: previous.itemCount ?? 0
       };
       if (result.notModified) {
-        await sources.put(sourceId, { ...next, lastResult: "not-modified" });
+        await queue.run(() => sources.put(sourceId, { ...next, lastResult: "not-modified" }));
         return { ok: true, sourceId, notModified: true };
       }
-      const added = await upsert(source, result.items ?? []);
-      const total = countForSource(sourceId);
-      await sources.put(sourceId, { ...next, lastResult: "ok", lastAdded: added, itemCount: total });
-      await touchItemsUpdated(writeTables);
-      return { ok: true, sourceId, added, total, notModified: false };
+      return await queue.run(async () => {
+        const added = await upsert(source, result.items ?? []);
+        const total = countForSource(sourceId);
+        await sources.put(sourceId, { ...next, lastResult: "ok", lastAdded: added, itemCount: total });
+        await touchItemsUpdated(writeTables);
+        return { ok: true, sourceId, added, total, notModified: false };
+      });
     } catch (error) {
       const message = describeError(error);
       const failStreak = (previous.failStreak ?? 0) + 1;
-      await sources.put(sourceId, {
-        ...previous,
-        id: sourceId,
-        label: source.label,
-        suggests: source.suggests ?? null,
-        lastRunAt: nowIso9(),
-        lastError: message,
-        lastResult: "failed",
-        failStreak,
-        nextDueAt: startedAt + retryDelay(failStreak, cadenceOf(source))
+      await queue.run(async () => {
+        await sources.put(sourceId, {
+          ...previous,
+          id: sourceId,
+          label: source.label,
+          suggests: source.suggests ?? null,
+          lastRunAt: nowIso9(),
+          lastError: message,
+          lastResult: "failed",
+          failStreak,
+          nextDueAt: startedAt + retryDelay(failStreak, cadenceOf(source))
+        });
+        await touchItemsUpdated(writeTables);
       });
-      await touchItemsUpdated(writeTables);
       return { ok: false, sourceId, error: message, reason, failStreak };
     }
   }
@@ -5424,6 +5811,9 @@ function apply(ctx, config = {}) {
   }
   let thumbnailPass = null;
   function resolveThumbnails(limit) {
+    return lifecycle.run(() => resolveThumbnailsNow(limit));
+  }
+  function resolveThumbnailsNow(limit) {
     if (!domain) {
       return Promise.resolve({
         ok: false,
@@ -5449,15 +5839,15 @@ function apply(ctx, config = {}) {
       let failed = 0;
       for (const [key, value] of batch) {
         try {
-          const page = await withFetchSlot(() => fetchPagePrefix(value.url, AbortSignal.timeout(PAGE_TIMEOUT_MS)));
+          const page = await withFetchSlot(() => fetchPagePrefix(value.url, AbortSignal.any([lifecycle.signal, AbortSignal.timeout(PAGE_TIMEOUT_MS)])));
           const image = page.html ? extractOgImage(page.html, value.url) : null;
-          if (image) {
-            await items.put(key, { ...value, thumbnail: image, thumbnailCheckedAt: nowIso9() });
-            resolved += 1;
-          } else {
-            await items.put(key, { ...value, thumbnailCheckedAt: nowIso9() });
-            skipped += 1;
-          }
+          await queue.run(async () => {
+            const current = items.get(key);
+            if (!current) return;
+            await items.put(key, { ...current, ...image ? { thumbnail: image } : {}, thumbnailCheckedAt: nowIso9() });
+          });
+          if (image) resolved += 1;
+          else skipped += 1;
         } catch {
           failed += 1;
         }
@@ -5466,7 +5856,7 @@ function apply(ctx, config = {}) {
       runtime.thumbnails.skipped += skipped;
       runtime.thumbnails.failed += failed;
       if (resolved > 0) {
-        await touchItemsUpdated(writeTables);
+        await queue.run(() => touchItemsUpdated(writeTables));
       }
       return { ok: true, candidates: candidates.length, checked: batch.length, resolved, skipped, failed };
     })().finally(() => {
@@ -5603,6 +5993,50 @@ function apply(ctx, config = {}) {
     return JSON.parse(Buffer.concat(chunks).toString("utf8"));
   }
   async function handle(req, res) {
+    if (!isLoopback(req)) {
+      send(res, 403, { error: "sooyo routes are loopback-only" });
+      return;
+    }
+    const route = new URL(req.url ?? "/", "http://127.0.0.1").pathname.slice(ROUTE_PREFIX.length);
+    if (req.method === "GET" && route === "/runtime") {
+      send(res, 200, localRuntime());
+      return;
+    }
+    if (req.method === "GET" && route === "/updates") {
+      send(res, 200, pluginUpdates.status());
+      return;
+    }
+    if (req.method === "POST" && route.startsWith("/updates/")) {
+      const origin2 = req.headers?.origin;
+      if (req.headers?.["x-sooyo-ui"] !== "1" || origin2 && new URL(origin2).host !== req.headers.host) {
+        send(res, 403, { error: "升级控制只接受当前界面的请求" });
+        return;
+      }
+      const body = await readJsonBody(req);
+      if (route === "/updates/presence") send(res, 200, pluginUpdates.presence(body));
+      else if (route === "/updates/check") send(res, 200, await pluginUpdates.check(true));
+      else if (route === "/updates/prepare") send(res, 200, await pluginUpdates.prepare(body.panelId, body.version));
+      else if (route === "/updates/resume") {
+        pluginUpdates.resume(body.requestId);
+        send(res, 200, { ok: true });
+      } else send(res, 404, { error: "unknown update route" });
+      return;
+    }
+    const claimed = req.headers?.["x-sooyo-build"];
+    if (req.method === "POST" && typeof claimed === "string") {
+      let matches = false;
+      try {
+        matches = sameBuild(JSON.parse(claimed), BUILD);
+      } catch {
+      }
+      if (!matches) {
+        send(res, 409, { error: "界面和本机 Host 的版本不同，请等待升级完成或重新打开面板" });
+        return;
+      }
+    }
+    await lifecycle.run(() => handleData(req, res));
+  }
+  async function handleData(req, res) {
     if (!isLoopback(req)) {
       send(res, 403, { error: "sooyo routes are loopback-only" });
       return;
@@ -5880,7 +6314,7 @@ function apply(ctx, config = {}) {
       path: ROUTE_PREFIX,
       handler: (req, res) => handle(req, res).catch((error) => {
         ctx.logger?.warn?.("sooyo: route failed", error);
-        if (!res.headersSent) send(res, 500, { error: String(error?.message ?? error) });
+        if (!res.headersSent) send(res, error instanceof SyncError ? error.status : 500, { error: String(error?.message ?? error) });
         else res.end();
       })
     }),
@@ -5907,7 +6341,7 @@ function apply(ctx, config = {}) {
         ...options,
         // Appended, never awaited: the bridge must not hold a turn open on a third party,
         // and `describeChangelog` reads the last successful parse rather than fetching.
-        extraLines: [describeChangelog(changelogDigest, { limit: 1 }), describeUpdate(updateCheck.peek())].filter(
+        extraLines: upstreamConfig.context === false ? [] : [describeChangelog(changelogDigest, { limit: 1 }), pluginUpdates.describe()].filter(
           (line) => Boolean(line)
         )
       }),
@@ -5920,17 +6354,19 @@ function apply(ctx, config = {}) {
     if (role === "client") return () => {
     };
     const timer = setInterval(() => {
+      if (!lifecycle.accepting) return;
       reviewer.sweep().catch((error) => ctx.logger?.warn?.(`sooyo: sweep failed: ${String(error?.message ?? error)}`));
     }, 6 * 3600 * 1e3);
     timer.unref?.();
     return () => clearInterval(timer);
   }, "sooyo: sweep");
-  const reviewer = createReviewer({
+  const reviewer = lifecycle.guard(createReviewer({
     service,
     role: () => role,
     config: sync.review ?? {},
-    log: (message) => ctx.logger?.warn?.(message)
-  });
+    log: (message) => ctx.logger?.warn?.(message),
+    write: (operation) => queue.run(operation)
+  }));
   const inbox = {
     list: async () => {
       try {
@@ -5944,7 +6380,12 @@ function apply(ctx, config = {}) {
   };
   ctx.inject?.(["tools"], (toolsCtx) => {
     const disposeAll = registerAgentTools({
-      tools: toolsCtx.tools,
+      tools: {
+        register: (definition) => toolsCtx.tools.register({
+          ...definition,
+          execute: (...args) => lifecycle.run(() => definition.execute(...args))
+        })
+      },
       service,
       role: () => role,
       warn: (message, error) => ctx.logger?.warn?.(message, error)
@@ -5952,7 +6393,10 @@ function apply(ctx, config = {}) {
     const disposers = [disposeAll];
     const register = (definition) => {
       try {
-        disposers.push(toolsCtx.tools.register(definition));
+        disposers.push(toolsCtx.tools.register({
+          ...definition,
+          execute: (...args) => lifecycle.run(() => definition.execute(...args))
+        }));
       } catch (error) {
         ctx.logger?.warn?.(`sooyo: could not register tool ${definition.name}`, error);
       }
@@ -6100,7 +6544,7 @@ function apply(ctx, config = {}) {
     });
     register({
       name: "sooyo_update_check",
-      description: "检查 dsh-sooyo 插件本身有没有上游更新（默认 GitHub 默认分支），并给出这个安装方式下该跑的命令。只读：不会真的更新。Host 代码改动需要重启 DSH 才生效。",
+      description: "检查本机 dsh-sooyo 的 npm 正式版本；源码副本另报开发提交差异。只读，不安装或激活。升级由用户在 sooyo 更新面板点击，宿主决定热重载或待重启。",
       parameters: {
         type: "object",
         properties: {
@@ -6110,8 +6554,7 @@ function apply(ctx, config = {}) {
       },
       output: { schema: { type: "object" }, render: text },
       execute: async (args = {}) => {
-        if (args?.force) updateCheck.peek();
-        const result = await updateCheck.check();
+        const result = await pluginUpdates.check(args?.force === true);
         return {
           ok: !result.error,
           build: runtime.build,
@@ -6120,9 +6563,8 @@ function apply(ctx, config = {}) {
           // Hub runs a `github:` install. Naming the role is what keeps this answer about *this*
           // copy rather than about "the plugin".
           ...role === "client" ? { scope: "这台设备上的插件副本；Hub 上的副本可能不同，需在 Hub 上单独检查" } : {},
-          restartRequired: true,
           ...result,
-          note: "只读检查；真正更新请按 plan.command 在对应机器上执行，然后重启 DSH 让 Host 代码重新加载。"
+          note: "只读检查；打开 sooyo 更新面板查看更新说明并由用户点击升级。每个实例独立更新。"
         };
       }
     });
@@ -6146,12 +6588,16 @@ function apply(ctx, config = {}) {
     buildInfo: BUILD,
     aihot,
     guide,
-    updateCheck
+    updateCheck,
+    pluginUpdates,
+    lifecycle,
+    localRuntime
   };
 }
 export {
   AIHOT_CHANGELOG_URL,
   AIHOT_GUIDE_URL,
+  BUILD,
   CAPABILITIES,
   CLIENT_CACHE_DOMAIN_SPEC,
   COMMANDS,
@@ -6163,7 +6609,9 @@ export {
   PROTOCOL_RANGE,
   PROTOCOL_VERSION,
   RemoteSooyoService,
+  RuntimeLifecycle,
   TABLES,
+  UPDATE_CONTRACT,
   absoluteUrl,
   apply,
   applyImport,
@@ -6171,6 +6619,7 @@ export {
   buildSyncRoutes,
   computeExportChecksum,
   contextMessage,
+  createPluginUpdates,
   createSyncHandler,
   decodeEntities,
   deriveEntityId,
@@ -6192,6 +6641,7 @@ export {
   readFeed,
   renderContextBlock,
   resolveSyncConfig,
+  sameBuild,
   stripTags,
   touchItemsUpdated,
   updatePlan,

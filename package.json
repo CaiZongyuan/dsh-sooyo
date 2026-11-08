@@ -1,6 +1,6 @@
 {
   "name": "dsh-sooyo",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "license": "MIT",
   "author": "CaiZongyuan",
@@ -64,7 +64,7 @@
   },
   "sooyo": {
     "updateContract": { "version": 1, "dataSchemaVersion": 2, "protocolVersion": 1, "outboxVersion": 1 },
-    "releaseNotes": "新增插件更新面板：后台检查 npm 正式版本，点击后通过 DSH 原生更新并优先热重载。升级前保护未提交内容、等待持久化，升级后核对本机服务和界面版本。源码副本只检查；需要重启或恢复失败时明确提示。"
+    "releaseNotes": "修复首次 npm 发布后 registry 尚未公开可见时的校验等待，并隔离升级测试的本地 registry，避免公共 npm 上的真实版本影响故障注入。插件运行功能、个人数据格式及同步协议与 0.3.0 保持一致。"
   },
   "scripts": {
     "build": "node dev/build.mjs",

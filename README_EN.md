@@ -66,7 +66,7 @@ Requires [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) `>=
 dsh plugin --profile web add dsh-sooyo
 ```
 
-Use the npm installation after the first 0.3.0 publication. Follow DSH's activation result: native updates
+Install the official npm package. Follow DSH's activation result: native updates
 prefer HMR and explicitly report when a restart is required.
 
 The top-bar update button checks stable npm releases and installs only after a human click. Each DSH

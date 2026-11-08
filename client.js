@@ -1,7 +1,7 @@
 /**
  * Client half of sooyo daily — generated from `src/client/index.ts`.
  * Do not edit by hand; run `pnpm run build` to regenerate.
- * Build identity: {"version":"0.3.0","commit":"b5d075256fe7be78f88c06df033a2c67f6591b7f","dirty":false,"builtAt":"2026-11-08T08:11:53.000Z"}
+ * Build identity: {"version":"0.3.1","commit":"2b9d02fcd1b50b276578c71ae1f4c3d3259d3bdc","dirty":false,"builtAt":"2026-11-08T09:04:03.000Z"}
  */
 window.__ModuleLoader__.load({
   id: 'dsh-sooyo',
@@ -1012,7 +1012,7 @@ __export(index_exports, {
 module.exports = __toCommonJS(index_exports);
 
 // <define:__SOOYO_BUILD__>
-var define_SOOYO_BUILD_default = { version: "0.3.0", commit: "b5d075256fe7be78f88c06df033a2c67f6591b7f", dirty: false, builtAt: "2026-11-08T08:11:53.000Z" };
+var define_SOOYO_BUILD_default = { version: "0.3.1", commit: "2b9d02fcd1b50b276578c71ae1f4c3d3259d3bdc", dirty: false, builtAt: "2026-11-08T09:04:03.000Z" };
 
 // src/client/index.ts
 var React26 = __toESM(require("react"), 1);

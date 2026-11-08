@@ -168,15 +168,17 @@ export async function startDshInstance(options: StartDshInstanceOptions = {}): P
   const spec = options.pluginSpec ?? packPluginTarball()
   const home = mkdtempSync(join(tmpdir(), `sooyo-dsh-${label}-`))
   const patchPath = join(home, 'sooyo-e2e-overlay.json')
-  writeFileSync(patchPath, options.bundleManaged
-    ? JSON.stringify(options.hmr === false ? [{ id: 'hmr', disabled: true }] : [])
-    : buildPatchYaml(options.sooyoConfig), 'utf8')
+  const patches: Array<Record<string, unknown>> = options.bundleManaged ? [] : JSON.parse(buildPatchYaml(options.sooyoConfig))
+  if (options.hmr === false) patches.push({ id: 'hmr', disabled: true })
+  if (options.registry) patches.push({ id: 'plugin-manager', config: { registry: options.registry, fallbackRegistries: [] } })
+  writeFileSync(patchPath, JSON.stringify(patches), 'utf8')
 
   const baseEnv: NodeJS.ProcessEnv = {
     ...process.env,
     DSH_HOME: home,
     DSH_TELEMETRY_DISABLED: '1',
     ...(options.env ?? {}),
+    ...(options.registry ? { NPM_CONFIG_REGISTRY: options.registry } : {}),
   }
 
   const installRes = await new Promise<{ status: number | null; output: string }>((done, reject) => {

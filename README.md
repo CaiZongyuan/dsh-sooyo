@@ -119,7 +119,7 @@ sync:
 
 前置：[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) `>=0.2.0-rc.1`、Node.js `>=20`。
 
-0.3.0 正式发布至 npm 后，使用正式包安装（Web profile）：
+正式版通过 npm 安装（Web profile）：
 
 ```sh
 dsh plugin --profile web add dsh-sooyo

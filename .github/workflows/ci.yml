@@ -70,4 +70,11 @@ jobs:
 
       - name: Publish through npm trusted publishing
         if: startsWith(github.ref, 'refs/tags/')
-        run: node dev/publish-release.mjs
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            export NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/sooyo-publish.npmrc"
+            printf '%s\n' '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' > "$NPM_CONFIG_USERCONFIG"
+          fi
+          node dev/publish-release.mjs

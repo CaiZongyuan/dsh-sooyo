@@ -98,6 +98,8 @@ PluginManager 类型声明缺少上述更新接口；最低声明版本 `0.2.0-r
 沿用一个 CI Workflow / Ubuntu Job，普通分支执行快速检查；版本 tag 额外完成真实 DSH smoke、打包、
 保存包与截图，然后使用 npm trusted publishing 发布。首次发布需要 npm 包所有者身份，之后在 npm 配置
 `CaiZongyuan/dsh-sooyo` 的 `.github/workflows/ci.yml` 为 trusted publisher。实现和检查不会创建 tag 或发布包。
+也可配置仓库 Actions secret `NPM_TOKEN`：CI 使用它进行发布，未配置时使用 OIDC。token 需要对应包的
+发布权限，并满足 npm 的 2FA 发布要求；CI 不将 token 写进产物或日志。
 
 ## 验证
 

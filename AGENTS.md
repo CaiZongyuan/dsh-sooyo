@@ -27,7 +27,8 @@ The plugin runs in one of three roles (`standalone` by default, `hub`, `client`)
 | `src/host/sync/` | `routes.ts` (`/sooyo/sync/v1/*`), `remote.ts` (`RemoteSooyoService`, Replica cache & Outbox) |
 | `src/host/agent/` | `tools.ts`, `context.ts` (Context Bridge), `review.ts` (Review scan & cursor), `inbox.ts` (Proposals) |
 | `src/client/index.ts` | Client entry: `main` panel & `sidebar.panellist` registration |
-| `src/client/SooyoPanel.tsx` | Top-level panel state, command palette, theme, and delegated actions |
+| `src/client/SooyoPanel.tsx` | Top-level panel state, 4-view navigation (`home`, `content`, `schedule`, `retro`), command palette, theme, and delegated actions |
+| `src/client/views/` | `Stamps.tsx` (daily stamps & streak), `Cards.tsx` (multimedia collection cards & capture/detail modals), `ContentView.tsx`, `ScheduleView.tsx`, `RetroView.tsx` |
 | `src/client/shell/` | `BoardTabs.tsx`, `WidgetGrid.tsx`, `WidgetFrame.tsx`, `WidgetGallery.tsx`, `WidgetSettings.tsx` |
 | `src/client/widgets/` | `registry.ts`, `shared.tsx`, and feature-based TSX Widgets (`task/`, `subscription/`, `capture/`, `notes/`, `bookmarks/`, `project/`, `readlater/`, `habit/`, `focus/`, `agent-inbox/`) |
 | `src/client/layout/` | `breakpoints.ts` (`columnsFor`, `footprint`, `fitDom`), `bento-packer.ts` (`pack`, `startDrag`, `startResize`) |

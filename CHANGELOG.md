@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased — 四视图空间、轻量速记与多媒介元数据收藏
+
+借鉴 `dsh-media-desk` 的双栏与四视图骨架，结合个人日常记录与跨平台偏好收藏场景，将面板升级为**首页 · 内容 · 排期 · 复盘**四视图结构（设计与取舍见 [`docs/adr/0003`](./docs/adr/0003-lightweight-memos-and-metadata-collections.md)）。
+
+### Added
+
+- **四视图顶栏导航（`home` / `content` / `schedule` / `retro`）**：
+  - **首页（Home）**：双栏 Bento 布局。顶部集成**连续活跃印记（Stamp Strip）**（点击某日邮票可按日期过滤卡片流）与横向快速筛选芯片；主区保留自定义 Bento 小组件网格并新增最近收录与收藏流（Recent Stream），右侧常驻今日聚焦、待办与速记边栏。
+  - **内容（Content）**：统一卡片流与管理视图。汇聚轻量速记（`Note`）、待办（`Task`）、稍后读（`ReadLater`）与 6 类偏好收藏（`github` / `x` / `web` / `image` / `music` / `video`），支持网格/列表切换、类型过滤、标签筛选、搜索与详情抽屉。
+  - **排期（Schedule）**：左侧未排期任务池（Inbox / Today / Later）+ 右侧月历/周历视图。支持将任务直接拖拽到日历日期格完成排期（复用 `task.update({ dueOn })`），日历格内同屏展示当日新建的速记与收藏足迹。
+  - **复盘（Retro）**：7d / 30d / 90d 个人复盘 5 格 Bento 面板——周期吞吐 KPI、7×4 邮票日历、收藏偏好构成条形图、高频长尾未结提醒（逾期任务、高优积压、超过 7 天未读的稍后读、未归档速记）与周度三问结构化随笔（`doneWell` / `stuck` / `nextFocus`）。
+- **多媒介只存元数据收藏（`Collection`）与轻量速记（`Note`）**：
+  - 新增 `collections` 与 `retros` 存储表，以及 `collection.save`、`collection.remove`、`note.update`、`retro.save` 四个写入命令（全部经由单一写队列与两阶段 Intent 账本，自动参与 Hub/Client 同步及便携式导入导出）。
+  - 图片、音乐、视频等大体积内容仅保存元信息（标题、外链、缩略图 URL、摘要、平台手柄/仓库 star/时长等），绝不落地二进制媒体文件。
+  - `Note` 保持百字级轻量速记定位，新增可选 `externalUrl` / `externalLabel` 字段以关联飞书文档等深度笔记外链。
+- **Agent 批量归档工具 `sooyo_collection_save`**：支持单条或批量（最多 50 条）将 GitHub Stars、X 书签、网站、图片、音乐、视频元数据直接写入收藏库，或在 `propose: true` 时进入 Agent Inbox 提案审批。
+
 ## Unreleased — 上游感知：AIHOT 能力说明与更新检测
 
 插件此前对"上游"一无所知：AIHOT 新增周报、月报、重置监控时，Agent 只会照旧回答"查不到"；

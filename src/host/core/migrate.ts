@@ -233,7 +233,11 @@ export function planImport(tables: TableAccessor, document: any, options: { over
         continue
       }
       const current = tables(name).get(key)
-      if (current === undefined) {
+      const fallbackCurrent = current === undefined ? tables(TABLES.readlater)?.get?.(key)?.snapshot : undefined
+      if (current === undefined && fallbackCurrent !== undefined && sameJson(fallbackCurrent, row.value)) {
+        summary.identical += 1
+        tableStats.identical += 1
+      } else if (current === undefined) {
         operations.push({ op: 'create', table: name, key, value: row.value })
         summary.create += 1
         tableStats.create += 1
@@ -298,8 +302,8 @@ function sameJson(a: unknown, b: unknown): boolean {
 
 function stableStringify(value: any): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`
-  const keys = Object.keys(value).sort()
+  if (Array.isArray(value)) return `[${value.map((item) => (item === undefined ? 'null' : stableStringify(item))).join(',')}]`
+  const keys = Object.keys(value).filter((key) => value[key] !== undefined).sort()
   return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`
 }
 

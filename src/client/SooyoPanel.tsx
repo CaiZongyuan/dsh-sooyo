@@ -8,6 +8,19 @@ import { MenuLayer, type MenuState } from './shell/WidgetFrame.tsx'
 import { WidgetGrid } from './shell/WidgetGrid.tsx'
 import { ModalLayer, type ModalState } from './shell/WidgetSettings.tsx'
 import {
+  CaptureModal,
+  EntryDetailModal,
+  KIND_BADGE_LABELS,
+  KIND_FILTER_OPTIONS,
+  MediaCollectionCard,
+  buildUnifiedEntries,
+  type UnifiedCardEntry,
+} from './views/Cards.tsx'
+import { ContentView } from './views/ContentView.tsx'
+import { RetroView } from './views/RetroView.tsx'
+import { ScheduleView } from './views/ScheduleView.tsx'
+import { MiniStamps, useDayFootprintMap } from './views/Stamps.tsx'
+import {
   ASSET,
   BRAND_APP,
   I,
@@ -19,10 +32,18 @@ import {
 } from './widgets/shared.tsx'
 import { DECK_SIZE, subItemsOf } from './widgets/subscription/SubscriptionWidget.tsx'
 import CSS from './styles/tokens.css'
-import type { FeedItem, GridColumns, LayoutEntry, WidgetSize } from '../shared/domain.ts'
+import type {
+  CollectionKind,
+  FeedItem,
+  GridColumns,
+  LayoutEntry,
+  WidgetSize,
+} from '../shared/domain.ts'
 import type { WidgetRenderContext } from '../shared/widget.ts'
 
 const { useState, useEffect, useRef, useCallback, useMemo } = React
+
+export type AppView = 'home' | 'content' | 'schedule' | 'retro'
 
 interface CommandEntry {
   group?: string
@@ -55,6 +76,14 @@ export function SooyoPanel() {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const gridRef = useRef<HTMLDivElement | null>(null)
   const [cols, setCols] = useState<GridColumns>(12)
+  const [appView, setAppView] = useState<AppView>('home')
+  const [homeMode, setHomeMode] = useState<'bento' | 'wall'>('bento')
+  const [homeKindFilter, setHomeKindFilter] = useState<string>('all')
+  const [heroInput, setHeroInput] = useState('')
+  const [heroCaptureMode, setHeroCaptureMode] = useState<'auto' | 'note' | 'collection' | 'task'>('auto')
+  const [captureModalTab, setCaptureModalTab] = useState<'note' | 'collection' | 'task' | 'batch' | null>(null)
+  const [activeEntryDetail, setActiveEntryDetail] = useState<UnifiedCardEntry | null>(null)
+  const [scheduleFocusDay, setScheduleFocusDay] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [modal, setModal] = useState<ModalState | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
@@ -92,6 +121,11 @@ export function SooyoPanel() {
   }, [])
 
   useEffect(() => {
+    if (rootRef.current) rootRef.current.scrollTop = 0
+    if (typeof window !== 'undefined') window.scrollTo(0, 0)
+  }, [appView])
+
+  useEffect(() => {
     const element = gridRef.current
     if (!element || typeof ResizeObserver === 'undefined') return undefined
     const apply = () => setCols(columnsFor(gridRef.current?.clientWidth || element.clientWidth || 1200))
@@ -99,7 +133,7 @@ export function SooyoPanel() {
     const observer = new ResizeObserver(apply)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [daily])
+  }, [daily, appView, homeMode])
 
   const byId = useMemo(() => {
     const map = new Map<string, FeedItem>()
@@ -111,6 +145,45 @@ export function SooyoPanel() {
   }, [state.items, daily?.readLaterEntries])
 
   const saved = useMemo(() => new Set<string>(daily?.readLater ?? []), [daily?.readLater])
+
+  const dayMap = useDayFootprintMap(
+    daily?.notes ?? [],
+    daily?.tasks ?? [],
+    daily?.readLaterEntries ?? {},
+    daily?.retros ?? {},
+  )
+
+  const unifiedEntries = useMemo(
+    () =>
+      buildUnifiedEntries(
+        daily?.notes ?? [],
+        daily?.readLaterEntries ?? {},
+        daily?.bookmarks ?? [],
+        state.items,
+        false,
+      ),
+    [daily?.notes, daily?.readLaterEntries, daily?.bookmarks, state.items],
+  )
+
+  const filteredHomeEntries = useMemo(() => {
+    return unifiedEntries.filter((entry) => {
+      if (homeKindFilter !== 'all' && entry.kind !== homeKindFilter) return false
+      return entry.status !== 'archived'
+    })
+  }, [unifiedEntries, homeKindFilter])
+
+  const relatedHeroEntries = useMemo(() => {
+    const q = heroInput.trim().toLowerCase()
+    if (q.length < 2) return []
+    return unifiedEntries
+      .filter(
+        (entry) =>
+          entry.title.toLowerCase().includes(q) ||
+          entry.body.toLowerCase().includes(q) ||
+          entry.tags.some((t) => t.toLowerCase().includes(q)),
+      )
+      .slice(0, 3)
+  }, [heroInput, unifiedEntries])
 
   const layoutSizes = useMemo(() => {
     const map: Record<string, WidgetSize> = {}
@@ -332,7 +405,19 @@ export function SooyoPanel() {
       const ds = element.dataset
 
       switch (act) {
+        case 'app-view':
+          if (ds.view === 'home' || ds.view === 'content' || ds.view === 'schedule' || ds.view === 'retro') {
+            setAppView(ds.view)
+            setEditing(false)
+          }
+          break
+        case 'capture-modal-open':
+          setCaptureModalTab(
+            (ds.tab as 'note' | 'collection' | 'task' | 'batch' | undefined) ?? 'note',
+          )
+          break
         case 'board':
+          setAppView('home')
           void state.run('board.active', { id: ds.board })
           break
         case 'board-new': {
@@ -449,9 +534,15 @@ export function SooyoPanel() {
         }
         case 'modal-close':
           setModal(null)
+          setCaptureModalTab(null)
+          setActiveEntryDetail(null)
           break
         case 'scrim':
-          if (target === element) setModal(null)
+          if (target === element) {
+            setModal(null)
+            setCaptureModalTab(null)
+            setActiveEntryDetail(null)
+          }
           break
         case 'proposal-approve':
           void decide(ds.proposal, 'approve')
@@ -488,6 +579,45 @@ export function SooyoPanel() {
       const form = event.target instanceof Element ? event.target.closest<HTMLFormElement>('[data-form]') : null
       if (!form) return
       event.preventDefault()
+      if (form.dataset.form === 'hero-capture') {
+        const value = heroInput.trim()
+        if (!value) return
+        const isUrl = /^https?:\/\/\S+$/i.test(value)
+        if (heroCaptureMode === 'collection' || (heroCaptureMode === 'auto' && isUrl)) {
+          void state
+            .run(
+              'collection.save',
+              isUrl ? { url: value, title: value } : { title: value },
+              { toast: '已存入偏好收藏库' },
+            )
+            .then(() => setHeroInput(''))
+          return
+        }
+        if (heroCaptureMode === 'note') {
+          void state
+            .run('capture', { text: value, mode: 'note' }, { toast: '已记入速记备忘' })
+            .then(() => setHeroInput(''))
+          return
+        }
+        if (heroCaptureMode === 'task') {
+          void state
+            .run('capture', { text: value, mode: 'task' }, { toast: '已加入待排期收件箱' })
+            .then(() => setHeroInput(''))
+          return
+        }
+        // auto mode: default to quick memo/inspiration unless prefixed with todo: / task:
+        if (/^(todo|task)[:：\s]/i.test(value)) {
+          const clean = value.replace(/^(todo|task)[:：\s]+/i, '').trim()
+          void state
+            .run('capture', { text: clean || value, mode: 'task' }, { toast: '已加入待排期收件箱' })
+            .then(() => setHeroInput(''))
+        } else {
+          void state
+            .run('capture', { text: value, mode: 'note' }, { toast: '已记入速记与灵感墙' })
+            .then(() => setHeroInput(''))
+        }
+        return
+      }
       const input = form.querySelector('input')
       const value = (input?.value ?? '').trim()
       if (!value) return
@@ -505,12 +635,12 @@ export function SooyoPanel() {
         void state.run('board.create', { name: value }).then(() => setMenu(null))
       }
     },
-    [state],
+    [state, heroInput, heroCaptureMode],
   )
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const inField = /INPUT|TEXTAREA/.test(document.activeElement?.tagName ?? '')
+      const inField = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName ?? '')
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
         rootRef.current?.querySelector<HTMLInputElement>('input[name="cmd"]')?.focus()
@@ -518,6 +648,8 @@ export function SooyoPanel() {
       }
       if (event.key === 'Escape') {
         if (menu) setMenu(null)
+        else if (captureModalTab) setCaptureModalTab(null)
+        else if (activeEntryDetail) setActiveEntryDetail(null)
         else if (modal) setModal(null)
         else if (cmdOpen) setCmdOpen(false)
         else if (editing) setEditing(false)
@@ -552,7 +684,7 @@ export function SooyoPanel() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [menu, modal, cmdOpen, editing, stepDeck, currentDeckItem, toggleLater])
+  }, [menu, captureModalTab, activeEntryDetail, modal, cmdOpen, editing, stepDeck, currentDeckItem, toggleLater])
 
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -652,9 +784,50 @@ export function SooyoPanel() {
         keep: true,
       })
       out.push({
+        k: 'save',
+        label: '录入偏好收藏 (GitHub / X / 视频 / 网站)',
+        run: () => {
+          setCaptureModalTab('collection')
+          setCmdOpen(false)
+        },
+      })
+      out.push({
         k: 'add',
         label: '添加 Widget',
         run: () => setModal({ kind: 'gallery', type: 'subscription', size: 'M', sources: ['aihot'], pres: null }),
+      })
+      out.push({ group: '视图导航' })
+      out.push({
+        k: 'view',
+        label: '首页 · 灵感与工作台',
+        run: () => {
+          setAppView('home')
+          setCmdOpen(false)
+        },
+      })
+      out.push({
+        k: 'view',
+        label: '内容 · 收藏与速记库',
+        run: () => {
+          setAppView('content')
+          setCmdOpen(false)
+        },
+      })
+      out.push({
+        k: 'view',
+        label: '排期 · 待办与日历',
+        run: () => {
+          setAppView('schedule')
+          setCmdOpen(false)
+        },
+      })
+      out.push({
+        k: 'view',
+        label: '复盘 · 节奏与个人总结',
+        run: () => {
+          setAppView('retro')
+          setCmdOpen(false)
+        },
       })
       out.push({ group: '前往 Board' })
       for (const board of boards) {
@@ -662,6 +835,7 @@ export function SooyoPanel() {
           k: 'go',
           label: board.name,
           run: () => {
+            setAppView('home')
             void state.run('board.active', { id: board.id })
             setCmdOpen(false)
           },
@@ -731,6 +905,7 @@ export function SooyoPanel() {
           k: 'go',
           label: board.name,
           run: () => {
+            setAppView('home')
             void state.run('board.active', { id: board.id })
             setCmdOpen(false)
           },
@@ -855,14 +1030,55 @@ export function SooyoPanel() {
               sooyo
               <span>daily</span>
             </div>
-            <BoardTabs boards={boards} activeBoard={activeBoard} />
+
+            <nav className="sy-seg sy-app-nav" role="tablist" aria-label="主视图导航">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={appView === 'home'}
+                data-act="app-view"
+                data-view="home"
+              >
+                首页
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={appView === 'content'}
+                data-act="app-view"
+                data-view="content"
+              >
+                内容
+                {unifiedEntries.length > 0 ? <small>{unifiedEntries.length}</small> : null}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={appView === 'schedule'}
+                data-act="app-view"
+                data-view="schedule"
+              >
+                排期
+                {openTasks > 0 ? <small>{openTasks}</small> : null}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={appView === 'retro'}
+                data-act="app-view"
+                data-view="retro"
+              >
+                复盘
+              </button>
+            </nav>
+
             <div className="sy-cmd">
               <div className="sy-cmd-box">
                 <SvgIcon svg={I.search} />
                 <input
                   name="cmd"
                   value={query}
-                  placeholder="搜索，或输入 todo · note · add"
+                  placeholder="搜索，或输入 todo · note · save · add"
                   autoComplete="off"
                   aria-label="搜索或输入命令"
                   onFocus={() => setCmdOpen(true)}
@@ -921,20 +1137,34 @@ export function SooyoPanel() {
                 </div>
               ) : null}
             </div>
+
             <div className="sy-actions">
               <button
-                className="sy-switch"
-                role="switch"
-                aria-checked={editing}
-                data-act="edit-toggle"
+                type="button"
+                className="sy-btn sy-btn-capture"
+                data-act="capture-modal-open"
+                data-tab="collection"
               >
-                <span className="lbl">编辑</span>
-                <span className="sy-sw" aria-hidden={true} />
-              </button>
-              <button className="sy-btn sy-btn-add" data-act="gallery-open">
                 <SvgIcon svg={I.plus} />
-                <span className="lbl">添加 Widget</span>
+                <span className="lbl">录入收藏</span>
               </button>
+              {appView === 'home' ? (
+                <>
+                  <button
+                    className="sy-switch"
+                    role="switch"
+                    aria-checked={editing}
+                    data-act="edit-toggle"
+                  >
+                    <span className="lbl">编辑</span>
+                    <span className="sy-sw" aria-hidden={true} />
+                  </button>
+                  <button className="sy-btn sy-btn-add" data-act="gallery-open">
+                    <SvgIcon svg={I.plus} />
+                    <span className="lbl">添加 Widget</span>
+                  </button>
+                </>
+              ) : null}
               <button
                 className="sy-icon-btn"
                 aria-label="切换浅色或深色"
@@ -960,44 +1190,240 @@ export function SooyoPanel() {
               </button>
             </div>
           </header>
-          <section className="sy-hero">
-            <div>
-              <span className="sy-tag">
-                {`${new Date().getMonth() + 1}月${new Date().getDate()}日 · 星期${WEEK[new Date().getDay()]}`}
-              </span>
-              <h1 className="sy-headline">{renderHeadline()}</h1>
-            </div>
-            <div className="sy-status">
-              <i className={erroring > 0 ? 'warn' : ''} />
-              {`${(daily?.sources ?? []).length - erroring} 个来源正常 · ${state.items.length} 条内容`}
-            </div>
-          </section>
-          {editing ? (
-            <div className="sy-editbar">
-              <span className="grow">
-                {`正在编辑「${board?.name ?? ''}」的布局（${cols} 列）。拖动卡片排序，拖右下角改尺寸；不同宽度各自保存。`}
-              </span>
-              <button className="sy-btn" data-act="gallery-open">
-                添加
-              </button>
-              <button className="sy-btn sy-btn-ink" data-act="edit-toggle">
-                完成
-              </button>
-            </div>
+
+          {appView === 'home' ? (
+            <>
+              <section className="sy-hero">
+                <div className="sy-hero-main">
+                  <div className="sy-hero-top-row">
+                    <span className="sy-tag">
+                      {`${new Date().getMonth() + 1}月${new Date().getDate()}日 · 星期${WEEK[new Date().getDay()]}`}
+                    </span>
+                    <div className="sy-status">
+                      <i className={erroring > 0 ? 'warn' : ''} />
+                      {`${(daily?.sources ?? []).length - erroring} 个来源正常 · ${state.items.length} 条内容`}
+                    </div>
+                  </div>
+                  <h1 className="sy-headline">{renderHeadline()}</h1>
+
+                  <form className="sy-hero-capture" data-form="hero-capture">
+                    <div className="sy-hero-capture-modes">
+                      {(
+                        [
+                          { id: 'auto', label: '智能识别' },
+                          { id: 'note', label: '✎ 速记/闪念' },
+                          { id: 'collection', label: '★ 偏好收藏' },
+                          { id: 'task', label: '✓ 待办事项' },
+                        ] as const
+                      ).map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className="sy-hero-mode-pill"
+                          aria-pressed={heroCaptureMode === m.id}
+                          onClick={() => setHeroCaptureMode(m.id)}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="sy-hero-capture-row">
+                      <input
+                        name="hero-q"
+                        value={heroInput}
+                        onChange={(event) => setHeroInput(event.target.value)}
+                        placeholder={
+                          heroCaptureMode === 'collection'
+                            ? '粘贴 GitHub / X / 网站 / 视频 / 音乐链接，回车保存元信息…'
+                            : heroCaptureMode === 'task'
+                              ? '输入待办事项，回车进入排期收件箱…'
+                              : '随手记一条灵感备忘、贴入收藏链接，或输入 todo: 记待办…'
+                        }
+                        autoComplete="off"
+                      />
+                      <button type="submit" className="sy-btn sy-btn-ink">
+                        记下来 ↵
+                      </button>
+                      <button
+                        type="button"
+                        className="sy-btn"
+                        data-act="capture-modal-open"
+                        data-tab="collection"
+                        title="打开完整录入面板（支持缩略图、飞书外链、JSON/CSV 批量导入）"
+                      >
+                        详细录入
+                      </button>
+                    </div>
+                    {relatedHeroEntries.length > 0 ? (
+                      <div className="sy-hero-related">
+                        <span className="meta">相似已收录：</span>
+                        {relatedHeroEntries.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className="sy-hero-related-chip"
+                            onClick={() => setActiveEntryDetail(item)}
+                          >
+                            <span>{KIND_BADGE_LABELS[item.kind] ?? item.kind}</span>
+                            <span className="c1">{item.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </form>
+                </div>
+
+                <div className="sy-hero-aside">
+                  <MiniStamps
+                    dayMap={dayMap}
+                    onCaptureToday={() => setCaptureModalTab('note')}
+                    onOpenSchedule={(date) => {
+                      if (date) setScheduleFocusDay(date)
+                      setAppView('schedule')
+                    }}
+                  />
+                </div>
+              </section>
+
+              <div className="sy-home-dock" role="toolbar" aria-label="看板与灵感墙切换">
+                <div className="sy-home-dock-left">
+                  <BoardTabs boards={boards} activeBoard={activeBoard} />
+                  <div className="sy-seg sm">
+                    <button
+                      type="button"
+                      aria-selected={homeMode === 'bento'}
+                      onClick={() => setHomeMode('bento')}
+                    >
+                      工作台看板
+                    </button>
+                    <button
+                      type="button"
+                      aria-selected={homeMode === 'wall'}
+                      onClick={() => setHomeMode('wall')}
+                    >
+                      {`灵感与收藏墙 (${filteredHomeEntries.length})`}
+                    </button>
+                  </div>
+                </div>
+                <div className="sy-home-dock-filters">
+                  {KIND_FILTER_OPTIONS.map((f) => (
+                    <button
+                      key={f.value}
+                      type="button"
+                      className="sy-chipbtn"
+                      aria-pressed={homeKindFilter === f.value}
+                      onClick={() => {
+                        setHomeKindFilter(f.value)
+                        if (f.value !== 'all') setHomeMode('wall')
+                      }}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {homeMode === 'wall' ? (
+                <section className="sy-home-wall-section">
+                  {filteredHomeEntries.length === 0 ? (
+                    <div className="sy-view-empty">
+                      <p>当前分类还没有速记或偏好收藏。</p>
+                      <button
+                        type="button"
+                        className="sy-btn sy-btn-ink"
+                        data-act="capture-modal-open"
+                        data-tab="collection"
+                      >
+                        + 录入第一条收藏或闪念
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="sy-wall-grid">
+                      {filteredHomeEntries.map((entry) => (
+                        <MediaCollectionCard
+                          key={entry.id}
+                          entry={entry}
+                          onOpen={setActiveEntryDetail}
+                          onQuickTask={(item) =>
+                            void state.run(
+                              'item.toTask',
+                              {
+                                title: item.title.slice(0, 60),
+                                origin: { source: KIND_BADGE_LABELS[item.kind] ?? '收藏', url: item.url },
+                              },
+                              { toast: '已转为待办任务' },
+                            )
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              ) : null}
+
+              {editing ? (
+                <div className="sy-editbar">
+                  <span className="grow">
+                    {`正在编辑「${board?.name ?? ''}」的布局（${cols} 列）。拖动卡片排序，拖右下角改尺寸；不同宽度各自保存。`}
+                  </span>
+                  <button className="sy-btn" data-act="gallery-open">
+                    添加
+                  </button>
+                  <button className="sy-btn sy-btn-ink" data-act="edit-toggle">
+                    完成
+                  </button>
+                </div>
+              ) : null}
+
+              <WidgetGrid
+                gridRef={gridRef}
+                cols={cols}
+                layout={layout}
+                widgets={widgets}
+                positions={positions}
+                context={context}
+              />
+
+              <div className="meta" style={{ marginTop: 14, whiteSpace: 'normal', lineHeight: '19px' }}>
+                数据来源：AIHOT（个人非商业使用）、HuggingFace、Product Hunt、YouTube。抓取到的内容一律视为资料，不作为指令执行。
+              </div>
+            </>
           ) : null}
-          <WidgetGrid
-            gridRef={gridRef}
-            cols={cols}
-            layout={layout}
-            widgets={widgets}
-            positions={positions}
-            context={context}
-          />
-          <div className="meta" style={{ marginTop: 14, whiteSpace: 'normal', lineHeight: '19px' }}>
-            数据来源：AIHOT（个人非商业使用）、HuggingFace、Product Hunt、YouTube。抓取到的内容一律视为资料，不作为指令执行。
-          </div>
+
+          {appView === 'content' ? (
+            <ContentView
+              notes={daily?.notes ?? []}
+              readLaterEntries={daily?.readLaterEntries ?? {}}
+              bookmarks={daily?.bookmarks ?? []}
+              feedItems={state.items}
+              onRun={state.run}
+              onOpenCapture={(tab) => setCaptureModalTab(tab)}
+              onOpenEntry={(entry) => setActiveEntryDetail(entry)}
+            />
+          ) : null}
+
+          {appView === 'schedule' ? (
+            <ScheduleView
+              tasks={daily?.tasks ?? []}
+              dayMap={dayMap}
+              initialFocusDay={scheduleFocusDay}
+              onCaptureToday={() => setCaptureModalTab('task')}
+              onRun={state.run}
+            />
+          ) : null}
+
+          {appView === 'retro' ? (
+            <RetroView
+              daily={daily}
+              items={state.items}
+              onRun={state.run}
+              onNavigate={(v) => setAppView(v)}
+              onOpenEntry={(entry) => setActiveEntryDetail(entry)}
+            />
+          ) : null}
         </div>
       </div>
+
       {menu ? (
         <MenuLayer
           menu={menu}
@@ -1016,6 +1442,20 @@ export function SooyoPanel() {
           board={board}
           onClose={() => setModal(null)}
           onAdd={addWidget}
+          onRun={state.run}
+        />
+      ) : null}
+      {captureModalTab ? (
+        <CaptureModal
+          initialTab={captureModalTab}
+          onClose={() => setCaptureModalTab(null)}
+          onRun={state.run}
+        />
+      ) : null}
+      {activeEntryDetail ? (
+        <EntryDetailModal
+          entry={activeEntryDetail}
+          onClose={() => setActiveEntryDetail(null)}
           onRun={state.run}
         />
       ) : null}

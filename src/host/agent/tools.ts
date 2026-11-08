@@ -157,7 +157,10 @@ export function registerAgentTools(deps: {
       type: 'object',
       properties: {
         title: { type: 'string', description: '任务标题，最多 300 字。' },
-        list: { type: 'string', description: 'inbox / today / later，默认 inbox。' },
+        list: { type: 'string', description: 'inbox / today / later，默认 inbox（若指定 due 日期则自动推导）。' },
+        due: { type: 'string', description: '可选的排期日期（YYYY-MM-DD）。' },
+        priority: { type: 'string', description: '可选优先级：low / medium / high。' },
+        note: { type: 'string', description: '可选任务备注说明。' },
         project: { type: 'string', description: '可选的 Project 名称。' },
         originTitle: { type: 'string', description: '这条任务来自哪个条目时，写下它的标题。' },
         originUrl: { type: 'string', description: '来源条目的原始链接（http/https）。' },
@@ -178,6 +181,9 @@ export function registerAgentTools(deps: {
         {
           title: args.title,
           list: args.list,
+          due: args.due,
+          priority: args.priority,
+          note: args.note,
           project: args.project,
           ...(origin ? { origin } : {}),
         },
@@ -188,7 +194,7 @@ export function registerAgentTools(deps: {
 
   register({
     name: 'sooyo_task_update',
-    description: '修改一个任务（完成、移动列表、改标题、换项目）。必须带上你读到的 revision：如果别的设备已经改过这条任务，会返回 conflict，这时应先重新读取再决定。',
+    description: '修改一个任务（完成、改排期 due、优先级、移动列表、改标题、换项目）。必须带上你读到的 revision：如果别的设备已经改过这条任务，会返回 conflict，这时应先重新读取再决定。',
     parameters: {
       type: 'object',
       properties: {
@@ -196,6 +202,9 @@ export function registerAgentTools(deps: {
         revision: { type: 'number', description: '你读到的这条任务的 revision。' },
         done: { type: 'boolean', description: '是否完成。' },
         list: { type: 'string', description: 'inbox / today / later。' },
+        due: { type: 'string', description: '排期日期（YYYY-MM-DD），传空字符串表示取消排期。' },
+        priority: { type: 'string', description: '优先级：low / medium / high，传空字符串表示清除。' },
+        note: { type: 'string', description: '任务备注。' },
         title: { type: 'string', description: '新的标题。' },
         project: { type: 'string', description: '新的 Project；传空字符串表示移除。' },
       },
@@ -209,6 +218,9 @@ export function registerAgentTools(deps: {
       const body: Record<string, any> = {}
       if (typeof args.done === 'boolean') body.done = args.done
       if (typeof args.list === 'string') body.list = args.list
+      if (typeof args.due === 'string') body.due = args.due || null
+      if (typeof args.priority === 'string') body.priority = args.priority || null
+      if (typeof args.note === 'string') body.note = args.note
       if (typeof args.title === 'string') body.title = args.title
       if (typeof args.project === 'string') body.project = args.project
       if (Object.keys(body).length === 0) return { ok: false, error: '没有要改的字段' }
@@ -229,11 +241,14 @@ export function registerAgentTools(deps: {
 
   register({
     name: 'sooyo_note_capture',
-    description: '记录一条 sooyo 笔记。写入：只在用户明确要求记下内容时调用。来源会标记为 agent，并保留可选的 Origin 链接。',
+    description: '记录一条 sooyo 速记/备忘/灵感（短内容，长文请记录外部飞书等链接 externalUrl）。写入：只在用户明确要求记下内容时调用。',
     parameters: {
       type: 'object',
       properties: {
-        text: { type: 'string', description: '笔记正文，最多 2000 字。' },
+        text: { type: 'string', description: '速记/灵感正文，最多 2000 字。' },
+        title: { type: 'string', description: '可选短标题。' },
+        tags: { type: 'array', items: { type: 'string' }, description: '可选标签列表。' },
+        externalUrl: { type: 'string', description: '可选关联的飞书等外部长文链接（http/https）。' },
         originTitle: { type: 'string', description: '来源条目标题。' },
         originUrl: { type: 'string', description: '来源条目原始链接（http/https）。' },
       },
@@ -246,7 +261,73 @@ export function registerAgentTools(deps: {
       const origin = args.originUrl || args.originTitle
         ? { title: args.originTitle ?? null, url: args.originUrl ?? null, sourceId: 'agent' }
         : undefined
-      return write('note.add', { text: args.text, ...(origin ? { origin } : {}) }, exec)
+      return write(
+        'note.add',
+        {
+          text: args.text,
+          ...(args.title ? { title: args.title } : {}),
+          ...(Array.isArray(args.tags) ? { tags: args.tags } : {}),
+          ...(args.externalUrl ? { externalUrl: args.externalUrl } : {}),
+          ...(origin ? { origin } : {}),
+        },
+        exec,
+      )
+    },
+  })
+
+  register({
+    name: 'sooyo_collection_save',
+    description:
+      '保存单条或批量保存用户的偏好收藏元信息（GitHub Stars、X 收藏、网站、图片、音乐、视频等）。只存轻量元信息（title, url, thumbnail, summary, kind, tags, meta），不存大体积媒体文件。',
+    parameters: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          description: '要保存的收藏元信息列表，单次最多 50 条。',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', description: '可选的稳定路径安全 id（a-zA-Z0-9_-）。' },
+              kind: { type: 'string', description: 'github / x / web / image / music / video / article。' },
+              title: { type: 'string', description: '标题，必填。' },
+              url: { type: 'string', description: '原始链接（http/https）。' },
+              thumbnail: { type: 'string', description: '缩略图/封面图 URL（http/https）。' },
+              summary: { type: 'string', description: '简短说明、备注或简介。' },
+              externalUrl: { type: 'string', description: '关联的飞书等文档链接。' },
+              tags: { type: 'array', items: { type: 'string' }, description: '标签数组。' },
+              meta: { type: 'object', description: '扩展元信息，如 { stars, language, author, duration, artist }。' },
+            },
+            required: ['title'],
+          },
+        },
+      },
+      required: [],
+      additionalProperties: true,
+    },
+    output: { schema: { type: 'object' }, render: textRenderer },
+    execute: async (args: Record<string, any> = {}, exec?: any) => {
+      const list = Array.isArray(args.items)
+        ? args.items
+        : typeof args.title === 'string' && args.title.trim()
+          ? [
+              {
+                ...args,
+                meta: {
+                  ...(args.meta && typeof args.meta === 'object' ? args.meta : {}),
+                  ...(args.stars !== undefined ? { stars: args.stars } : {}),
+                  ...(args.language ? { language: args.language } : {}),
+                  ...(args.author ? { author: args.author } : {}),
+                  ...(args.artist ? { artist: args.artist } : {}),
+                  ...(args.duration ? { duration: args.duration } : {}),
+                },
+              },
+            ]
+          : []
+      if (list.length === 0) {
+        return { ok: false, error: '需要至少一条收藏元信息' }
+      }
+      return write('collection.save', { items: list.slice(0, 50) }, exec)
     },
   })
 

@@ -286,6 +286,37 @@ test.describe('Sooyo Real DSH + Playwright E2E & Visual Verification', () => {
 
     await page.locator('.sy-seg-boards [data-act="board"][data-board="home"]').click()
     await expect(page.locator('.sy-w[data-id="w-home-task"]')).toContainText('真实 DSH E2E 创建的待办事项')
+
+    // Test Hero quick-capture of a GitHub Star URL into Collection
+    const heroInput = page.locator('form[data-form="hero-capture"] input[name="hero-q"]')
+    await heroInput.fill('https://github.com/woniuniuniu/dsh-media-desk')
+    await heroInput.press('Enter')
+    await expect(page.locator('.sy-home-dock')).toContainText('灵感与收藏墙')
+
+    // Navigate to 内容 (Content View)
+    await page.locator('.sy-app-nav [data-act="app-view"][data-view="content"]').click()
+    await expect(page.locator('div[data-view="content"]')).toBeVisible()
+    await expect(page.locator('div[data-view="content"]')).toContainText('dsh-media-desk')
+    await expect(page.locator('div[data-view="content"]')).toContainText('真实 DSH E2E 随手记内容')
+    await page.screenshot({ path: join(SCREENSHOT_DIR, 'dsh-desktop-1440-content.png') })
+
+    // Navigate to 排期 (Schedule View)
+    await page.locator('.sy-app-nav [data-act="app-view"][data-view="schedule"]').click()
+    await expect(page.locator('div[data-view="schedule"]')).toBeVisible()
+    await expect(page.locator('div[data-view="schedule"]')).toContainText('真实 DSH E2E 创建的待办事项')
+    await page.screenshot({ path: join(SCREENSHOT_DIR, 'dsh-desktop-1440-schedule.png') })
+
+    // Navigate to 复盘 (Retro View) and save a personal reflection
+    await page.locator('.sy-app-nav [data-act="app-view"][data-view="retro"]').click()
+    await expect(page.locator('div[data-view="retro"]')).toBeVisible()
+    await page.locator('textarea[name="retro-highlights"]').fill('完成了灵感墙、收藏库、排期日历与个人复盘四大视图')
+    await page.locator('button[data-act="retro-save"]').click()
+    await expect(page.locator('.sy-toast')).toContainText('个人复盘')
+    await page.screenshot({ path: join(SCREENSHOT_DIR, 'dsh-desktop-1440-retro.png') })
+
+    // Return to 首页 (Home View)
+    await page.locator('.sy-app-nav [data-act="app-view"][data-view="home"]').click()
+    await expect(page.locator('.sy-w[data-id="w-home-task"]')).toContainText('真实 DSH E2E 创建的待办事项')
     await page.evaluate(() => {
       document.querySelector('.sy-topbar')?.scrollIntoView({ block: 'start' })
       for (const el of document.querySelectorAll('*')) {

@@ -92,6 +92,13 @@ export interface PackedCell {
 
 export type TaskListName = 'inbox' | 'today' | 'later'
 export type TaskList = TaskListName
+export type TaskPriority = 'low' | 'medium' | 'high'
+
+export interface TaskSubtask {
+  id: string
+  title: string
+  done: boolean
+}
 
 export interface TaskOrigin {
   itemId?: string | null
@@ -107,6 +114,9 @@ export interface Task {
   list: TaskListName
   done: boolean
   due: string | null
+  priority?: TaskPriority | null
+  note?: string | null
+  subtasks?: TaskSubtask[]
   project: string | null
   origin: TaskOrigin | null
   createdAt: string
@@ -115,14 +125,41 @@ export interface Task {
   updatedAt?: string
 }
 
+export type CollectionKind = 'github' | 'x' | 'web' | 'image' | 'music' | 'video' | 'article'
+export type ContentStatus = 'inbox' | 'curated' | 'archived'
+
+export interface CollectionMeta {
+  stars?: number
+  language?: string
+  author?: string
+  duration?: string
+  artist?: string
+  w?: number
+  h?: number
+  [key: string]: unknown
+}
+
 export interface Note {
   id: string
+  title?: string | null
   text: string
   tags: string[]
+  externalUrl?: string | null
+  status?: ContentStatus
+  pinned?: boolean
   origin: TaskOrigin | null
   createdAt: string
   revision?: number
   updatedAt?: string
+}
+
+export interface RetrospectiveRecord {
+  key: string
+  period: 'day' | 'week' | 'month'
+  highlights: string
+  blockers: string
+  nextFocus: string
+  updatedAt: string
 }
 
 export interface ItemMetrics {
@@ -133,6 +170,7 @@ export interface ItemMetrics {
   upvotes?: number
   comments?: number
   signalCount?: number
+  stars?: number
   [key: string]: number | undefined
 }
 
@@ -148,6 +186,11 @@ export interface ItemSnapshot {
   reason?: string | null
   origin?: string | null
   category?: string | null
+  kind?: CollectionKind | string | null
+  status?: ContentStatus
+  tags?: string[]
+  externalUrl?: string | null
+  meta?: CollectionMeta | null
   thumbnail?: string | null
   cover?: string | null
   savedAt?: string
@@ -170,8 +213,8 @@ export interface Item {
   sourceId?: string | null
   sourceLabel?: string | null
   sourceGroup?: string
-  itemKind?: 'article' | 'rank' | string
-  kind?: 'short' | 'episode' | string
+  itemKind?: 'article' | 'rank' | string | null
+  kind?: 'short' | 'episode' | string | null
   nativeId?: string
   title: string
   url: string
@@ -407,6 +450,7 @@ export interface DailySnapshot {
   habits: Habit[]
   focus: FocusState
   bookmarks: Bookmark[]
+  retros?: Record<string, RetrospectiveRecord>
   projects?: ProjectSummary[]
   sources?: SourceMeta[]
   agentInbox: Proposal[]

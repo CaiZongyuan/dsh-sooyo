@@ -244,29 +244,117 @@ const VALIDATORS: Record<string, (body: any) => Record<string, any>> = {
   'task.add': (body) => ({
     title: str(body?.title, 'title', { max: 300, required: true }),
     list: oneOf(body?.list, 'list', TASK_LISTS),
+    due: body?.due === undefined || body?.due === null || body?.due === '' ? null : str(body.due, 'due', { max: 40 }),
+    priority: body?.priority === undefined || body?.priority === null || body?.priority === ''
+      ? null
+      : oneOf(body.priority, 'priority', daily.TASK_PRIORITIES),
+    note: body?.note === undefined || body?.note === null ? undefined : str(body.note, 'note', { max: 2000 }),
+    subtasks: Array.isArray(body?.subtasks)
+      ? body.subtasks.slice(0, 30).map((s: any, idx: number) => ({
+          id: str(s?.id, `subtasks[${idx}].id`, { max: 80 }) ?? `sub-${idx + 1}`,
+          title: str(s?.title, `subtasks[${idx}].title`, { max: 200, required: true }),
+          done: Boolean(s?.done),
+        }))
+      : undefined,
     project: body?.project === undefined || body?.project === null ? undefined : str(body.project, 'project', { max: 60 }),
     origin: origin(body?.origin),
   }),
   'task.update': (body) => {
-    const patch = {
+    const patch: Record<string, any> = {
       id: id(body?.id, 'id'),
       done: bool(body?.done, 'done'),
       list: oneOf(body?.list, 'list', TASK_LISTS),
+      due: body?.due === undefined ? undefined : (body.due === null || body.due === '' ? null : str(body.due, 'due', { max: 40 })),
+      priority: body?.priority === undefined
+        ? undefined
+        : (body.priority === null || body.priority === '' ? null : oneOf(body.priority, 'priority', daily.TASK_PRIORITIES)),
+      note: body?.note === undefined ? undefined : (body.note === null || body.note === '' ? '' : str(body.note, 'note', { max: 2000 })),
+      subtasks: body?.subtasks === undefined
+        ? undefined
+        : (Array.isArray(body.subtasks)
+            ? body.subtasks.slice(0, 30).map((s: any, idx: number) => ({
+                id: str(s?.id, `subtasks[${idx}].id`, { max: 80 }) ?? `sub-${idx + 1}`,
+                title: str(s?.title, `subtasks[${idx}].title`, { max: 200, required: true }),
+                done: Boolean(s?.done),
+              }))
+            : fail('subtasks 必须是数组')),
       title: body?.title === undefined ? undefined : str(body.title, 'title', { max: 300 }),
       project: body?.project === undefined ? undefined : (body.project === null || body.project === '' ? '' : str(body.project, 'project', { max: 60 })),
     }
-    if (patch.done === undefined && patch.list === undefined && patch.title === undefined && patch.project === undefined) {
+    if (
+      patch.done === undefined &&
+      patch.list === undefined &&
+      patch.due === undefined &&
+      patch.priority === undefined &&
+      patch.note === undefined &&
+      patch.subtasks === undefined &&
+      patch.title === undefined &&
+      patch.project === undefined
+    ) {
       fail('没有要改的字段')
     }
     return patch
   },
   'task.remove': (body) => ({ id: id(body?.id, 'id') }),
 
-  'capture': (body) => ({ text: str(body?.text, 'text', { max: 2000, required: true }) }),
-  'note.add': (body) => ({
+  'capture': (body) => ({
     text: str(body?.text, 'text', { max: 2000, required: true }),
+    mode: oneOf(body?.mode, 'mode', ['task', 'note', 'collection'] as const),
+    kind: oneOf(body?.kind, 'kind', daily.COLLECTION_KINDS),
+    title: str(body?.title, 'title', { max: 300 }),
+    summary: str(body?.summary, 'summary', { max: 1000 }),
+    thumbnail: url(body?.thumbnail, 'thumbnail'),
+    externalUrl: url(body?.externalUrl, 'externalUrl'),
+    due: body?.due === undefined || body?.due === null || body?.due === '' ? undefined : str(body.due, 'due', { max: 40 }),
+    priority: body?.priority === undefined || body?.priority === null || body?.priority === ''
+      ? undefined
+      : oneOf(body.priority, 'priority', daily.TASK_PRIORITIES),
+    project: body?.project === undefined || body?.project === null ? undefined : str(body.project, 'project', { max: 60 }),
+    tags: Array.isArray(body?.tags)
+      ? body.tags.slice(0, 12).map((t: unknown, i: number) => str(t, `tags[${i}]`, { max: 40 })).filter(Boolean)
+      : undefined,
+  }),
+  'note.add': (body) => ({
+    title: str(body?.title, 'title', { max: 160 }),
+    text: str(body?.text, 'text', { max: 2000, required: true }),
+    tags: Array.isArray(body?.tags)
+      ? body.tags.slice(0, 12).map((t: unknown, i: number) => str(t, `tags[${i}]`, { max: 40 })).filter(Boolean)
+      : undefined,
+    status: oneOf(body?.status, 'status', daily.CONTENT_STATUSES),
+    pinned: bool(body?.pinned, 'pinned'),
+    externalUrl: body?.externalUrl === undefined || body?.externalUrl === null || body?.externalUrl === ''
+      ? null
+      : url(body.externalUrl, 'externalUrl'),
     origin: origin(body?.origin),
   }),
+  'note.update': (body) => {
+    const patch: Record<string, any> = {
+      id: id(body?.id, 'id'),
+      title: body?.title === undefined ? undefined : (body.title === null || body.title === '' ? '' : str(body.title, 'title', { max: 160 })),
+      text: body?.text === undefined ? undefined : str(body.text, 'text', { max: 2000 }),
+      tags: body?.tags === undefined
+        ? undefined
+        : (Array.isArray(body.tags)
+            ? body.tags.slice(0, 12).map((t: unknown, i: number) => str(t, `tags[${i}]`, { max: 40 })).filter(Boolean)
+            : fail('tags 必须是数组')),
+      status: oneOf(body?.status, 'status', daily.CONTENT_STATUSES),
+      pinned: bool(body?.pinned, 'pinned'),
+      externalUrl: body?.externalUrl === undefined
+        ? undefined
+        : (body.externalUrl === null || body.externalUrl === '' ? '' : url(body.externalUrl, 'externalUrl')),
+    }
+    if (
+      patch.title === undefined &&
+      patch.text === undefined &&
+      patch.tags === undefined &&
+      patch.status === undefined &&
+      patch.pinned === undefined &&
+      patch.externalUrl === undefined
+    ) {
+      fail('没有要改的字段')
+    }
+    return patch
+  },
   'note.remove': (body) => ({ id: id(body?.id, 'id') }),
 
   'readlater.set': (body) => {
@@ -279,6 +367,47 @@ const VALIDATORS: Record<string, (body: any) => Record<string, any>> = {
     }
     return out
   },
+
+  'collection.save': (body) => {
+    const normOne = (entry: any, prefix = '') => {
+      if (!entry || typeof entry !== 'object') fail(`${prefix || 'entry'} 必须是对象`)
+      const rawId = entry.id ?? entry.itemId
+      return {
+        id: rawId === undefined || rawId === null || rawId === '' ? undefined : id(rawId, `${prefix}id`, { required: false }),
+        title: str(entry.title, `${prefix}title`, { max: 300, required: true }),
+        url: entry.url ? url(entry.url, `${prefix}url`) : '',
+        kind: oneOf(entry.kind, `${prefix}kind`, daily.COLLECTION_KINDS),
+        status: oneOf(entry.status, `${prefix}status`, daily.CONTENT_STATUSES),
+        thumbnail: entry.thumbnail ? url(entry.thumbnail, `${prefix}thumbnail`) : null,
+        summary: str(entry.summary ?? entry.description, `${prefix}summary`, { max: 1000 }) ?? '',
+        sourceLabel: str(entry.sourceLabel ?? entry.origin, `${prefix}sourceLabel`, { max: 100 }),
+        externalUrl: entry.externalUrl ? url(entry.externalUrl, `${prefix}externalUrl`) : null,
+        tags: Array.isArray(entry.tags)
+          ? entry.tags.slice(0, 12).map((t: unknown, i: number) => str(t, `${prefix}tags[${i}]`, { max: 40 })).filter(Boolean)
+          : [],
+        meta: entry.meta && typeof entry.meta === 'object' && !Array.isArray(entry.meta)
+          ? settingsObject(entry.meta)
+          : null,
+      }
+    }
+    if (Array.isArray(body?.items)) {
+      if (body.items.length === 0) fail('items 不能为空')
+      if (body.items.length > 50) fail('单次最多保存 50 条收藏')
+      return { items: body.items.map((entry: any, i: number) => normOne(entry, `items[${i}].`)) }
+    }
+    return normOne(body)
+  },
+  'collection.remove': (body) => ({
+    id: id(body?.id ?? body?.itemId, 'id'),
+  }),
+
+  'retro.save': (body) => ({
+    key: id(body?.key, 'key'),
+    period: oneOf(body?.period, 'period', ['day', 'week', 'month'] as const) ?? 'week',
+    highlights: str(body?.highlights ?? '', 'highlights', { max: 2000 }) ?? '',
+    blockers: str(body?.blockers ?? '', 'blockers', { max: 2000 }) ?? '',
+    nextFocus: str(body?.nextFocus ?? '', 'nextFocus', { max: 2000 }) ?? '',
+  }),
 
   'interests.set': (body) => {
     if (Array.isArray(body?.interests)) {

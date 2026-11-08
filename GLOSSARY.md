@@ -33,8 +33,8 @@ A layout of a 订阅 Widget that shows one Item at a time as a stack of cards th
 _Avoid_: 轮播, carousel, slider
 
 **App**:
-The full page for one kind of data, such as the RSS reader or the task manager, that a Widget opens into.
-_Avoid_: Module, 完整页面
+A top-level full-page view for one core domain (such as 内容, 排期, or 复盘), accessible directly from top navigation or opened from a Widget on a Board.
+_Avoid_: Module, 完整页面, 子页面
 
 ## Information
 
@@ -50,43 +50,55 @@ _Avoid_: Article, post, entry
 A keyword the user cares about; Items that match one are marked and can be ranked first. Interests are shared by all 订阅 Widgets.
 _Avoid_: 标签, tag, 偏好
 
+**Collection (收藏)**:
+A saved external resource stored as lightweight metadata (title, URL, thumbnail, description, tags, and platform/media attributes) across kinds such as `github`, `x`, `web`, `image`, `music`, `video`, or `article`, without storing heavy media binaries. Built-in `Read Later` and `Bookmarks` map into this unified model.
+_Avoid_: 本地媒体库, 附件存储
+
 **Read Later**:
-The list of Items the user has set aside to read, retaining each Item's essential summary and link even after it ages out of its Source.
-_Avoid_: 收藏夹, bookmarks, favourites
+The subset of saved Items and Collections marked as pending reading or viewing, retaining each entry's essential summary, thumbnail, and link even after an Item ages out of its Source.
+_Avoid_: 临时书签
 
 ## Personal data
 
 **Task**:
-One thing the user intends to do; it lives in exactly one of Inbox, Today or Later, and may belong to a Project.
+One thing the user intends to do, scheduled at day granularity; it lives in Inbox when unscheduled, Today when scheduled for today or overdue, or Later when scheduled for a future date, and may belong to a Project.
 _Avoid_: Todo, 待办, 清单项
 
 **Inbox**:
-Where a Task lands before it has been scheduled.
+Where an unscheduled Task lands before it is assigned a calendar date.
 _Avoid_: 未分类, backlog
 
 **Today**:
-The Tasks the user has committed to doing today.
+The Tasks scheduled for today (or overdue and still open) that the user commits to doing today.
 _Avoid_: 今日重点, focus list
 
 **Later**:
-Tasks that are scheduled but not for today.
+Tasks scheduled for a future calendar date, which roll into Today when that date arrives.
 _Avoid_: Upcoming, someday
 
 **Project**:
 A body of ongoing work that Tasks belong to and whose progress is summarised on a Board.
 _Avoid_: 项目组, workspace
 
-**Note**:
-A piece of knowledge the user keeps, written directly or derived from an Item.
-_Avoid_: 知识条目, 灵感, memo
+**Note (速记)**:
+A short-form memo, fleeting inspiration, or takeaway recorded in a few lines, optionally linking out to an external long-form document (such as Feishu) or carrying an Origin.
+_Avoid_: 长文笔记, 富文本文档, wiki
 
 **Origin**:
-The Item a Task or Note was made from, kept with its Source and original link so the user can always go back to it.
+The Item or Collection entry a Task or Note was made from, kept with its Source and original link so the user can always go back to it.
 _Avoid_: 来源 (ambiguous with Source), reference
 
 **Capture**:
-The act of recording a thought in one line; it produces a Task in the Inbox, or a Note when marked as one.
+The act of recording a quick thought, Todo, or URL in one step; it produces a Task in the Inbox, a short Note (memo/inspiration), or a Collection metadata card when given a link.
 _Avoid_: 快速笔记, quick add
+
+**复盘 (Retrospective)**:
+A periodic (daily or weekly) personal review record that combines objective activity metrics (Tasks completed, Habit streaks, Focus time, Notes and Items read) with structured personal reflection and task rollover into the next period.
+_Avoid_: 审阅 (which is the background Agent Review scan), 日报, 总结报告
+
+**邮票 (Stamp)**:
+A daily badge shown on the Home hero and Schedule calendar that lights up when the user records a Note or completes a Task on that day, visualising consecutive active days.
+_Avoid_: 打卡章, badge, 热力格
 
 ## Sync and reliability
 

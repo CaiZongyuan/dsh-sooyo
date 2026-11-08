@@ -305,8 +305,8 @@ await new Promise((resolve) => setTimeout(resolve, 60))
 const service = plugin.service
 
 check('route registered', routes.length === 1)
-// 11 data/feed tools + `sooyo_aihot` (AIHOT guide & changelog) + `sooyo_update_check`.
-check('tools registered', tools.length === 13, tools.map((t) => t.name).join(', '))
+// 12 data/feed/collection tools + `sooyo_aihot` (AIHOT guide & changelog) + `sooyo_update_check`.
+check('tools registered', tools.length === 14, tools.map((t) => t.name).join(', '))
 // The fake context has no event surface, so the Context Bridge reports that it disabled
 // itself instead of failing `apply()`. That one message is expected; anything else is not.
 const unexpectedWarnings = warnings.filter((line) => !line.includes('Sooyo Context Bridge disabled'))
@@ -542,6 +542,111 @@ const focus = await call(routes, 'POST', '/sooyo/action', { name: 'focus.set', b
 check('focus.set start records a deadline', focus.body?.ok === true && focus.body?.focus?.running === true, JSON.stringify(focus.body?.focus))
 const paused = await call(routes, 'POST', '/sooyo/action', { name: 'focus.set', body: { action: 'pause' } })
 check('focus.set pause clears the deadline', paused.body?.focus?.running === false && paused.body?.focus?.deadline === null)
+
+const savedCol = await call(routes, 'POST', '/sooyo/action', {
+  name: 'collection.save',
+  body: {
+    id: 'col-gh-01',
+    title: 'woniuniuniu/dsh-media-desk',
+    url: 'https://github.com/woniuniuniu/dsh-media-desk',
+    summary: '多媒体灵感台与排期日历参考仓库',
+    tags: ['github', 'design'],
+    status: 'curated',
+    externalUrl: 'https://example.feishu.cn/docx/abc123',
+    meta: { stars: 128, language: 'JavaScript' },
+  },
+})
+check('collection.save stores lightweight metadata and infers github kind', savedCol.body?.ok === true
+  && savedCol.body?.item?.kind === 'github'
+  && savedCol.body?.item?.status === 'curated'
+  && savedCol.body?.item?.externalUrl === 'https://example.feishu.cn/docx/abc123'
+  && savedCol.body?.item?.meta?.stars === 128, JSON.stringify(savedCol.body))
+
+const batchCol = await call(routes, 'POST', '/sooyo/action', {
+  name: 'collection.save',
+  body: {
+    items: [
+      { id: 'col-x-01', title: 'X 架构推文', url: 'https://x.com/user/status/123', summary: 'Bento grid tips' },
+      { id: 'col-vid-01', title: 'B站设计分享', url: 'https://www.bilibili.com/video/BV1xx', thumbnail: 'https://example.com/v.jpg' },
+    ],
+  },
+})
+check('collection.save batch imports multiple items with auto-detected kinds', batchCol.body?.ok === true
+  && batchCol.body?.count === 2
+  && batchCol.body?.items?.[0]?.kind === 'x'
+  && batchCol.body?.items?.[1]?.kind === 'video', JSON.stringify(batchCol.body))
+
+const removedCol = await call(routes, 'POST', '/sooyo/action', {
+  name: 'collection.remove',
+  body: { id: 'col-x-01' },
+})
+check('collection.remove deletes the collection record', removedCol.body?.ok === true && removedCol.body?.removed === 'col-x-01')
+
+const capMemo = await call(routes, 'POST', '/sooyo/action', {
+  name: 'capture',
+  body: { text: '快速记录一条灵感闪念', mode: 'note', tags: ['灵感'], externalUrl: 'https://example.feishu.cn/wiki/xyz' },
+})
+check('capture mode=note creates a lightweight memo with tags and externalUrl', capMemo.body?.ok === true
+  && capMemo.body?.kind === 'note'
+  && capMemo.body?.note?.externalUrl === 'https://example.feishu.cn/wiki/xyz')
+
+const updatedMemo = await call(routes, 'POST', '/sooyo/action', {
+  name: 'note.update',
+  body: { id: capMemo.body?.note?.id, title: '首页与内容库重构灵感', status: 'curated', pinned: true },
+})
+check('note.update updates title, status, and pinned flag', updatedMemo.body?.ok === true
+  && updatedMemo.body?.note?.title === '首页与内容库重构灵感'
+  && updatedMemo.body?.note?.status === 'curated'
+  && updatedMemo.body?.note?.pinned === true, JSON.stringify(updatedMemo.body))
+
+const scheduledTask = await call(routes, 'POST', '/sooyo/action', {
+  name: 'task.add',
+  body: {
+    title: '完成排期日历拖拽联调',
+    due: '2099-12-31',
+    priority: 'high',
+    note: '对齐月视图与周视图',
+    subtasks: [{ id: 's1', title: '验证拖入日期格', done: true }, { id: 's2', title: '验证拖回 Inbox', done: false }],
+  },
+})
+check('task.add with future due date auto-assigns list=later and keeps subtasks/priority', scheduledTask.body?.ok === true
+  && scheduledTask.body?.task?.list === 'later'
+  && scheduledTask.body?.task?.priority === 'high'
+  && scheduledTask.body?.task?.subtasks?.length === 2, JSON.stringify(scheduledTask.body))
+
+const unscheduledTask = await call(routes, 'POST', '/sooyo/action', {
+  name: 'task.update',
+  body: { id: scheduledTask.body?.task?.id, due: null },
+})
+check('task.update clearing due date returns task to inbox', unscheduledTask.body?.ok === true
+  && unscheduledTask.body?.task?.due === null
+  && unscheduledTask.body?.task?.list === 'inbox', JSON.stringify(unscheduledTask.body))
+
+const savedRetro = await call(routes, 'POST', '/sooyo/action', {
+  name: 'retro.save',
+  body: {
+    key: '2026-W45',
+    period: 'week',
+    highlights: '完成了四大视图与轻量收藏库升级',
+    blockers: '部分旧卡片信息密度偏高',
+    nextFocus: '完善日常偏好批量导入工作流',
+  },
+})
+check('retro.save persists structured personal retrospective', savedRetro.body?.ok === true
+  && savedRetro.body?.retro?.key === '2026-W45'
+  && savedRetro.body?.retro?.highlights === '完成了四大视图与轻量收藏库升级', JSON.stringify(savedRetro.body))
+
+const colTool = tools.find((t) => t.name === 'sooyo_collection_save')
+const colToolRes = await colTool.execute({
+  title: '音樂收藏：坂本龙一 Merry Christmas Mr. Lawrence',
+  url: 'https://music.163.com/song?id=12345',
+  kind: 'music',
+  artist: 'Ryuichi Sakamoto',
+  duration: '04:32',
+})
+check('sooyo_collection_save agent tool saves collection metadata', colToolRes?.ok === true
+  && colToolRes?.result?.item?.kind === 'music'
+  && colToolRes?.result?.item?.meta?.artist === 'Ryuichi Sakamoto', JSON.stringify(colToolRes))
 
 const dup = await call(routes, 'POST', '/sooyo/action', {
   name: 'widget.duplicate',
